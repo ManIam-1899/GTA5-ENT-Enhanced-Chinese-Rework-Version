@@ -34,7 +34,7 @@ inline const char* ToString(GameVariant id) {
 }
 
 template <FunctionID>
-struct FunctionTraits;  // 前向声明
+struct FunctionTraits;  // forward declaration
 
 template <>
 struct FunctionTraits<FunctionID::RegisterFile> {
