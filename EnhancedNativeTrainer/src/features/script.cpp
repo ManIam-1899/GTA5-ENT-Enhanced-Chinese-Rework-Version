@@ -43,6 +43,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "../io/controller.h"
 #include "../io/config_io.h"
 #include "../rage_thread/rage_thread.h"
+#include "function_resolver.h"
 
 #pragma warning(disable : 4244 4305) // double <-> float conversions
 
@@ -2791,8 +2792,13 @@ void ScriptMain(){
 		//查找无线电跳跃和文件寄存器模式
 		SInit();
 
+		GameVariant variant = GetGameVariant();
 		const std::string name = "ENT_vehicle_previews.ytd"; 
-		std::string fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + name;
+		std::string fullPath;
+		if (variant == GameVariant::GTA5Legacy)
+			fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + name;
+		else
+			fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + name;
 		int textureID = 0;
 
 		if (does_file_exist(fullPath.c_str()))
