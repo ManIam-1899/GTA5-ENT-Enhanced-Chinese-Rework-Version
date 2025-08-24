@@ -95,10 +95,10 @@ bool no_phone, bill_no_phone = false;
 Vehicle playerVeh = -1;
 
 //跳过曲目
-static uintptr_t* g_radioStationList;
-static int* g_radioStationCount;
+static uintptr_t* g_radioStationList = nullptr;
+static int* g_radioStationCount = nullptr;
 static void(*CRadioStation__Advance)(uintptr_t This, uint32_t a2);
-static uintptr_t* g_unkRadioStationData;
+static uintptr_t* g_unkRadioStationData = nullptr;
 bool skip_track_pressed = false;
 
 // 过场动画查看器，第一人称过场动画摄像机
@@ -2970,6 +2970,10 @@ bool is_jellman_scenery_enabled(){
 
 void SkipRadioFwd1(uint32_t a1)
 {
+	if (!g_radioStationList) {
+		write_text_to_log_file("[错误] 未找到 RegisterFile 句柄！");
+		return;
+	}
 	for (int i = 0; i < *g_radioStationCount; i++)
 	{
 		uintptr_t radioStation = g_radioStationList[i];
@@ -3001,6 +3005,10 @@ static void SkipRadioFwd2Internal(uintptr_t a1, uint32_t a2)
 
 void SkipRadioFwd2(uint32_t a1)
 {
+	if (!g_unkRadioStationData) {
+		write_text_to_log_file("[错误] 未找到 RegisterFile 句柄！");
+		return;
+	}
 	uint32_t v1; // esi 寄存器
 	uintptr_t* v2; // rbx 寄存器
 	size_t v3; // rdi 寄存器
@@ -3056,13 +3064,26 @@ void SInit()
 {
 	uintptr_t address = FindPatternJACCO("\x3B\x0D\x00\x00\x00\x00\x73\x0E\x48\x8B\x05\x00\x00\x00\x00\x8B\xC9", "xx????xxxxx????xx");
 
+	if (!address) {
+		write_text_to_log_file("[错误] 加载电台列表失败！");
+		return;
+	}
+
 	g_radioStationList = *(uintptr_t**)(address + *(int*)(address + 11) + 15);
 	g_radioStationCount = (int*)(address + *(int*)(address + 2) + 6);
 
 	address = FindPatternJACCO("\x80\xB9\x00\x00\x00\x00\x00\x8B\xF2\x48\x8B\xD9\x0F\x85", "xx?????xxxxxxx");
+	if (!address) {
+		write_text_to_log_file("[错误] 加载电台清单失败！");
+		return;
+	}
 	CRadioStation__Advance = (decltype(CRadioStation__Advance))(address - 15);
 
 	address = FindPatternJACCO("\x48\x8D\x1D\x00\x00\x00\x00\xBF\x00\x00\x00\x00\x48\x83\x3B\x00", "xxx????x????xxxx");
+	if (!address) {
+		write_text_to_log_file("[错误] 无法加载电台列表！");
+		return;
+	}
 	g_unkRadioStationData = (uintptr_t*)(address + *(int*)(address + 3) + 7);
 }
 
