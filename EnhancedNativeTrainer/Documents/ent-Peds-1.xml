@@ -1,0 +1,1128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 2025.9.19 修改，已包含GTA5全部人物1093个！汉化：随梦&而飞 -->
+<peds>
+	<category name="主角 [6]">
+		<ped model="player_zero" title="迈克尔·德圣塔" />
+		<ped model="player_one" title="富兰克林·克林顿" />
+		<ped model="player_two" title="崔佛·菲利普" />
+		<ped model="p_franklin_02" title="富兰克林·克林顿 (老年)" />
+		<ped model="mp_f_freemode_01" title="线上模式女主角" />
+		<ped model="mp_m_freemode_01" title="线上模式男主角" />
+	</category>
+	<category name="动物 [42]">
+		<ped model="a_c_boar" title="野猪" />
+		<ped model="a_c_boar_02" title="野猪 (万圣节)" />
+		<ped model="a_c_cat_01" title="小猫" />
+		<ped model="a_c_chickenhawk" title="老鹰" />
+		<ped model="a_c_chimp_02" title="黑猩猩" />
+		<ped model="a_c_chimp" title="黑猩猩 (万圣节)" />
+		<ped model="a_c_chop" title="罗威纳犬-1" />
+		<ped model="a_c_chop_02" title="罗威纳犬-2" />
+		<ped model="a_c_cormorant" title="鸬鹚" />
+		<ped model="a_c_cow" title="母牛" />
+		<ped model="a_c_coyote" title="郊狼" />
+		<ped model="a_c_coyote_02" title="郊狼 (万圣节)" />
+		<ped model="a_c_crow" title="乌鸦" />
+		<ped model="a_c_deer" title="小鹿" />
+		<ped model="a_c_deer_02" title="小鹿 (万圣节)" />
+		<ped model="a_c_dolphin" title="海豚" />
+		<ped model="a_c_fish" title="小鱼" />
+		<ped model="a_c_hen" title="母鸡" />
+		<ped model="a_c_humpback" title="座头鲸" />
+		<ped model="a_c_husky" title="哈士奇" />
+		<ped model="a_c_killerwhale" title="虎鲸" />
+		<ped model="a_c_mtlion" title="美洲狮" />
+		<ped model="a_c_mtlion_02" title="美洲狮 (万圣节)" />
+		<ped model="a_c_pig" title="家猪" />
+		<ped model="a_c_pigeon" title="鸽子" />
+		<ped model="a_c_poodle" title="贵宾犬" />
+		<ped model="a_c_pug" title="哈巴狗" />
+		<ped model="a_c_pug_02" title="哈巴狗 (万圣节)" />
+		<ped model="a_c_rabbit_01" title="兔子" />
+		<ped model="a_c_rabbit_02" title="兔子 (万圣节)" />
+		<ped model="a_c_rat" title="老鼠" />
+		<ped model="a_c_retriever" title="猎犬" />
+		<ped model="a_c_rhesus" title="恒河猴" />
+		<ped model="a_c_rottweiler" title="罗威纳犬" />
+		<ped model="a_c_rottweiler_02" title="罗威纳犬 (万圣节)" />
+		<ped model="a_c_seagull" title="海鸥" />
+		<ped model="a_c_sharktiger" title="虎鲨" />
+		<ped model="a_c_stingray" title="黄貂鱼" />
+		<ped model="a_c_panther" title="黑豹" />
+		<ped model="a_c_sharkhammer" title="锤头双髻鲨" />
+		<ped model="a_c_shepherd" title="澳大利亚牧羊犬" />
+		<ped model="a_c_westy" title="西高地白梗狗" />
+	</category>
+	<category name="环境女性 [84]">
+		<ped model="a_f_m_beach_01" title="沙滩女性" />
+		<ped model="a_f_m_bevhills_01" title="比佛利山庄女性 1" />
+		<ped model="a_f_m_bevhills_02" title="比佛利山庄女性 2" />
+		<ped model="a_f_m_bodybuild_01" title="健美女性" />
+		<ped model="a_f_m_downtown_01" title="市中心女性" />
+		<ped model="a_f_m_eastsa_01" title="东圣安地列斯女性" />
+		<ped model="a_f_m_eastsa_02" title="东圣安地列斯女性 2" />
+		<ped model="a_f_m_fatbla_01" title="胖黑人女性" />
+		<ped model="a_f_m_fatcult_01" title="胖邪教女性" />
+		<ped model="a_f_m_fatwhite_01" title="胖白人女性" />
+		<ped model="a_f_m_genbiker_01" title="摩托骑手女性" />
+		<ped model="a_f_m_genstreet_01" title="普通街头年轻女性" />
+		<ped model="a_f_m_ktown_01" title="韩国女性" />
+		<ped model="a_f_m_ktown_02" title="韩国女性 2" />
+		<ped model="a_f_m_prolhost_01" title="序章主持女性" />
+		<ped model="a_f_m_salton_01" title="盐湖女性" />
+		<ped model="a_f_m_skidrow_01" title="贫民区女性" />
+		<ped model="a_f_m_soucent_01" title="南中部女性" />
+		<ped model="a_f_m_soucent_02" title="南中部女性 2" />
+		<ped model="a_f_m_soucentmc_01" title="南中部摩托俱乐部女性" />
+		<ped model="a_f_m_tourist_01" title="游客女性" />
+		<ped model="a_f_m_tramp_01" title="流浪女性" />
+		<ped model="a_f_m_trampbeac_01" title="沙滩流浪女性" />
+		<ped model="a_f_o_genstreet_01" title="普通街头老年女性" />
+		<ped model="a_f_o_indian_01" title="印度老年女性" />
+		<ped model="a_f_o_ktown_01" title="韩国老年女性" />
+		<ped model="a_f_o_salton_01" title="盐湖老年女性" />
+		<ped model="a_f_o_soucent_01" title="南中部老年女性" />
+		<ped model="a_f_o_soucent_02" title="南中部老年女性 2" />
+		<ped model="a_f_y_beach_01" title="沙滩年轻女性" />
+		<ped model="a_f_y_bevhills_01" title="比佛利山庄年轻女性 1" />
+		<ped model="a_f_y_bevhills_02" title="比佛利山庄年轻女性 2" />
+		<ped model="a_f_y_bevhills_03" title="比佛利山庄年轻女性 3" />
+		<ped model="a_f_y_bevhills_04" title="比佛利山庄年轻女性 4" />
+		<ped model="a_f_y_bevhills_05" title="比佛利山庄年轻女性 5" />
+		<ped model="a_f_m_business_02" title="商务女性 2" />
+		<ped model="a_f_y_business_01" title="年轻商务女性" />
+		<ped model="a_f_y_business_02" title="年轻商务女性 2" />
+		<ped model="a_f_y_business_03" title="年轻商务女性 3" />
+		<ped model="a_f_y_business_04" title="年轻商务女性 4" />
+		<ped model="a_f_y_carclub_01" title="汽车俱乐部女性" />
+		<ped model="a_f_y_carclub_02" title="汽车俱乐部女性 2" />
+		<ped model="a_f_y_clubcust_01" title="俱乐部顾客女性 1" />
+		<ped model="a_f_y_clubcust_02" title="俱乐部顾客女性 2" />
+		<ped model="a_f_y_clubcust_03" title="俱乐部顾客女性 3" />
+		<ped model="a_f_y_eastsa_01" title="东圣安地列斯年轻女性" />
+		<ped model="a_f_y_eastsa_02" title="东圣安地列斯年轻女性 2" />
+		<ped model="a_f_y_eastsa_03" title="东圣安地列斯年轻女性 3" />
+		<ped model="a_f_y_epsilon_01" title="埃普西隆女性" />
+		<ped model="a_f_y_femaleagent" title="女性特工" />
+		<ped model="a_f_y_fitness_01" title="健身女性" />
+		<ped model="a_f_y_fitness_02" title="健身女性 2" />
+		<ped model="a_f_y_gencaspat_01" title="休闲赌场客人" />
+		<ped model="a_f_y_genhot_01" title="普通性感年轻女性" />
+		<ped model="a_f_y_golfer_01" title="高尔夫球手年轻女性" />
+		<ped model="a_f_y_hiker_01" title="徒步旅行女性" />
+		<ped model="a_f_y_hippie_01" title="嬉皮女性" />
+		<ped model="a_f_y_hipster_01" title="潮人女性" />
+		<ped model="a_f_y_hipster_02" title="潮人女性 2" />
+		<ped model="a_f_y_hipster_03" title="潮人女性 3" />
+		<ped model="a_f_y_hipster_04" title="潮人女性 4" />
+		<ped model="a_f_y_indian_01" title="印度年轻女性" />
+		<ped model="a_f_y_juggalo_01" title="小丑团女性" />
+		<ped model="a_f_y_runner_01" title="慢跑女性" />
+		<ped model="a_f_y_rurmeth_01" title="乡村冰毒成瘾女性" />
+		<ped model="a_f_y_scdressy_01" title="时尚女性" />
+		<ped model="a_f_y_skater_01" title="滑板女性" />
+		<ped model="a_f_y_smartcaspat_01" title="正式赌场客人" />
+		<ped model="a_f_y_soucent_01" title="南中部年轻女性" />
+		<ped model="a_f_y_soucent_02" title="南中部年轻女性 2" />
+		<ped model="a_f_y_soucent_03" title="南中部年轻女性 3" />
+		<ped model="a_f_y_studioparty_01" title="工作室派对员工" />
+		<ped model="a_f_y_studioparty_02" title="工作室派对员工 2" />
+		<ped model="a_f_y_tennis_01" title="网球运动员女性" />
+		<ped model="a_f_y_topless_01" title="沙滩泳衣女性" />
+		<ped model="a_f_y_tourist_01" title="年轻游客女性" />
+		<ped model="a_f_y_tourist_02" title="年轻游客女性 2" />
+		<ped model="a_f_y_vinewood_01" title="葡萄园女性" />
+		<ped model="a_f_y_vinewood_02" title="葡萄园女性 2" />
+		<ped model="a_f_y_vinewood_03" title="葡萄园女性 3" />
+		<ped model="a_f_y_vinewood_04" title="葡萄园女性 4" />
+		<ped model="a_f_y_yoga_01" title="瑜伽女性" />
+		<ped model="a_f_y_beach_02" title="沙滩年轻女性 2" />
+		<ped model="a_f_y_clubcust_04" title="俱乐部顾客女性 4" />
+	</category>
+	<category name="环境男性 [139]">
+		<ped model="a_m_m_acult_01" title="利他主义邪教中年男性" />
+		<ped model="a_m_m_afriamer_01" title="非裔美国男性" />
+		<ped model="a_m_m_bankrobber_01" title="银行劫匪男性" />
+		<ped model="a_m_m_beach_01" title="海滩男性" />
+		<ped model="a_m_m_beach_02" title="海滩男性 2" />
+		<ped model="a_m_m_bevhills_01" title="比佛利山庄男性" />
+		<ped model="a_m_m_bevhills_02" title="比佛利山庄男性 2" />
+		<ped model="a_m_m_business_01" title="商务男性" />
+		<ped model="a_m_m_eastsa_01" title="东南圣安地列斯男性" />
+		<ped model="a_m_m_eastsa_02" title="东南圣安地列斯男性 2" />
+		<ped model="a_m_m_farmer_01" title="农民" />
+		<ped model="a_m_m_fatlatin_01" title="肥胖的拉丁裔男性" />
+		<ped model="a_m_m_genbiker_01" title="普通骑摩托的男性" />
+		<ped model="a_m_m_genfat_01" title="普通肥胖男性" />
+		<ped model="a_m_m_genfat_02" title="普通肥胖男性 2" />
+		<ped model="a_m_m_golfer_01" title="高尔夫球手男性" />
+		<ped model="a_m_m_hasjew_01" title="哈西德犹太男性" />
+		<ped model="a_m_m_hillbilly_01" title="乡巴佬男性" />
+		<ped model="a_m_m_hillbilly_02" title="乡巴佬男性 2" />
+		<ped model="a_m_m_indian_01" title="印度男性" />
+		<ped model="a_m_m_ktown_01" title="韩国男性" />
+		<ped model="a_m_m_malibu_01" title="马里布男性" />
+		<ped model="a_m_m_mexcntry_01" title="墨西哥乡村男性" />
+		<ped model="a_m_m_mexlabor_01" title="墨西哥劳工男性" />
+		<ped model="a_m_m_mlcrisis_01" title="中年危机赌场摩托男性" />
+		<ped model="a_m_m_og_boss_01" title="资深帮派老大" />
+		<ped model="a_m_m_paparazzi_01" title="狗仔队男性" />
+		<ped model="a_m_m_polynesian_01" title="波利尼西亚男性" />
+		<ped model="a_m_m_prolhost_01" title="序章主持男性" />
+		<ped model="a_m_m_rurmeth_01" title="乡村冰毒成瘾男性" />
+		<ped model="a_m_m_salton_01" title="萨尔顿男性" />
+		<ped model="a_m_m_salton_02" title="萨尔顿男性 2" />
+		<ped model="a_m_m_salton_03" title="萨尔顿男性 3" />
+		<ped model="a_m_m_salton_04" title="萨尔顿男性 4" />
+		<ped model="a_m_m_skater_01" title="滑板手男性" />
+		<ped model="a_m_m_skidrow_01" title="贫民区男性" />
+		<ped model="a_m_m_socenlat_01" title="南中部拉丁裔男性" />
+		<ped model="a_m_m_soucent_01" title="南中部男性" />
+		<ped model="a_m_m_soucent_02" title="南中部男性 2" />
+		<ped model="a_m_m_soucent_03" title="南中部男性 3" />
+		<ped model="a_m_m_soucent_04" title="南中部男性 4" />
+		<ped model="a_m_m_stlat_02" title="拉丁裔街头男性 2" />
+		<ped model="a_m_m_tennis_01" title="网球运动员男性" />
+		<ped model="a_m_m_tourist_01" title="游客男性" />
+		<ped model="a_m_m_tramp_01" title="流浪汉男性" />
+		<ped model="a_m_m_trampbeac_01" title="海滩流浪汉男性" />
+		<ped model="a_m_m_tranvest_01" title="易装癖男性" />
+		<ped model="a_m_m_tranvest_02" title="易装癖男性 2" />
+		<ped model="a_m_o_acult_01" title="利他主义邪教老年男性" />
+		<ped model="a_m_o_acult_02" title="利他主义邪教老年男性 2" />
+		<ped model="a_m_o_beach_01" title="海滩老年男性" />
+		<ped model="a_m_o_beach_02" title="海滩老年男性 2" />
+		<ped model="a_m_o_genstreet_01" title="普通街头老年男性" />
+		<ped model="a_m_o_ktown_01" title="韩国老年男性" />
+		<ped model="a_m_o_salton_01" title="萨尔顿老年男性" />
+		<ped model="a_m_o_soucent_01" title="南中部老年男性" />
+		<ped model="a_m_o_soucent_02" title="南中部老年男性 2" />
+		<ped model="a_m_o_soucent_03" title="南中部老年男性 3" />
+		<ped model="a_m_o_tramp_01" title="流浪汉老年男性" />
+		<ped model="a_m_y_acult_01" title="利他主义邪教年轻男性" />
+		<ped model="a_m_y_acult_02" title="利他主义邪教年轻男性 2" />
+		<ped model="a_m_y_beach_01" title="海滩年轻男性" />
+		<ped model="a_m_y_beach_02" title="海滩年轻男性 2" />
+		<ped model="a_m_y_beach_03" title="海滩年轻男性 3" />
+		<ped model="a_m_y_beachvesp_01" title="威斯普奇海滩男性" />
+		<ped model="a_m_y_beachvesp_02" title="威斯普奇海滩男性 2" />
+		<ped model="a_m_y_bevhills_01" title="比佛利山庄年轻男性" />
+		<ped model="a_m_y_bevhills_02" title="比佛利山庄年轻男性 2" />
+		<ped model="a_m_y_breakdance_01" title="霹雳舞者男性" />
+		<ped model="a_m_y_busicas_01" title="商务休闲男性" />
+		<ped model="a_m_y_business_01" title="商务年轻男性" />
+		<ped model="a_m_y_business_02" title="商务年轻男性 2" />
+		<ped model="a_m_y_business_03" title="商务年轻男性 3" />
+		<ped model="a_m_y_carclub_01" title="汽车俱乐部男性" />
+		<ped model="a_m_y_carclub_02" title="汽车俱乐部男性 2" />
+		<ped model="a_m_y_clubcust_01" title="俱乐部顾客男性 1" />
+		<ped model="a_m_y_clubcust_02" title="俱乐部顾客男性 2" />
+		<ped model="a_m_y_clubcust_03" title="俱乐部顾客男性 3" />
+		<ped model="a_m_y_cyclist_01" title="骑自行车的男性" />
+		<ped model="a_m_y_dhill_01" title="下坡骑自行车的男性" />
+		<ped model="a_m_y_downtown_01" title="市中心男性" />
+		<ped model="a_m_y_eastsa_01" title="东南圣安地列斯年轻男性" />
+		<ped model="a_m_y_eastsa_02" title="东南圣安地列斯年轻男性 2" />
+		<ped model="a_m_y_epsilon_01" title="伊普西龙男性" />
+		<ped model="a_m_y_epsilon_02" title="伊普西龙男性 2" />
+		<ped model="a_m_y_gay_01" title="同性恋男性" />
+		<ped model="a_m_y_gay_02" title="同性恋男性 2" />
+		<ped model="a_m_y_gencaspat_01" title="休闲赌场顾客男性" />
+		<ped model="a_m_y_genstreet_01" title="普通街头年轻男性" />
+		<ped model="a_m_y_genstreet_02" title="普通街头年轻男性 2" />
+		<ped model="a_m_y_golfer_01" title="年轻高尔夫球手男性" />
+		<ped model="a_m_y_hasjew_01" title="哈西德犹太年轻男性" />
+		<ped model="a_m_y_hiker_01" title="徒步旅行者男性" />
+		<ped model="a_m_y_hippy_01" title="嬉皮士男性" />
+		<ped model="a_m_y_hipster_01" title="时髦人士男性" />
+		<ped model="a_m_y_hipster_02" title="时髦人士男性 2" />
+		<ped model="a_m_y_hipster_03" title="时髦人士男性 3" />
+		<ped model="a_m_y_indian_01" title="印度年轻男性" />
+		<ped model="a_m_y_jetski_01" title="水上摩托骑手男性" />
+		<ped model="a_m_y_juggalo_01" title="小丑男性" />
+		<ped model="a_m_y_ktown_01" title="韩国年轻男性" />
+		<ped model="a_m_y_ktown_02" title="韩国年轻男性 2" />
+		<ped model="a_m_y_latino_01" title="拉丁裔年轻男性" />
+		<ped model="a_m_y_methhead_01" title="冰毒成瘾者" />
+		<ped model="a_m_y_mexthug_01" title="墨西哥暴徒" />
+		<ped model="a_m_y_motox_01" title="越野摩托车手" />
+		<ped model="a_m_y_motox_02" title="越野摩托车手 2" />
+		<ped model="a_m_y_musclbeac_01" title="海滩肌肉男" />
+		<ped model="a_m_y_musclbeac_02" title="海滩肌肉男 2" />
+		<ped model="a_m_y_polynesian_01" title="波利尼西亚年轻人" />
+		<ped model="a_m_y_roadcyc_01" title="公路自行车骑手" />
+		<ped model="a_m_y_runner_01" title="慢跑者男性" />
+		<ped model="a_m_y_runner_02" title="慢跑者男性 2" />
+		<ped model="a_m_y_salton_01" title="萨尔顿年轻男性" />
+		<ped model="a_m_y_skater_01" title="滑板手年轻男性" />
+		<ped model="a_m_y_skater_02" title="滑板手年轻男性 2" />
+		<ped model="a_m_y_smartcaspat_01" title="正式赌场顾客" />
+		<ped model="a_m_y_soucent_01" title="南中部年轻男性" />
+		<ped model="a_m_y_soucent_02" title="南中部年轻男性 2" />
+		<ped model="a_m_y_soucent_03" title="南中部年轻男性 3" />
+		<ped model="a_m_y_soucent_04" title="南中部年轻男性 4" />
+		<ped model="a_m_y_stbla_01" title="黑人街头男性" />
+		<ped model="a_m_y_stbla_02" title="黑人街头男性 2" />
+		<ped model="a_m_y_stlat_01" title="拉丁裔街头年轻男性" />
+		<ped model="a_m_m_studioparty_01" title="录音室派对男性" />
+		<ped model="a_m_y_studioparty_01" title="录音室派对男性 2" />
+		<ped model="a_m_y_stwhi_01" title="白人街头男性" />
+		<ped model="a_m_y_stwhi_02" title="白人街头男性 2" />
+		<ped model="a_m_y_sunbathe_01" title="日光浴者男性" />
+		<ped model="a_m_y_surfer_01" title="冲浪者男性" />
+		<ped model="a_m_y_tattoocust_01" title="纹身顾客男性" />
+		<ped model="a_m_y_vindouche_01" title="葡萄园混蛋" />
+		<ped model="a_m_y_vinewood_01" title="葡萄园男性" />
+		<ped model="a_m_y_vinewood_02" title="葡萄园男性 2" />
+		<ped model="a_m_y_vinewood_03" title="葡萄园男性 3" />
+		<ped model="a_m_y_vinewood_04" title="葡萄园男性 4" />
+		<ped model="a_m_y_yoga_01" title="瑜伽男性" />
+		<ped model="a_m_y_beach_04" title="海滩年轻男性 4" />
+		<ped model="a_m_y_clubcust_04" title="俱乐部顾客男性 4" />
+	</category>
+	<category name="过场动画 [220]">
+		<ped model="cs_amandatownley" title="阿曼达·德圣塔" />
+		<ped model="cs_andreas" title="安德烈亚斯·桑切斯" />
+		<ped model="cs_ashley" title="阿什莉·巴特勒" />
+		<ped model="cs_bankman" title="银行经理" />
+		<ped model="cs_barry" title="巴里男性" />
+		<ped model="cs_beverly" title="贝弗利·费尔顿" />
+		<ped model="cs_brad" title="布拉德" />
+		<ped model="cs_bradcadaver" title="布拉德的尸体" />
+		<ped model="cs_carbuyer" title="购车者男性" />
+		<ped model="cs_casey" title="安保凯西" />
+		<ped model="cs_chengsr" title="程伟" />
+		<ped model="cs_chrisformage" title="克里斯·福马奇" />
+		<ped model="cs_clay" title="克莱·西蒙斯 (失落者帮)" />
+		<ped model="cs_dale" title="戴尔·普利斯" />
+		<ped model="cs_davenorton" title="戴夫·诺顿" />
+		<ped model="cs_debra" title="黛布拉" />
+		<ped model="cs_denise" title="丹尼斯" />
+		<ped model="cs_devin" title="德文" />
+		<ped model="cs_dom" title="多姆·比斯利" />
+		<ped model="cs_dreyfuss" title="彼得·德雷富斯" />
+		<ped model="cs_drfriedlander" title="弗里德兰德医生" />
+		<ped model="cs_drfriedlander_02" title="弗里德兰德医生 2" />
+		<ped model="cs_fabien" title="法比安·科奇" />
+		<ped model="cs_fbisuit_01" title="联邦调查局特工" />
+		<ped model="cs_floyd" title="弗洛伊德·赫伯特" />
+		<ped model="cs_guadalope" title="瓜达洛普" />
+		<ped model="cs_gurk" title="礼服女" />
+		<ped model="cs_hunter" title="猎人" />
+		<ped model="cs_janet" title="珍妮特" />
+		<ped model="cs_jewelass" title="珠宝店助手" />
+		<ped model="cs_jimmyboston" title="吉米·波士顿" />
+		<ped model="cs_jimmydisanto" title="吉米·德圣塔" />
+		<ped model="cs_jimmydisanto2" title="吉米·德圣塔 2" />
+		<ped model="cs_joeminuteman" title="民兵乔治" />
+		<ped model="cs_johnnyklebitz" title="约翰尼·克莱比茨" />
+		<ped model="cs_josef" title="约瑟夫" />
+		<ped model="cs_josh" title="乔希亚" />
+		<ped model="cs_karen_daniels" title="凯伦·丹尼尔斯" />
+		<ped model="cs_lamardavis" title="拉玛尔·戴维斯" />
+		<ped model="cs_lamardavis_02" title="拉玛尔·戴维斯 2" />
+		<ped model="cs_lazlow" title="拉兹洛" />
+		<ped model="cs_lazlow_2" title="拉兹洛 2" />
+		<ped model="cs_lestercrest" title="莱斯特·克雷斯特" />
+		<ped model="cs_lestercrest_2" title="莱斯特·克雷斯特 2" />
+		<ped model="cs_lestercrest_3" title="莱斯特·克雷斯特 3" />
+		<ped model="cs_lifeinvad_01" title="生活入侵者男" />
+		<ped model="cs_magenta" title="玛金塔斯" />
+		<ped model="cs_manuel" title="曼努埃尔" />
+		<ped model="cs_marnie" title="玛妮·艾伦" />
+		<ped model="cs_martinmadrazo" title="马丁·马德拉佐" />
+		<ped model="cs_martinmadrazo_02" title="马丁·马德拉佐 2" />
+		<ped model="cs_maryann" title="CS 玛丽安·奎因" />
+		<ped model="cs_michelle" title="米歇尔·顿" />
+		<ped model="cs_milton" title="米尔顿·麦克洛伊" />
+		<ped model="cs_molly" title="莫莉 (女性)" />
+		<ped model="cs_movpremf_01" title="电影首映女主角" />
+		<ped model="cs_movpremmale" title="电影首映男主角" />
+		<ped model="cs_mrk" title="费迪南德·克里莫夫 (K先生)" />
+		<ped model="cs_mrs_thornhill" title="桑希尔夫人" />
+		<ped model="cs_mrsphillips" title="菲利普斯夫人" />
+		<ped model="cs_natalia" title="娜塔莉亚" />
+		<ped model="cs_nervousron" title="紧张的罗恩" />
+		<ped model="cs_nervousron_02" title="紧张的罗恩 2" />
+		<ped model="cs_nigel" title="奈杰尔顿" />
+		<ped model="cs_old_man1a" title="老年男性 1" />
+		<ped model="cs_old_man2" title="老年男性 2" />
+		<ped model="cs_omega" title="欧米茄" />
+		<ped model="cs_orleans" title="大脚怪 (猩猩)" />
+		<ped model="cs_paper" title="联合纸业人" />
+		<ped model="cs_patricia" title="帕特里夏" />
+		<ped model="cs_patricia_02" title="帕特里夏 2" />
+		<ped model="cs_priest" title="神父" />
+		<ped model="cs_prolsec_02" title="序章安保 2" />
+		<ped model="cs_russiandrunk" title="俄罗斯醉汉" />
+		<ped model="cs_siemonyetarian" title="西米恩·叶塔里安" />
+		<ped model="cs_solomon" title="所罗门·理查兹" />
+		<ped model="cs_stevehains" title="史蒂夫·海恩斯" />
+		<ped model="cs_stretch" title="斯特雷奇" />
+		<ped model="cs_tanisha" title="塔妮莎 (小富姨妈)" />
+		<ped model="cs_taocheng" title="程涛" />
+		<ped model="cs_taocheng2" title="程涛 (赌场)" />
+		<ped model="cs_taostranslator" title="程涛的翻译" />
+		<ped model="cs_taostranslator2" title="程涛的翻译 (赌场)" />
+		<ped model="cs_tenniscoach" title="网球教练" />
+		<ped model="cs_terry" title="特里克" />
+		<ped model="cs_tom" title="汤姆" />
+		<ped model="cs_tomepsilon" title="伊普西隆汤姆" />
+		<ped model="cs_tracydisanto" title="特雷西·德圣塔" />
+		<ped model="cs_wade" title="CS 韦德" />
+		<ped model="cs_zimbor" title="齐姆博尔" />
+		<ped model="csb_abigail" title="阿比盖尔·马瑟斯" />
+		<ped model="csb_agatha" title="阿加莎·贝克" />
+		<ped model="csb_agent" title="特工" />
+		<ped model="csb_alan" title="艾伦·杰罗姆" />
+		<ped model="csb_anita" title="安妮塔·门多萨" />
+		<ped model="csb_anton" title="安东·波德莱尔" />
+		<ped model="csb_ary" title="艾瑞" />
+		<ped model="csb_ary_02" title="艾瑞 2" />
+		<ped model="csb_avery" title="艾弗里·杜根" />
+		<ped model="csb_avischwartzman_02" title="艾维斯·施瓦茨曼 2" />
+		<ped model="csb_avischwartzman_03" title="艾维斯·施瓦茨曼 3" />
+		<ped model="csb_avon" title="艾冯·赫兹" />
+		<ped model="csb_ballas_leader" title="巴拉斯帮头目" />
+		<ped model="csb_ballasog" title="巴拉斯帮老大" />
+		<ped model="csb_billionaire" title="亿万富翁" />
+		<ped model="csb_bogdan" title="博格丹妮" />
+		<ped model="csb_bride" title="新娘" />
+		<ped model="csb_brucie2" title="布鲁西·基布兹" />
+		<ped model="csb_bryony" title="布莱妮哑" />
+		<ped model="csb_burgerdrug" title="汉堡店药品工人" />
+		<ped model="csb_callgirl_01" title="高级妓女 1" />
+		<ped model="csb_callgirl_02" title="高级妓女 2" />
+		<ped model="csb_car3guy1" title="修车3号 男子 1" />
+		<ped model="csb_car3guy2" title="修车3号 男子 2" />
+		<ped model="csb_celeb_01" title="角色演员" />
+		<ped model="csb_charlie_reed" title="查理·里德" />
+		<ped model="csb_chef" title="厨师" />
+		<ped model="csb_chef2" title="厨师 2" />
+		<ped model="csb_chef_03" title="厨师 3" />
+		<ped model="csb_chin_goon" title="中年大叔" />
+		<ped model="csb_cletus" title="克莱图斯" />
+		<ped model="csb_cop" title="警察" />
+		<ped model="csb_customer" title="顾客" />
+		<ped model="csb_dax" title="球迷" />
+		<ped model="csb_denise_friend" title="丹尼斯的朋友" />
+		<ped model="csb_dix" title="迪克森" />
+		<ped model="csb_djblamadon" title="DJ 黑色圣母" />
+		<ped model="csb_drugdealer" title="毒贩" />
+		<ped model="csb_englishdave" title="英格兰戴夫" />
+		<ped model="csb_englishdave_02" title="英格兰戴夫 2" />
+		<ped model="csb_fos_rep" title="FOS 的代表" />
+		<ped model="csb_g" title="杰拉尔德" />
+		<ped model="csb_georginacheng" title="乔治娜·程" />
+		<ped model="csb_golfer_a" title="高尔夫球手 A" />
+		<ped model="csb_golfer_b" title="高尔夫球手 B" />
+		<ped model="csb_groom" title="新郎" />
+		<ped model="csb_grove_str_dlr" title="格罗夫街贩毒者" />
+		<ped model="csb_gustavo" title="古斯塔沃" />
+		<ped model="csb_hao" title="亚洲人 浩" />
+		<ped model="csb_hao_02" title="亚洲人 浩 2" />
+		<ped model="csb_helmsmanpavel" title="舵手帕维尔" />
+		<ped model="csb_helmsmanpavel_02" title="舵手帕维尔 2" />
+		<ped model="csb_huang" title="黄先生" />
+		<ped model="csb_hugh" title="休·威尔士" />
+		<ped model="csb_imani" title="伊曼尼" />
+		<ped model="csb_imran" title="伊姆兰·申诺瓦" />
+		<ped model="csb_isldj_00" title="DJ 岛屿" />
+		<ped model="csb_isldj_01" title="DJ 岛屿 1" />
+		<ped model="csb_isldj_02" title="DJ 岛屿 2" />
+		<ped model="csb_isldj_03" title="DJ 岛屿 3" />
+		<ped model="csb_isldj_04" title="DJ 岛屿 4" />
+		<ped model="csb_jackhowitzer" title="杰克·霍威策" />
+		<ped model="csb_jamalamir" title="贾马尔·阿米尔" />
+		<ped model="csb_janitor" title="清洁工" />
+		<ped model="csb_jenettee" title="珍妮特" />
+		<ped model="csb_jio" title="吉奥" />
+		<ped model="csb_jio_02" title="吉奥 2" />
+		<ped model="csb_johnny_guns" title="约翰尼·枪手" />
+		<ped model="csb_jodimarshall" title="乔迪·马歇尔" />
+		<ped model="csb_juanstrickler" title="胡安·斯特里克勒" />
+		<ped model="csb_labrat" title="实验小白鼠" />
+		<ped model="csb_luchadora" title="女摔跤手 CSB" />
+		<ped model="csb_maude" title="莫德女性" />
+		<ped model="csb_maude_02" title="莫德女性 2" />
+		<ped model="csb_miguelmadrazo" title="米格尔·马德拉佐" />
+		<ped model="csb_mimi" title="咪咪女性" />
+		<ped model="csb_mjo" title="米乔安" />
+		<ped model="csb_mjo_02" title="米乔安 2" />
+		<ped model="csb_money" title="金钱人士" />
+		<ped model="csb_moodyman_02" title="穆迪曼 2" />
+		<ped model="csb_mp_agent14" title="CSB 特工 14-1" />
+		<ped model="csb_agent14_02" title="CSB 特工 14-2" />
+		<ped model="csb_mrs_r" title="拉克曼夫人" />
+		<ped model="csb_musician_00" title="音乐家" />
+		<ped model="csb_mweather" title="梅里韦瑟雇佣兵" />
+		<ped model="csb_ortega" title="奥尔特加" />
+		<ped model="csb_oscar" title="奥斯卡" />
+		<ped model="csb_oscar_02" title="奥斯卡 2" />
+		<ped model="csb_paige" title="佩奇·哈里斯" />
+		<ped model="csb_party_promo" title="派对宣传" />
+		<ped model="csb_popov" title="迪玛·波波夫" />
+		<ped model="csb_porndudes" title="色情男性" />
+		<ped model="csb_prologuedriver" title="序章司机" />
+		<ped model="csb_prolsec" title="序章保安" />
+		<ped model="csb_ramp_gang" title="家庭帮成员" />
+		<ped model="csb_ramp_hic" title="乡巴佬" />
+		<ped model="csb_ramp_hipster" title="时髦人士" />
+		<ped model="csb_ramp_marine" title="海军陆战队员" />
+		<ped model="csb_ramp_mex" title="墨西哥人" />
+		<ped model="csb_rashcosvki" title="马克西姆·拉什科夫斯基" />
+		<ped model="csb_reporter" title="记者" />
+		<ped model="csb_req_officer" title="管理人员" />
+		<ped model="csb_roccopelosi" title="罗科·佩洛西" />
+		<ped model="csb_screen_writer" title="编剧" />
+		<ped model="csb_security_a" title="保安 A" />
+		<ped model="csb_sessanta" title="塞桑塔" />
+		<ped model="csb_sol" title="所罗门" />
+		<ped model="csb_soundeng_00" title="桑德恩" />
+		<ped model="csb_sss" title="桑德恩 2" />
+		<ped model="csb_stripper_01" title="脱衣舞女" />
+		<ped model="csb_stripper_02" title="脱衣舞女 2" />
+		<ped model="csb_talcc" title="我们的故事 1" />
+		<ped model="csb_talmm" title="我们的故事 2" />
+		<ped model="csb_thornton" title="托尔顿·杜根" />
+		<ped model="csb_tomcasino" title="汤姆·康纳斯" />
+		<ped model="csb_tonya" title="托尼娅" />
+		<ped model="csb_tonyprince" title="托尼·普林斯" />
+		<ped model="csb_trafficwarden" title="交通管理员" />
+		<ped model="csb_undercover" title="卧底警察" />
+		<ped model="csb_vagos_leader" title="瓦戈斯帮头目" />
+		<ped model="csb_vagspeak" title="瓦戈斯帮发言人" />
+		<ped model="csb_vernon" title="弗农" />
+		<ped model="csb_vincent" title="文森特 (赌场)" />
+		<ped model="csb_vincent_2" title="文森特 2" />
+		<ped model="csb_vincent_4" title="文森特 4" />
+		<ped model="csb_wendy" title="温迪" />
+		<ped model="csb_yusufamir" title="优素福·阿米尔" />
+		<ped model="csb_weiss" title="CSB 韦斯" />
+		<ped model="csb_valentina" title="CSB 瓦伦蒂娜" />
+		<ped model="csb_rafdeangelis" title="拉夫·德安杰利斯" />
+	</category>
+	<category name="帮派女性 [7]">
+		<ped model="g_f_importexport_01" title="帮派女性 (进出口)" />
+		<ped model="g_f_y_ballas_01" title="巴拉斯帮女性成员" />
+		<ped model="g_f_y_families_01" title="家庭帮女性成员" />
+		<ped model="g_f_y_lost_01" title="失落摩托帮女性成员" />
+		<ped model="g_f_y_vagos_01" title="瓦戈斯女性成员" />
+		<ped model="g_f_m_undeadmage" title="亡灵法师女性" />
+		<ped model="g_f_m_fooliganz_01" title="傻瓜帮女性成员" />
+	</category>
+	<category name="帮派男性 [49]">
+		<ped model="g_m_importexport_01" title="帮派男性 (进出口)" />
+		<ped model="g_m_m_armboss_01" title="亚美尼亚老大" />
+		<ped model="g_m_m_armgoon_01" title="亚美尼亚小弟" />
+		<ped model="g_m_m_armlieut_01" title="亚美尼亚中尉" />
+		<ped model="g_m_m_casrn_01" title="赌场顾客" />
+		<ped model="g_m_m_chemwork_01" title="化工厂工人" />
+		<ped model="g_m_m_chiboss_01" title="华人帮头目" />
+		<ped model="g_m_m_chicold_01" title="老年华人小弟" />
+		<ped model="g_m_m_chigoon_01" title="中年大叔" />
+		<ped model="g_m_m_chigoon_02" title="年轻华人小弟 2" />
+		<ped model="g_m_m_fooliganz_01" title="傻瓜帮男性" />
+		<ped model="g_m_m_korboss_01" title="韩国帮头目" />
+		<ped model="g_m_m_mexboss_01" title="墨西哥老大" />
+		<ped model="g_m_m_mexboss_02" title="墨西哥老大 2" />
+		<ped model="g_m_m_prisoners_01" title="男性囚犯" />
+		<ped model="g_m_m_slasher_01" title="砍人狂男性" />
+		<ped model="g_m_y_armgoon_02" title="亚美尼亚小弟 2" />
+		<ped model="g_m_y_azteca_01" title="阿兹特克" />
+		<ped model="g_m_y_ballaeast_01" title="巴拉斯帮东部男性" />
+		<ped model="g_m_y_ballaorig_01" title="巴拉斯帮原始男性" />
+		<ped model="g_m_y_ballasout_01" title="巴拉斯帮南部男性" />
+		<ped model="g_m_y_famca_01" title="家庭帮 CA 男性" />
+		<ped model="g_m_y_famdnf_01" title="家庭帮 DNF 男性" />
+		<ped model="g_m_y_famfor_01" title="家庭帮 FOR 男性" />
+		<ped model="g_m_y_korean_01" title="韩国年轻男性" />
+		<ped model="g_m_y_korean_02" title="韩国年轻男性 2" />
+		<ped model="g_m_y_korlieut_01" title="韩国中尉" />
+		<ped model="g_m_y_lost_01" title="失落摩托帮男性" />
+		<ped model="g_m_y_lost_02" title="失落摩托帮男性 2" />
+		<ped model="g_m_y_lost_03" title="失落摩托帮男性 3" />
+		<ped model="g_m_y_mexgang_01" title="墨西哥帮成员" />
+		<ped model="g_m_y_mexgoon_01" title="墨西哥小弟" />
+		<ped model="g_m_y_mexgoon_02" title="墨西哥小弟 2" />
+		<ped model="g_m_y_mexgoon_03" title="墨西哥小弟 3" />
+		<ped model="g_m_y_pologoon_01" title="波利尼西亚小弟" />
+		<ped model="g_m_y_pologoon_02" title="波利尼西亚小弟 2" />
+		<ped model="g_m_y_salvaboss_01" title="萨尔瓦多人老大" />
+		<ped model="g_m_y_salvagoon_01" title="萨尔瓦多人小弟" />
+		<ped model="g_m_y_salvagoon_02" title="萨尔瓦多人小弟 2" />
+		<ped model="g_m_y_salvagoon_03" title="萨尔瓦多人小弟 3" />
+		<ped model="g_m_y_strpunk_01" title="街头混混" />
+		<ped model="g_m_y_strpunk_02" title="街头混混 2" />
+		<ped model="g_m_m_cartelguards_01" title="贩毒集团护卫" />
+		<ped model="g_m_m_cartelgoons_01" title="贩毒集团小弟" />
+		<ped model="g_m_m_cartelguards_02" title="贩毒集团护卫 2" />
+		<ped model="g_m_m_friedlandergoons_01" title="弗里德兰德小弟" />
+		<ped model="g_m_m_maragrande_01" title="玛拉格兰德 1" />
+		<ped model="g_m_m_genthug_01" title="普通暴徒" />
+		<ped model="g_m_m_goons_01" title="打手暴徒" />
+	</category>
+	<category name="故事模式 [250]"> 
+		<ped model="ig_abigail" title="阿比盖尔·马瑟斯" />
+		<ped model="ig_acidlabcook" title="酸实验室厨师" />
+		<ped model="ig_agatha" title="阿加莎·贝克" />
+		<ped model="ig_agent" title="特工" />
+		<ped model="ig_agent_02" title="女性特工" />
+		<ped model="ig_ahronward" title="阿伦·沃德 (赃车店)" />
+		<ped model="ig_amandatownley" title="阿曼达·德圣塔" />
+		<ped model="ig_andreas" title="安德烈亚斯·桑切斯" />
+		<ped model="ig_armsmanufac_01" title="武器制造商 1" />
+		<ped model="ig_ary" title="艾瑞" />
+		<ped model="ig_ary_02" title="艾瑞 2" />
+		<ped model="ig_ashley" title="阿什莉·巴特勒" />
+		<ped model="ig_avery" title="艾弗里·杜根" />
+		<ped model="ig_avischwartzman_02" title="艾维斯·施瓦茨曼 2" />
+		<ped model="ig_avischwartzman_03" title="艾维斯·施瓦茨曼 3" />
+		<ped model="ig_avon" title="艾冯·赫兹" />
+		<ped model="ig_ballas_leader" title="巴拉斯帮头目" />
+		<ped model="ig_ballasog" title="巴拉斯帮老大" />
+		<ped model="ig_bankman" title="银行经理" />
+		<ped model="ig_barry" title="巴里男性" />
+		<ped model="ig_benny" title="本尼" />
+		<ped model="ig_benny_02" title="本尼 2" />
+		<ped model="ig_bestmen" title="伴郎" />
+		<ped model="ig_beverly" title="贝弗利·费尔顿" />
+		<ped model="ig_billionaire" title="亿万富翁" />
+		<ped model="ig_bountytarget_01" title="悬赏目标 1" />
+		<ped model="ig_bountytarget_05" title="悬赏目标 5" />
+		<ped model="ig_bountytarget_02" title="悬赏目标 2" />
+		<ped model="ig_bountytarget_03" title="悬赏目标 3" />
+		<ped model="ig_bountytarget_04" title="悬赏目标 4" />
+		<ped model="ig_bountytarget_06" title="悬赏目标 6" />
+		<ped model="ig_brad" title="布拉德" />
+		<ped model="ig_bride" title="新娘" />
+		<ped model="ig_brucie2" title="布鲁西·基布兹" />
+		<ped model="ig_callgirl_01" title="高级妓女 1" />
+		<ped model="ig_callgirl_02" title="高级妓女 2" />
+		<ped model="ig_car3guy1" title="修车3号 男子 1" />
+		<ped model="ig_car3guy2" title="修车3号 男子 2" />
+		<ped model="ig_casey" title="安保凯西" />
+		<ped model="ig_charlie_reed" title="查理·里德 2" />
+		<ped model="ig_celeb_01" title="角色演员" />
+		<ped model="ig_chef" title="厨师" />
+		<ped model="ig_chef2" title="厨师 2" />
+		<ped model="ig_chef_03" title="厨师 3" />
+		<ped model="ig_chengsr" title="程伟" />
+		<ped model="ig_chrisformage" title="克里斯·福马奇" />
+		<ped model="ig_clay" title="克莱·西蒙 (失落者帮)" />
+		<ped model="ig_claypain" title="克莱·杰克逊 (痛苦制造者)" />
+		<ped model="ig_cletus" title="克莱图斯" />
+		<ped model="ig_dale" title="戴尔·普利斯" />
+		<ped model="ig_davenorton" title="戴夫·诺顿" />
+		<ped model="ig_dax" title="球迷" />
+		<ped model="ig_denise" title="丹尼斯" />
+		<ped model="ig_devin" title="德文" />
+		<ped model="ig_dix" title="迪克森" />
+		<ped model="ig_djblamadon" title="DJ 黑色圣母" />
+		<ped model="ig_djblamrupert" title="DJ 鲁珀特" />
+		<ped model="ig_djblamryanh" title="DJ 瑞恩 H" />
+		<ped model="ig_djblamryans" title="DJ 瑞恩" />
+		<ped model="ig_djdixmanager" title="DJ 迪克森经理" />
+		<ped model="ig_djgeneric_01" title="普通 DJ" />
+		<ped model="ig_djsolfotios" title="DJ 福蒂奥斯" />
+		<ped model="ig_djsoljakob" title="DJ 雅各布利" />
+		<ped model="ig_djsolmanager" title="所罗门经理" />
+		<ped model="ig_djsolmike" title="DJ 迈克 T" />
+		<ped model="ig_djsolrobt" title="DJ 罗布 T" />
+		<ped model="ig_djtalaurelia" title="DJ 奥雷莉娅" />
+		<ped model="ig_djtalignazio" title="DJ 伊格纳齐奥" />
+		<ped model="ig_dom" title="多姆·比斯利" />
+		<ped model="ig_dreyfuss" title="彼得·德雷富斯" />
+		<ped model="ig_drfriedlander" title="弗里德兰德医生" />
+		<ped model="ig_drfriedlander_02" title="弗里德兰德医生 2" />
+		<ped model="ig_drugdealer" title="毒贩" />
+		<ped model="ig_englishdave" title="英格兰戴夫" />
+		<ped model="ig_entourage_a" title="随行人员 A" />
+		<ped model="ig_entourage_b" title="随行人员 B" />
+		<ped model="ig_fabien" title="法比安·科奇" />
+		<ped model="ig_fbisuit_01" title="联邦调查局特工" />
+		<ped model="ig_floyd" title="弗洛伊德·赫伯特" />
+		<ped model="ig_fooliganz_01" title="傻瓜帮派 1" />
+		<ped model="ig_fooliganz_02" title="傻瓜帮派 2" />
+		<ped model="ig_g" title="杰拉尔德" />
+		<ped model="ig_georginacheng" title="乔治娜·程" />
+		<ped model="ig_golfer_a" title="高尔夫球手 A" />
+		<ped model="ig_golfer_b" title="高尔夫球手 B" />
+		<ped model="ig_groom" title="新郎" />
+		<ped model="ig_guadalope" title="瓜达洛普" />
+		<ped model="ig_gunvanseller" title="枪支车卖家" />
+		<ped model="ig_hao" title="亚洲人 浩" />
+		<ped model="ig_hao_02" title="亚洲人 浩 2" />
+		<ped model="ig_hippyleader" title="嬉皮士领导" />
+		<ped model="ig_huang" title="黄先生" />
+		<ped model="ig_hunter" title="猎人" />
+		<ped model="ig_imani" title="伊曼尼" />
+		<ped model="ig_jamalamir" title="贾马尔·阿米尔" />
+		<ped model="ig_janet" title="珍妮特" />
+		<ped model="ig_jay_norris" title="杰伊·诺里斯" />
+		<ped model="ig_jaywalker" title="杰伊·沃克" />
+		<ped model="ig_jenettee" title="珍妮特" />
+		<ped model="ig_jewelass" title="珠宝店助手" />
+		<ped model="ig_jimmyboston" title="吉米·波士顿" />
+		<ped model="ig_jimmyboston_02" title="吉米·波士顿 2" />
+		<ped model="ig_jimmydisanto" title="吉米·德圣塔" />
+		<ped model="ig_jimmydisanto2" title="吉米·德圣塔 2" />
+		<ped model="ig_jio_02" title="吉米·洛文" />
+		<ped model="ig_joeminuteman" title="民兵乔治" />
+		<ped model="ig_johnnyklebitz" title="约翰尼·克莱比茨" />
+		<ped model="ig_johnny_guns" title="约翰尼·枪手" />
+		<ped model="ig_josef" title="约瑟夫" />
+		<ped model="ig_josh" title="乔希亚" />
+		<ped model="ig_karen_daniels" title="凯伦·丹尼尔斯" />
+		<ped model="ig_kerrymcintosh" title="凯里·麦金托什" />
+		<ped model="ig_kerrymcintosh_02" title="凯里·麦金托什 2" />
+		<ped model="ig_labrat" title="实验小白鼠" />
+		<ped model="ig_lacey_jones_02" title="莱西·琼斯 2" />
+		<ped model="ig_lamardavis" title="拉玛尔·戴维斯" />
+		<ped model="ig_lamardavis_02" title="拉玛尔·戴维斯 2" />
+		<ped model="ig_lazlow" title="拉兹洛" />
+		<ped model="ig_lazlow_2" title="拉兹洛 2" />
+		<ped model="ig_lestercrest" title="莱斯特·克雷斯特" />
+		<ped model="ig_lestercrest_2" title="莱斯特·克雷斯特 2" />
+		<ped model="ig_lestercrest_3" title="莱斯特·克雷斯特 3" />
+		<ped model="ig_lifeinvad_01" title="生活入侵者男" />
+		<ped model="ig_lifeinvad_02" title="生活入侵者 2" />
+		<ped model="ig_lildee" title="小迪" />
+		<ped model="ig_luchadora" title="女摔跤手 IG" />
+		<ped model="ig_magenta" title="玛金塔斯" />
+		<ped model="ig_manuel" title="曼努埃尔" />
+		<ped model="ig_marnie" title="玛妮·艾伦" />
+		<ped model="ig_maryann" title="IG 玛丽安·奎因" />
+		<ped model="ig_maude" title="莫德女性" />
+		<ped model="ig_maudebf" title="莫德男友" />
+		<ped model="ig_mechanic_01" title="机械师 1" />
+		<ped model="ig_mechanic_02" title="机械师 2" />
+		<ped model="ig_mechanic_03" title="机械师 3" />
+		<ped model="ig_michelle" title="米歇尔·顿" />
+		<ped model="ig_milton" title="米尔顿·麦克洛伊" />
+		<ped model="ig_mimi" title="咪咪女性" />
+		<ped model="ig_musician_00" title="音乐家" />
+		<ped model="ig_molly" title="莫莉 (女性)" />
+		<ped model="ig_money" title="金钱富豪" />
+		<ped model="ig_moodyman_02" title="穆迪曼 2" />
+		<ped model="ig_mp_agent14" title="IG 特工 14-1" />
+		<ped model="ig_mrk" title="费迪南德·克里莫夫 (K先生)" />
+		<ped model="ig_mrs_thornhill" title="桑希尔夫人" />
+		<ped model="ig_mrsphillips" title="菲利普斯夫人" />
+		<ped model="ig_natalia" title="娜塔莉亚" />
+		<ped model="ig_nervousron" title="紧张的罗恩" />
+		<ped model="ig_nervousron_02" title="紧张的罗恩 2" />
+		<ped model="ig_nigel" title="奈杰尔顿" />
+		<ped model="ig_old_man1a" title="老年男性 1" />
+		<ped model="ig_old_man2" title="老年男性 2" />
+		<ped model="ig_omega" title="欧米茄" />
+		<ped model="ig_oneil" title="奥尼尔兄弟" />
+		<ped model="ig_orleans" title="大脚怪 (猩猩)" />
+		<ped model="ig_ortega" title="奥尔特加" />
+		<ped model="ig_paige" title="佩奇·哈里斯" />
+		<ped model="ig_paper" title="联合纸业人" />
+		<ped model="ig_patricia" title="帕特里夏" />
+		<ped model="ig_patricia_02" title="帕特里夏 2" />
+		<ped model="ig_party_promo" title="派对宣传" />
+		<ped model="ig_pernell_moss" title="珀内尔·莫斯" />
+		<ped model="ig_pilot_02" title="飞行员 2" />
+		<ped model="ig_popov" title="迪玛·波波夫" />
+		<ped model="ig_priest" title="神父" />
+		<ped model="ig_prolsec_02" title="序章安保 2" />
+		<ped model="ig_ramp_gang" title="家庭帮成员" />
+		<ped model="ig_ramp_hic" title="乡巴佬" />
+		<ped model="ig_ramp_hipster" title="时髦人士" />
+		<ped model="ig_ramp_mex" title="墨西哥人" />
+		<ped model="ig_rashcosvki" title="马克西姆·拉什科夫斯基" />
+		<ped model="ig_req_officer" title="查理·里德" />
+		<ped model="ig_roccopelosi" title="罗科·佩洛西" />
+		<ped model="ig_roostermccraw" title="鲁斯特·麦克劳" />
+		<ped model="ig_russiandrunk" title="俄罗斯醉汉" />
+		<ped model="ig_sacha" title="萨查·叶塔里安" />
+		<ped model="ig_screen_writer" title="编剧" />
+		<ped model="ig_security_a" title="保安 A" />
+		<ped model="ig_sessanta" title="塞桑塔" />
+		<ped model="ig_siemonyetarian" title="西米恩·叶塔里安" />
+		<ped model="ig_sol" title="所罗门" />
+		<ped model="ig_solomon" title="所罗门·理查兹" />
+		<ped model="ig_soundeng_00" title="桑德恩" />
+		<ped model="ig_stevehains" title="史蒂夫·海恩斯" />
+		<ped model="ig_stretch" title="斯特雷奇" />
+		<ped model="ig_subcrewhead" title="潜艇船员队长" />
+		<ped model="ig_talcc" title="我们的故事 1" />
+		<ped model="ig_talina" title="塔莉娜" />
+		<ped model="ig_talmm" title="我们的故事 2" />
+		<ped model="ig_tanisha" title="塔妮莎 (小富姨妈)" />
+		<ped model="ig_taocheng" title="程涛" />
+		<ped model="ig_taocheng2" title="程涛 (赌场)" />
+		<ped model="ig_taostranslator" title="程涛的翻译" />
+		<ped model="ig_taostranslator2" title="程涛的翻译 (赌场)" />
+		<ped model="ig_tenniscoach" title="网球教练" />
+		<ped model="ig_terry" title="特里克" />
+		<ped model="ig_thornton" title="托尔顿·杜根" />
+		<ped model="ig_tomcasino" title="汤姆·康纳斯" />
+		<ped model="ig_tomepsilon" title="伊普西隆汤姆" />
+		<ped model="ig_tonya" title="托尼娅" />
+		<ped model="ig_tonyprince" title="托尼·普林斯" />
+		<ped model="ig_tracydisanto" title="特雷西·德圣塔" />
+		<ped model="ig_trafficwarden" title="交通管理员" />
+		<ped model="ig_tylerdix" title="泰勒·迪克森" />
+		<ped model="ig_tylerdix_02" title="泰勒·迪克森 2" />
+		<ped model="ig_vagos_leader" title="瓦戈斯帮头目" />
+		<ped model="ig_vagspeak" title="瓦戈斯帮发言人" />
+		<ped model="ig_vernon" title="弗农" />
+		<ped model="ig_vincent" title="文森特 (赌场)" />
+		<ped model="ig_vincent_2" title="文森特 (赌场) 2" />
+		<ped model="ig_vincent_3" title="文森特 3" />
+		<ped model="ig_vincent_4" title="文森特 4" />
+		<ped model="ig_wade" title="韦德" />
+		<ped model="ig_weiss" title="韦斯" />
+		<ped model="ig_wendy" title="温迪" />
+		<ped model="ig_yusufamir" title="优素福·阿米尔" />
+		<ped model="ig_zimbor" title="齐姆博尔" />
+		<ped model="ig_malc" title="马尔克" />
+		<ped model="ig_englishdave_02" title="英格兰戴夫 2" />
+		<ped model="ig_gustavo" title="古斯塔沃" />
+		<ped model="ig_gustavo_02" title="古斯塔沃 2" />
+		<ped model="ig_helmsmanpavel" title="舵手帕维尔" />
+		<ped model="ig_helmsmanpavel_02" title="舵手帕维尔 2" />
+		<ped model="ig_isldj_00" title="DJ 岛屿" />
+		<ped model="ig_isldj_01" title="DJ 岛屿 1" />
+		<ped model="ig_isldj_02" title="DJ 岛屿 2" />
+		<ped model="ig_isldj_03" title="DJ 岛屿 3" />
+		<ped model="ig_isldj_04" title="DJ 岛屿 4" />
+		<ped model="ig_isldj_04_D_01" title="DJ 岛屿 4D" />
+		<ped model="ig_isldj_04_D_02" title="DJ 岛屿 4D2" />
+		<ped model="ig_isldj_04_E_01" title="DJ 岛屿 4E" />
+		<ped model="ig_jackie" title="杰克·霍威策" />
+		<ped model="ig_jio" title="吉奥" />
+		<ped model="ig_jodimarshall" title="乔迪·马歇尔" />
+		<ped model="ig_juanstrickler" title="胡安·斯特里克勒" />
+		<ped model="ig_kaylee" title="凯莉" />
+		<ped model="ig_miguelmadrazo" title="米格尔·马德拉佐" />
+		<ped model="ig_mjo" title="米乔安" />
+		<ped model="ig_mjo_02" title="米乔安 2" />
+		<ped model="ig_oldrichguy" title="年长的富翁" />
+		<ped model="ig_oscar_02" title="奥斯卡 2" />
+		<ped model="ig_pilot" title="飞行员" />
+		<ped model="ig_sss" title="桑德恩 2" />
+		<ped model="ig_warehouseboss" title="仓库老板" />
+		<ped model="ig_mason_duggan" title="梅森·杜根" />
+		<ped model="ig_madrazodriver_01" title="马德拉佐司机 1" />
+		<ped model="ig_martinmadrazo_02" title="马丁·马德拉佐 2" />
+		<ped model="ig_rafdeangelis" title="拉夫·德安杰利斯" />
+		<ped model="ig_valentina" title="IG 瓦伦蒂娜" />
+		<ped model="ig_agent14_02" title="IG 特工 14-2" />
+	</category>
+	<category name="线上模式 [38]">
+		<ped model="mp_f_bennymech_01" title="本尼技师 (女性)" />
+		<ped model="mp_f_boatstaff_01" title="船上工作人员女性" />
+		<ped model="mp_f_cardesign_01" title="办公室车库机械师 (女性)" />
+		<ped model="mp_f_chbar_01" title="俱乐部酒吧女性" />
+		<ped model="mp_f_cocaine_01" title="骑摩托车的可卡因女性" />
+		<ped model="mp_f_counterfeit_01" title="骑摩托车的伪钞女性" />
+		<ped model="mp_f_deadhooker" title="死去的妓女" />
+		<ped model="mp_f_execpa_01" title="执行助理女性" />
+		<ped model="mp_f_execpa_02" title="执行助理女性 2" />
+		<ped model="mp_f_forgery_01" title="骑摩托车的伪造女性" />
+		<ped model="mp_f_helistaff_01" title="直升机工作人员女性" />
+		<ped model="mp_f_meth_01" title="骑摩托车的冰毒女性" /> 
+		<ped model="mp_f_misty_01" title="米斯蒂" />
+		<ped model="mp_f_stripperlite" title="轻度脱衣舞女 (女性)" />
+		<ped model="mp_f_weed_01" title="骑摩托车的大麻女性" />
+		<ped model="mp_g_m_pros_01" title="特殊专业人士" />
+		<ped model="mp_m_avongoon" title="艾冯的小弟" />
+		<ped model="mp_m_boatstaff_01" title="船上工作人员男性" />
+		<ped model="mp_m_bogdangoon" title="博格丹的小弟" />
+		<ped model="mp_m_claude_01" title="克劳德·斯皮德" />
+		<ped model="mp_m_cocaine_01" title="骑摩托车的可卡因男性" />
+		<ped model="mp_m_counterfeit_01" title="骑摩托车的伪钞男性" />
+		<ped model="mp_m_exarmy_01" title="前军人男性" />
+		<ped model="mp_m_execpa_01" title="执行助理男性" />
+		<ped model="mp_m_famdd_01" title="家庭帮 DD 男性" />
+		<ped model="mp_m_fibsec_01" title="联邦调查局保安" />
+		<ped model="mp_m_forgery_01" title="骑摩托车的伪造男性" />
+		<ped model="mp_m_g_vagfun_01" title="瓦戈斯帮葬礼" />
+		<ped model="mp_m_marston_01" title="约翰·马斯顿" />
+		<ped model="mp_m_meth_01" title="骑摩托车的冰毒男性" />
+		<ped model="mp_m_niko_01" title="尼克·贝利克" />
+		<ped model="mp_m_securoguard_01" title="安保服务保安 (男性)" />
+		<ped model="mp_m_shopkeep_01" title="店主 (男性)" />
+		<ped model="mp_m_waremech_01" title="仓库机械师 (男性)" />
+		<ped model="mp_m_weed_01" title="骑摩托车的大麻男性" />
+		<ped model="mp_s_m_armoured_01" title="装甲车保安男性" />
+  		<ped model="mp_m_weapexp_01" title="武器专家 (男性)" />
+  		<ped model="mp_m_weapwork_01" title="武器工作者 (男性)" />
+	</category>
+	<category name="场景女性 [31]">
+		<ped model="s_f_m_autoshop_01" title="汽车维修店女性" />
+		<ped model="s_f_m_fembarber" title="理发师女性" />
+		<ped model="s_f_m_maid_01" title="女仆" />
+		<ped model="s_f_m_retailstaff_01" title="零售员工女性" />
+		<ped model="s_f_m_shop_high" title="高端 销售助理" />
+		<ped model="s_f_m_studioassist_01" title="工作室助理" />
+		<ped model="s_f_m_sweatshop_01" title="血汗工厂工人" />
+		<ped model="s_f_m_warehouse_01" title="仓库工人" />
+		<ped model="s_f_y_airhostess_01" title="空姐" />
+		<ped model="s_f_y_bartender_01" title="酒吧招待女" />
+		<ped model="s_f_y_baywatch_01" title="海滩救生员女性" />
+		<ped model="s_f_y_casino_01" title="赌场员工" />
+		<ped model="s_f_y_cop_01" title="女警察" />
+		<ped model="s_f_y_factory_01" title="工厂女工" />
+		<ped model="s_f_y_hooker_01" title="妓女 1" />
+		<ped model="s_f_y_hooker_02" title="妓女 2" />
+		<ped model="s_f_y_hooker_03" title="妓女 3" />
+		<ped model="s_f_y_migrant_01" title="移民女性" />
+		<ped model="s_f_y_movprem_01" title="电影首映女主角" />
+		<ped model="s_f_y_ranger_01" title="女护林员" />
+		<ped model="s_f_y_scrubs_01" title="医院护士服女性" />
+		<ped model="s_f_y_sheriff_01" title="女警长" />
+		<ped model="s_f_y_shop_low" title="低端 销售助理" />
+		<ped model="s_f_y_shop_mid" title="中端 销售助理" />
+		<ped model="s_f_y_stripper_01" title="脱衣舞女" />
+		<ped model="s_f_y_stripper_02" title="脱衣舞女 2" />
+		<ped model="s_f_y_stripperlite" title="轻度脱衣舞女" />
+		<ped model="s_f_y_sweatshop_01" title="年轻血汗工厂工人" />
+		<ped model="s_f_y_beachbarstaff_01" title="海滩酒吧员工" />
+		<ped model="s_f_y_clubbar_01" title="酒吧俱乐部·招待女性" />
+		<ped model="s_f_y_clubbar_02" title="酒吧俱乐部·招待女性 2" />
+	</category>
+	<category name="场景男性 [120]">
+		<ped model="s_m_m_Autoshop_03" title="汽车修理工 3" />
+		<ped model="s_m_m_ammucountry" title="军火国度乡村店员" />
+		<ped model="s_m_m_armoured_01" title="装甲运钞车保安" />
+		<ped model="s_m_m_armoured_02" title="装甲运钞车保安 2" />
+		<ped model="s_m_m_autoshop_01" title="汽车修理工" />
+		<ped model="s_m_m_autoshop_02" title="汽车修理工 2" />
+		<ped model="s_m_m_bailoffice_01" title="保释办公室员工" />
+		<ped model="s_m_m_bouncer_01" title="保镖 1" />
+		<ped model="s_m_m_ccrew_01" title="团队成员" />
+		<ped model="s_m_m_ccrew_02" title="团队成员 2" />
+		<ped model="s_m_m_ccrew_03" title="团队成员 3" />
+		<ped model="s_m_m_chemsec_01" title="化工厂保安" />
+		<ped model="s_m_m_ciasec_01" title="IAA 保安" />
+		<ped model="s_m_m_cntrybar_01" title="酒吧招待 (乡村)" />
+		<ped model="s_m_m_cop_01" title="警察男性" />
+		<ped model="s_m_m_dockwork_01" title="码头工人" />
+		<ped model="s_m_m_doctor_01" title="医生" />
+		<ped model="s_m_m_fiboffice_01" title="FIB 办公室员工" />
+		<ped model="s_m_m_fiboffice_02" title="FIB 办公室员工 2" />
+		<ped model="s_m_m_fibsec_01" title="FIB 安保" />
+		<ped model="s_m_m_gaffer_01" title="电工" />
+		<ped model="s_m_m_gardener_01" title="园丁" />
+		<ped model="s_m_m_gentransport" title="运输工人男性" />
+		<ped model="s_m_m_hairdress_01" title="理发师男性" />
+		<ped model="s_m_m_hazmatworker_01" title="危险品处理人员男性" />
+		<ped model="s_m_m_highsec_01" title="高级保安 1" />
+		<ped model="s_m_m_highsec_02" title="高级保安 2" />
+		<ped model="s_m_m_highsec_03" title="高级保安 3" />
+		<ped model="s_m_m_highsec_05" title="高级保安 5" />
+		<ped model="s_m_m_janitor" title="清洁工" />
+		<ped model="s_m_m_lathandy_01" title="拉丁裔员工男性" />
+		<ped model="s_m_m_lifeinvad_01" title="生活入侵者男性" />
+		<ped model="s_m_m_linecook" title="料理厨师" />
+		<ped model="s_m_m_lsmetro_01" title="洛圣都地铁工人（男）" />
+		<ped model="s_m_m_mariachi_01" title="墨西哥街头乐队成员" />
+		<ped model="s_m_m_marine_01" title="海军陆战队员" />
+		<ped model="s_m_m_marine_02" title="海军陆战队员 2" />
+		<ped model="s_m_m_migrant_01" title="移民男性" />
+		<ped model="s_m_m_movalien_01" title="外星人" />
+		<ped model="s_m_m_movprem_01" title="电影首映男主角" />
+		<ped model="s_m_m_movspace_01" title="电影宇航员" />
+		<ped model="s_m_m_paramedic_01" title="急救员" />
+		<ped model="s_m_m_pilot_01" title="飞行员" />
+		<ped model="s_m_m_pilot_02" title="飞行员 2" />
+		<ped model="s_m_m_postal_01" title="邮政工人男性 1" />
+		<ped model="s_m_m_postal_02" title="邮政工人男性 2" />
+		<ped model="s_m_m_prisguard_01" title="监狱看守员" />
+		<ped model="s_m_m_raceorg_01" title="比赛组织者" />
+		<ped model="s_m_m_scientist_01" title="科学家" />
+		<ped model="s_m_m_security_01" title="保安" />
+		<ped model="s_m_m_snowcop_01" title="雪地警察男性" />
+		<ped model="s_m_m_strperf_01" title="街头艺人" />
+		<ped model="s_m_m_strpreach_01" title="街头传教士" />
+		<ped model="s_m_m_strvend_01" title="街头小贩" />
+		<ped model="s_m_m_studioassist_02" title="摄影棚助理 2" />
+		<ped model="s_m_m_studioprod_01" title="摄影棚制作人员" />
+		<ped model="s_m_m_studiosoueng_02" title="摄影棚录音师 2" />
+		<ped model="s_m_m_subcrew_01" title="潜艇船员 1" />
+		<ped model="s_m_m_tattoo_01" title="纹身师男性" />
+		<ped model="s_m_m_trucker_01" title="卡车司机男性" />
+		<ped model="s_m_m_ups_01" title="UPS 快递司机" />
+		<ped model="s_m_m_ups_02" title="UPS 快递司机 2" />
+		<ped model="s_m_m_warehouse_01" title="仓库技术员" />
+		<ped model="s_m_o_busker_01" title="街头艺人" />
+		<ped model="s_m_y_airworker" title="航空工人男性" />
+		<ped model="s_m_y_ammucity_01" title="军火国度城市店员" />
+		<ped model="s_m_y_armymech_01" title="军队机械师" />
+		<ped model="s_m_y_autopsy_01" title="尸检技术员" />
+		<ped model="s_m_y_barman_01" title="酒吧男招待" />
+		<ped model="s_m_y_baywatch_01" title="海滩救生员男性" />
+		<ped model="s_m_y_blackops_01" title="黑色行动士兵 1" />
+		<ped model="s_m_y_blackops_02" title="黑色行动士兵 2" />
+		<ped model="s_m_y_blackops_03" title="黑色行动士兵 3" />
+		<ped model="s_m_y_busboy_01" title="餐馆清洁工" />
+		<ped model="s_m_y_casino_01" title="赌场员工" />
+		<ped model="s_m_y_chef_01" title="厨师" />
+		<ped model="s_m_y_clown_01" title="小丑演员" />
+		<ped model="s_m_y_clubbar_01" title="俱乐部酒吧招待男性" />
+		<ped model="s_m_y_construct_01" title="建筑工人 1" />
+		<ped model="s_m_y_construct_02" title="建筑工人 2" />
+		<ped model="s_m_y_cop_01" title="警察男性" />
+		<ped model="s_m_y_dealer_01" title="毒贩" />
+		<ped model="s_m_y_devinsec_01" title="德文的保安" />
+		<ped model="s_m_y_dockwork_01" title="码头工人" />
+		<ped model="s_m_y_doorman_01" title="门卫" />
+		<ped model="s_m_y_dwservice_01" title="DW 机场工人 1" />
+		<ped model="s_m_y_dwservice_02" title="DW 机场工人 2" />
+		<ped model="s_m_y_factory_01" title="工厂工人男性" />
+		<ped model="s_m_y_fireman_01" title="男消防员" />
+		<ped model="s_m_y_garbage" title="垃圾工人" />
+		<ped model="s_m_y_grip_01" title="摄影助理" />
+		<ped model="s_m_y_hwaycop_01" title="高速公路警察" />
+		<ped model="s_m_y_marine_01" title="年轻海军士兵 1" />
+		<ped model="s_m_y_marine_02" title="年轻海军士兵 2" />
+		<ped model="s_m_y_marine_03" title="年轻海军士兵 3" />
+		<ped model="s_m_y_mime" title="哑剧演员" />
+		<ped model="s_m_y_pestcont_01" title="杀虫工人" />
+		<ped model="s_m_y_pilot_01" title="飞行员" />
+		<ped model="s_m_y_prismuscl_01" title="囚犯 (肌肉发达)" />
+		<ped model="s_m_y_prisoner_01" title="囚犯" />
+		<ped model="s_m_y_ranger_01" title="护林员男性" />
+		<ped model="s_m_y_robber_01" title="劫匪" />
+		<ped model="s_m_y_sheriff_01" title="警长男性" />
+		<ped model="s_m_y_shop_mask" title="面具销售员" />
+		<ped model="s_m_y_strvend_01" title="年轻街头小贩" />
+		<ped model="s_m_y_swat_01" title="特警" />
+		<ped model="s_m_y_uscg_01" title="美国海岸警卫队" />
+		<ped model="s_m_y_valet_01" title="泊车员" />
+		<ped model="s_m_y_waiter_01" title="服务员" />
+		<ped model="s_m_y_waretech_01" title="仓库技术员" />
+		<ped model="s_m_y_westsec_01" title="杜根保安 1" />
+		<ped model="s_m_y_westsec_02" title="杜根保安 2" />
+		<ped model="s_m_y_winclean_01" title="窗户清洁工" />
+		<ped model="s_m_y_xmech_01" title="机械师" />
+		<ped model="s_m_y_xmech_02" title="摩托俱乐部机械师" />
+		<ped model="s_m_y_xmech_02_mp" title="摩托俱乐部机械师 MP" />
+		<ped model="s_m_m_bouncer_02" title="保镖 2" />
+		<ped model="s_m_m_drugprocess_01" title="制毒厂工人" />
+		<ped model="s_m_m_fieldworker_01" title="农场工人" />
+		<ped model="s_m_m_highsec_04" title="高级保安 4" />
+	</category>
+	<category name="剧情场景女性 [28]">
+		<ped model="u_f_y_comjane" title="简" />
+		<ped model="u_f_y_princess" title="公主" />
+		<ped model="u_f_y_mistress" title="情妇" />
+		<ped model="u_f_o_carol" title="卡罗尔" />
+		<ped model="u_f_o_eileen" title="艾琳娜" />
+		<ped model="u_f_y_beth" title="贝丝莉" />
+		<ped model="u_f_y_lauren" title="劳伦特" />
+		<ped model="u_f_y_taylor" title="泰勒克" />
+		<ped model="u_f_m_miranda" title="米兰达 1" />
+		<ped model="u_f_m_miranda_02" title="米兰达 2" />
+		<ped model="u_f_m_corpse_01" title="女性尸体" />
+		<ped model="u_f_m_drowned_01" title="女性溺亡者" />
+		<ped model="u_f_y_corpse_01" title="年轻女性尸体" />
+		<ped model="u_f_y_corpse_02" title="年轻女性尸体 2" />
+		<ped model="u_f_y_danceburl_01" title="俱乐部女舞者 (滑稽)" />
+		<ped model="u_f_y_dancelthr_01" title="俱乐部女舞者 (皮革)" />
+		<ped model="u_f_y_dancerave_01" title="俱乐部女舞者 (狂欢)" />
+		<ped model="u_f_y_hotposh_01" title="时尚高贵女性" />
+		<ped model="u_f_y_bikerchic" title="摩托车时尚女性" />
+		<ped model="u_f_y_poppymich" title="波比·米切尔" />
+		<ped model="u_f_y_poppymich_02" title="波比·米切尔 2" />
+		<ped model="u_f_o_moviestar" title="女电影明星" />
+		<ped model="u_f_y_spyactress" title="间谍女演员" />
+		<ped model="u_f_m_casinocash_01" title="赌场收银员" />
+		<ped model="u_f_m_casinoshop_01" title="赌场商店老板" />
+		<ped model="u_f_m_promourn_01" title="序幕哀悼者女性" />
+		<ped model="u_f_o_prolhost_01" title="序幕主持老年女性" />
+		<ped model="u_f_m_debbie_01" title="黛比 (阿加莎的秘书)" />
+	</category>
+	<category name="剧情场景男性 [63]">
+		<ped model="u_m_y_mani" title="曼尼" />
+		<ped model="u_m_y_chip" title="奇普" />
+		<ped model="u_m_y_ushi" title="乌希" />
+		<ped model="u_m_m_jesus_01" title="耶稣" />
+		<ped model="u_m_y_prisoner_01" title="囚犯" />
+		<ped model="u_m_m_blane" title="布莱恩" />
+		<ped model="u_m_m_curtis" title="柯蒂斯" />
+		<ped model="u_m_y_abner" title="阿布纳" />
+		<ped model="u_m_o_dean" title="迪恩特" />
+		<ped model="u_m_m_griff_01" title="格里夫" />
+		<ped model="u_m_m_vince" title="文斯特" />
+		<ped model="u_m_m_edtoh" title="埃德·托" />
+		<ped model="u_m_y_caleb" title="凯勒布" />
+		<ped model="u_m_y_justin" title="贾斯汀" />
+		<ped model="u_m_m_partytarget" title="派对目标" />
+		<ped model="u_m_m_spyactor" title="间谍演员" />
+		<ped model="u_m_m_filmdirector" title="电影导演" />
+		<ped model="u_m_y_babyd" title="肌肉男性" />
+		<ped model="u_m_m_willyfist" title="爱拳威利" />
+		<ped model="u_m_m_yulemonster" title="圣诞怪物" />
+		<ped model="u_m_o_finguru_01" title="金融大师" />
+		<ped model="u_m_y_corpse_01" title="死亡信使" />
+		<ped model="u_m_y_croupthief_01" title="赌场窃贼" />
+		<ped model="u_m_y_juggernaut_01" title="重装战士 1" />
+		<ped model="u_m_y_juggernaut_02" title="重装战士 2" />
+		<ped model="u_m_m_juggernaut_03" title="重装战士 3" />
+		<ped model="u_m_m_markfost" title="马克·福斯滕伯格" />
+		<ped model="u_m_m_rivalpap" title="竞争对手狗仔队" />
+		<ped model="u_m_o_tramp_01" title="流浪汉老年男性" />
+		<ped model="u_m_y_antonb" title="安东·波德莱尔" />
+		<ped model="u_m_m_streetart_01" title="街头艺术男性" />
+		<ped model="u_m_y_baygor" title="基夫洛姆信徒" />
+		<ped model="u_m_y_burgerdrug_01" title="汉堡店药品工人" />
+		<ped model="u_m_y_cyclist_01" title="骑自行车的男性" />
+		<ped model="u_m_o_taphillbilly" title="杰斯科·怀特 (踢踏舞·乡巴佬)" />
+		<ped model="u_m_y_danceburl_01" title="夜店男舞者 (滑稽戏风格)" />
+		<ped model="u_m_y_dancelthr_01" title="夜店男舞者 (皮革风格)" />
+		<ped model="u_m_y_dancerave_01" title="夜店男舞者 (狂欢风格)" />
+		<ped model="U_M_M_Yeti" title="野人雪怪 (猩猩)" />
+		<ped model="u_m_m_aldinapoli" title="阿尔·迪·勒斯男性" />
+		<ped model="u_m_m_glenstank_01" title="格伦-斯坦克男性" />
+		<ped model="u_m_m_bankman" title="银行经理男性" />
+		<ped model="u_m_m_bikehire_01" title="自行车租赁员" />
+		<ped model="u_m_y_fibmugger_01" title="联邦调查局抢劫犯" />
+		<ped model="u_m_m_fibarchitect" title="联邦调查局建筑师" />
+		<ped model="u_m_y_guido_01" title="圭多·泽尼塔利亚" />
+		<ped model="u_m_y_gabriel" title="加布里埃尔" />
+		<ped model="u_m_y_hippie_01" title="嬉皮士男性" />
+		<ped model="u_m_y_imporage" title="无能的愤怒" />
+		<ped model="u_m_y_tattoo_01" title="纹身艺术家" />
+		<ped model="u_m_y_militarybum" title="前军人流浪汉" />
+		<ped model="u_m_y_paparazzi" title="年轻男性狗仔队" />
+		<ped model="u_m_y_party_01" title="派对的参加者" />
+		<ped model="u_m_y_rsranger_01" title="共和党太空骑士" />
+		<ped model="u_m_y_smugmech_01" title="机库机械师" />
+		<ped model="u_m_y_staggrm_01" title="单身派对新郎" />
+		<ped model="u_m_y_sbike" title="越野摩托骑手" />
+		<ped model="u_m_y_gunvend_01" title="枪械商人" />
+		<ped model="u_m_y_pogo_01" title="猴子波哥" />
+		<ped model="u_m_y_proldriver_01" title="序章司机" />
+		<ped model="u_m_m_prolsec_01" title="序章安保" />
+		<ped model="u_m_m_promourn_01" title="序幕哀悼者男性" />
+		<ped model="u_m_m_doa_01" title="死而复生的男性" />
+	</category>
+	<category name="其他角色 [16]">
+		<ped model="ig_furry" title="毛绒装爱好者" />
+		<ped model="hc_driver" title="珠宝抢劫司机" />
+		<ped model="hc_gunman" title="珠宝抢劫枪手" />
+		<ped model="hc_hacker" title="珠宝抢劫黑客" />
+		<ped model="u_m_m_jewelsec_01" title="珠宝店保安" />
+		<ped model="u_m_m_jewelthief" title="珠宝店窃贼" />
+		<ped model="u_f_y_jewelass_01" title="珠宝店助手" />
+		<ped model="u_m_o_filmnoir" title="僵尸电影演员" />
+		<ped model="ig_zombie_dj_01" title="僵尸 DJ 1" />
+		<ped model="u_m_y_zombie_01" title="僵尸男性" />
+		<ped model="g_m_m_zombie_01" title="僵尸 1" />
+		<ped model="g_m_m_zombie_02" title="僵尸 2" />
+		<ped model="g_m_m_zombie_03" title="僵尸 3" />
+		<ped model="g_m_m_zombie_04" title="僵尸 4" />
+		<ped model="g_m_m_zombie_05" title="僵尸 5" />
+		<ped model="ig_skeleton_01" title="骷髅铠甲 1" />
+	</category>
+	<category name="人物总数 (1093个)">
+	</category>
+</peds>
+<!-- 2025.9.19 修改，已包含GTA5全部人物1093个！汉化：随梦&而飞 -->

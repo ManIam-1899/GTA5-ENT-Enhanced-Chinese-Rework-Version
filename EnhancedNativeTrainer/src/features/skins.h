@@ -86,3 +86,9 @@ bool process_custom_peds_menu();
 bool ensure_custom_peds_loaded();
 std::map<std::string, std::vector<std::pair<std::string, std::string>>> get_custom_peds_map();
 std::vector<std::string> get_custom_ped_categories();
+
+// 第二套自定义角色模型函数声明
+bool process_custom_peds2_menu();
+bool ensure_custom_peds2_loaded();
+std::map<std::string, std::vector<std::pair<std::string, std::string>>> get_custom_peds2_map();
+std::vector<std::string> get_custom_ped_categories2();

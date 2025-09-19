@@ -1020,32 +1020,38 @@ bool process_bodyguard_skins_menu(){
 	menuItems.push_back(item);
 
 	item = new MenuItem<int>();
-	item->caption = "新增角色模型";
+	item->caption = "新增角色模型 1";
 	item->value = 4;
 	item->isLeaf = false;
 	menuItems.push_back(item);
 
 	item = new MenuItem<int>();
-	item->caption = "手动输入名称";
+	item->caption = "新增角色模型 2";
 	item->value = 5;
+	item->isLeaf = false;
+	menuItems.push_back(item);
+
+	item = new MenuItem<int>();
+	item->caption = "手动输入名称";
+	item->value = 6;
 	item->isLeaf = true;
 	menuItems.push_back(item);
 
 	item = new MenuItem<int>();
 	item->caption = "修改保镖皮肤";
-	item->value = 6;
+	item->value = 7;
 	item->isLeaf = false;
 	menuItems.push_back(item);
 	
 	item = new MenuItem<int>();
 	item->caption = "修改保镖饰品";
-	item->value = 7;
+	item->value = 8;
 	item->isLeaf = false;
 	menuItems.push_back(item);
 
 	item = new MenuItem<int>();
 	item->caption = "修改保镖武器";
-	item->value = 8;
+	item->value = 9;
 	item->isLeaf = false;
 	menuItems.push_back(item);
 
@@ -1065,6 +1071,8 @@ bool onconfirm_bodyguard_skins_menu(MenuItem<int> choice){
 		case 4:
 			return process_custom_peds_bodyguard_menu();
 		case 5:
+			return process_custom_peds2_bodyguard_menu();
+		case 6:
 		{
 			keyboard_on_screen_already = true;
 			curr_message = "输入保镖模型名称: ( random 随机 random_story 随机多个 saved_bodyguards 已保存的 )"; // 生成一个保镖
@@ -1127,7 +1135,7 @@ bool onconfirm_bodyguard_skins_menu(MenuItem<int> choice){
 			}
 			return false;
 		}
-		case 6:
+		case 7:
 		{
 			std::string result_b = "";
 
@@ -1167,7 +1175,7 @@ bool onconfirm_bodyguard_skins_menu(MenuItem<int> choice){
 			}
 			return false;
 		}
-		case 7:
+		case 8:
 		{
 			std::string result_b = "";
 
@@ -1207,7 +1215,7 @@ bool onconfirm_bodyguard_skins_menu(MenuItem<int> choice){
 			}
 			return false;
 		}
-		case 8:
+		case 9:
 		{
 			if (!WEAPON::IS_PED_ARMED(PLAYER::PLAYER_PED_ID(), 7)) CONTROLS::_SET_CONTROL_NORMAL(0, 37, 1);
 			std::string result_b = "";
@@ -1298,7 +1306,7 @@ std::string get_current_model_name(){
 	}
 	else {
 		// For manual input or when lastCustomBodyguardSpawn is set
-		if (skinTypesBodyguardMenuLastConfirmed[0] == 4 && !lastCustomBodyguardPedName.empty()) {
+		if ((skinTypesBodyguardMenuLastConfirmed[0] == 4 || skinTypesBodyguardMenuLastConfirmed[0] == 5) && !lastCustomBodyguardPedName.empty()) {
 			// Custom ped mode - show title
 			value = lastCustomBodyguardPedName;
 		} else {
@@ -1325,6 +1333,9 @@ Hash get_current_model_hash(){
 			value = SKINS_ANIMALS_VALUES[skinTypesBodyguardMenuLastConfirmed[1]];
 			break;
 		case 4:
+			value = lastCustomBodyguardSpawn;
+			break;
+		case 5:
 			value = lastCustomBodyguardSpawn;
 			break;
 		default:
@@ -3108,7 +3119,7 @@ bool process_custom_peds_bodyguard_menu() {
 	
 	auto categories = get_custom_ped_categories();
 	if (categories.empty()) {
-		set_status_text("未找到角色模型分类，请检查 ent-Peds.xml");
+		set_status_text("未找到角色模型分类，请检查 ent-Peds-1.xml");
 		return false;
 	}
 	
@@ -3127,4 +3138,70 @@ bool process_custom_peds_bodyguard_menu() {
 	};
 	
 	return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类", onconfirm, NULL, NULL);
+}
+
+bool onconfirm_bodyguards_custom_peds2_category(MenuItem<std::string> choice) {
+	// Copy logic from skins.cpp for custom peds2 category selection
+	auto customPeds2 = get_custom_peds2_map();
+	auto it = customPeds2.find(choice.value);
+	if (it == customPeds2.end()) return false;
+	
+	std::vector<MenuItem<std::string>*> items;
+	for (auto& pr : it->second) {
+		MenuItem<std::string>* m = new MenuItem<std::string>();
+		m->caption = pr.second;
+		m->value = pr.first;
+		m->isLeaf = true;
+		items.push_back(m);
+	}
+	
+	static int selectedPed2 = 0;
+	auto onconfirm = [](MenuItem<std::string> choice) -> bool {
+		// 检查模型有效性并显示警告，但仍然允许选择
+		Hash hash = GAMEPLAY::GET_HASH_KEY((char*)choice.value.c_str());
+		if (!STREAMING::IS_MODEL_IN_CDIMAGE(hash) || !STREAMING::IS_MODEL_VALID(hash)) {
+			std::ostringstream ss;
+			ss << "~r~警告！~s~此模型可能无效：\n[~y~" << choice.value << "~s~]";
+			set_status_text(ss.str());
+		}
+		// 设置自定义保镖模型
+		lastCustomBodyguardSpawn = choice.value;
+		lastCustomBodyguardPedName = choice.caption;
+		skinTypesBodyguardMenuPositionMemory[1] = 5;
+		skinTypesBodyguardMenuLastConfirmed[1] = 5;
+		requireRefreshOfBodyguardMainMenu = true;
+		return true;
+	};
+	
+	return draw_generic_menu<std::string>(items, &selectedPed2, choice.value, onconfirm, NULL, NULL);
+}
+
+bool process_custom_peds2_bodyguard_menu() {
+	// Copy logic from skins.cpp process_custom_peds2_menu but adapt for bodyguards
+	if (!ensure_custom_peds2_loaded()) {
+		set_status_text("ent-Peds-2.xml 自定义角色模型读取失败!");
+		return false;
+	}
+	
+	auto categories2 = get_custom_ped_categories2();
+	if (categories2.empty()) {
+		set_status_text("未找到ent-Peds-2.xml角色模型分类，请检查 ent-Peds-2.xml");
+		return false;
+	}
+	
+	std::vector<MenuItem<std::string>*> items;
+	for (size_t i = 0; i < categories2.size(); ++i) {
+		MenuItem<std::string>* m = new MenuItem<std::string>();
+		m->caption = categories2[i];
+		m->value = categories2[i];
+		m->isLeaf = false;
+		items.push_back(m);
+	}
+	
+	static int selCat2 = 0;
+	auto onconfirm = [](MenuItem<std::string> choice) -> bool {
+		return onconfirm_bodyguards_custom_peds2_category(choice);
+	};
+	
+	return draw_generic_menu<std::string>(items, &selCat2, "第二套角色模型分类", onconfirm, NULL, NULL);
 }

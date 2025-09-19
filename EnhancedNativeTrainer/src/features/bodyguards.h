@@ -38,6 +38,10 @@ bool process_custom_peds_bodyguard_menu();
 
 bool onconfirm_bodyguards_custom_peds_category(MenuItem<std::string> choice);
 
+bool process_custom_peds2_bodyguard_menu();
+
+bool onconfirm_bodyguards_custom_peds2_category(MenuItem<std::string> choice);
+
 bool process_bodyguard_weapons_menu();
 
 bool process_bod_skinchanger_detail_menu();
