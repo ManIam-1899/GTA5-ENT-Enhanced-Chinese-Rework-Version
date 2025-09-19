@@ -3137,7 +3137,7 @@ bool process_custom_peds_bodyguard_menu() {
 		return onconfirm_bodyguards_custom_peds_category(choice);
 	};
 	
-	return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类", onconfirm, NULL, NULL);
+	return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类 1", onconfirm, NULL, NULL);
 }
 
 bool onconfirm_bodyguards_custom_peds2_category(MenuItem<std::string> choice) {
@@ -3203,5 +3203,5 @@ bool process_custom_peds2_bodyguard_menu() {
 		return onconfirm_bodyguards_custom_peds2_category(choice);
 	};
 	
-	return draw_generic_menu<std::string>(items, &selCat2, "第二套角色模型分类", onconfirm, NULL, NULL);
+	return draw_generic_menu<std::string>(items, &selCat2, "新增角色模型分类 2", onconfirm, NULL, NULL);
 }
