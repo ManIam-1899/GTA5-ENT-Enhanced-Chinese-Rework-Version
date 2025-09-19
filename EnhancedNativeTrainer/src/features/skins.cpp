@@ -81,6 +81,11 @@ static std::map<std::string, std::vector<std::pair<std::string, std::string>>> g
 static std::vector<std::string> g_CustomPedCategories;
 static FILETIME g_LastPedsXmlModifyTime = {0};
 
+// ent-Peds-2.xml文件的数据存储变量
+static std::map<std::string, std::vector<std::pair<std::string, std::string>>> g_CustomPeds2; // 分类 -> [(model,title)]
+static std::vector<std::string> g_CustomPedCategories2;
+static FILETIME g_LastPedsXml2ModifyTime = {0};
+
 // 获取模组目录的辅助函数
 static std::string get_mod_directory() {
     char buffer[MAX_PATH];
@@ -97,18 +102,26 @@ static std::string get_mod_directory() {
 static std::string g_ModBaseDir = get_mod_directory();
 static std::string g_CustomPedsRoot = g_ModBaseDir + "Enhanced Native Trainer";
 static std::string g_CustomPedsDir = g_ModBaseDir + "Enhanced Native Trainer\\Peds";
-static std::string g_CustomPedsXml = g_ModBaseDir + "Enhanced Native Trainer\\Peds\\ent-Peds.xml";
+static std::string g_CustomPedsXml = g_ModBaseDir + "Enhanced Native Trainer\\Peds\\ent-Peds-1.xml";
+
+// ent-Peds-2.xml文件路径定义
+static std::string g_CustomPedsXml2 = g_ModBaseDir + "Enhanced Native Trainer\\Peds\\ent-Peds-2.xml";
 
 // 为了与原代码兼容，保留const char*常量
 static const char* CUSTOM_PEDS_ROOT = "Enhanced Native Trainer";
 static const char* CUSTOM_PEDS_DIR = "Enhanced Native Trainer\\Peds";
-static const char* CUSTOM_PEDS_XML = "Enhanced Native Trainer\\Peds\\ent-Peds.xml";
+static const char* CUSTOM_PEDS_XML = "Enhanced Native Trainer\\Peds\\ent-Peds-1.xml";
+static const char* CUSTOM_PEDS_XML2 = "Enhanced Native Trainer\\Peds\\ent-Peds-2.xml";
 
 // 前置声明
 static bool load_custom_peds_from_xml(const char* xmlPath);
 static bool is_peds_xml_modified(const char* xmlPath);
 static bool create_sample_peds_xml(const char* xmlPath);
 static bool ensure_dir_tree(const std::string& fullPath);
+
+// ent-Peds-2.xml文件的前置声明
+static bool load_custom_peds2_from_xml(const char* xmlPath);
+static bool is_peds_xml2_modified(const char* xmlPath);
 
 // 新增: BSTR -> UTF-8 转换，避免 ANSI 代码页丢失中文
 static std::string bstr_to_utf8(BSTR bs){
@@ -390,7 +403,110 @@ static bool load_custom_peds_from_xml(const char* xmlPath){
         totalModels += category.second.size();
     }
     
-    infoMsg << "已加载 " << g_CustomPedCategories.size() << " 个分类, " 
+    infoMsg << "已加载 ent-Peds-1.xml\n" << g_CustomPedCategories.size() << " 个分类, " 
+            << totalModels << " 个模型";
+    set_status_text(infoMsg.str().c_str());
+    
+    return true;
+}
+
+/*** 检查ent-Peds-2.xml文件是否被修改 ***/
+static bool is_peds_xml2_modified(const char* xmlPath){
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(xmlPath, &fd);
+    if(h == INVALID_HANDLE_VALUE) return false;
+    bool modified = CompareFileTime(&fd.ftLastWriteTime, &g_LastPedsXml2ModifyTime) != 0;
+    FindClose(h);
+    return modified;
+}
+
+/*** 读取ent-Peds-2.xml ***/
+static bool load_custom_peds2_from_xml(const char* xmlPath){
+    g_CustomPeds2.clear();
+    g_CustomPedCategories2.clear();
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(xmlPath, &fd);
+    if(h == INVALID_HANDLE_VALUE) {
+        set_status_text("找不到 ent-Peds-2.xml 文件");
+        return false;
+    }
+    g_LastPedsXml2ModifyTime = fd.ftLastWriteTime;
+    FindClose(h);
+
+    MSXML2::IXMLDOMDocumentPtr doc;
+    HRESULT hr = doc.CreateInstance(__uuidof(MSXML2::DOMDocument60));
+    if(FAILED(hr)) {
+        set_status_text("创建 ent-Peds-2.xml 解析器失败");
+        return false;
+    }
+    doc->put_async(VARIANT_FALSE);
+    if(!doc->load(_variant_t(xmlPath))) {
+        set_status_text("ent-Peds-2.xml 加载失败，可能格式不正确");
+        return false;
+    }
+
+    MSXML2::IXMLDOMNodeListPtr catNodes = doc->selectNodes(L"/peds/category");
+    long catCount = 0;
+    if(catNodes) catNodes->get_length(&catCount);
+
+    for(long i=0;i<catCount;i++){
+        MSXML2::IXMLDOMNodePtr catNode;
+        catNodes->get_item(i,&catNode);
+        if(!catNode) continue;
+        MSXML2::IXMLDOMNamedNodeMapPtr attrs;
+        catNode->get_attributes(&attrs);
+        std::string catName = "未命名分类";
+        if(attrs){
+            MSXML2::IXMLDOMNodePtr nameAttr = attrs->getNamedItem(L"name");
+            if(nameAttr){
+                _variant_t v;
+                nameAttr->get_nodeValue(&v);
+                if(v.vt==VT_BSTR) catName = bstr_to_utf8(v.bstrVal);
+            }
+        }
+        g_CustomPedCategories2.push_back(catName);
+
+        MSXML2::IXMLDOMNodeListPtr pedNodes = catNode->selectNodes(L"./ped");
+        long pedCount = 0;
+        if(pedNodes) pedNodes->get_length(&pedCount);
+        std::vector<std::pair<std::string,std::string>> list;
+        for(long j=0;j<pedCount;j++){
+            MSXML2::IXMLDOMNodePtr pedNode;
+            pedNodes->get_item(j,&pedNode);
+            if(!pedNode) continue;
+            MSXML2::IXMLDOMNamedNodeMapPtr pattrs;
+            pedNode->get_attributes(&pattrs);
+            std::string model, title;
+            if(pattrs){
+                auto getAttr=[&](const wchar_t* n)->std::string{
+                    MSXML2::IXMLDOMNodePtr a = pattrs->getNamedItem(n);
+                    if(!a) return "";
+                    _variant_t v;
+                    a->get_nodeValue(&v);
+                    if(v.vt==VT_BSTR) return bstr_to_utf8(v.bstrVal);
+                    return "";
+                };
+                model = getAttr(L"model");
+                title = getAttr(L"title");
+            }
+            if(model.empty()) continue;
+            if(title.empty()) title = model;
+            list.emplace_back(model,title);
+        }
+        g_CustomPeds2[catName] = list;
+    }
+    
+    // 添加状态信息
+    std::stringstream infoMsg;
+    
+    // 计算所有分类中的模型总数
+    int totalModels = 0;
+    for (const auto& category : g_CustomPeds2) {
+        totalModels += category.second.size();
+    }
+    
+    infoMsg << "已加载 ent-Peds-2.xml\n" << g_CustomPedCategories2.size() << " 个分类, " 
             << totalModels << " 个模型";
     set_status_text(infoMsg.str().c_str());
     
@@ -427,7 +543,7 @@ bool ensure_custom_peds_loaded(){
         
         // 加载新创建的文件
         if(!load_custom_peds_from_xml(CUSTOM_PEDS_XML)){
-            set_status_text("首次加载 ent-Peds.xml 失败");
+            set_status_text("首次加载 ent-Peds-1.xml 失败");
             return false;
         }
         return true;
@@ -436,7 +552,53 @@ bool ensure_custom_peds_loaded(){
     // 文件存在：如首次缓存为空或文件有更新则重载
     if(g_CustomPedCategories.empty() || is_peds_xml_modified(CUSTOM_PEDS_XML)){
         if(!load_custom_peds_from_xml(CUSTOM_PEDS_XML)){
-            set_status_text("读取 ent-Peds.xml 失败");
+            set_status_text("读取 ent-Peds-1.xml 失败");
+            return false;
+        }
+    }
+    return true;
+}
+
+/*** ent-Peds-2.xml文件的加载函数 ***/
+bool ensure_custom_peds2_loaded(){
+    // 首先确保根目录存在
+    if (!ensure_dir_tree(CUSTOM_PEDS_ROOT)) {
+        set_status_text("创建主目录失败");
+        return false;
+    }
+    
+    // 然后确保Peds子目录存在
+    if (!ensure_dir_tree(CUSTOM_PEDS_DIR)) {
+        set_status_text("创建 Peds 目录失败");
+        return false;
+    }
+    
+    // 检查ent-Peds-2.xml文件是否存在
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(CUSTOM_PEDS_XML2, &fd);
+    bool needCreate = (h == INVALID_HANDLE_VALUE);
+    if(!needCreate){
+        FindClose(h);
+    }
+    
+    if(needCreate){
+        // 创建示例XML文件
+        if(!create_sample_peds_xml(CUSTOM_PEDS_XML2)){
+            return false;
+        }
+        
+        // 加载新创建的文件
+        if(!load_custom_peds2_from_xml(CUSTOM_PEDS_XML2)){
+            set_status_text("首次加载 ent-Peds-2.xml 失败");
+            return false;
+        }
+        return true;
+    }
+
+    // 文件存在：如首次缓存为空或文件有更新则重载
+    if(g_CustomPedCategories2.empty() || is_peds_xml2_modified(CUSTOM_PEDS_XML2)){
+        if(!load_custom_peds2_from_xml(CUSTOM_PEDS_XML2)){
+            set_status_text("读取 ent-Peds-2.xml 失败");
             return false;
         }
     }
@@ -477,7 +639,7 @@ bool process_custom_peds_menu(){
     
     // 如果没有分类，显示提示信息
     if (g_CustomPedCategories.empty()) {
-        set_status_text("未找到角色模型分类，请检查 ent-Peds.xml");
+        set_status_text("未找到角色模型分类，请检查 ent-Peds-1.xml");
         return false;
     }
     
@@ -494,7 +656,60 @@ bool process_custom_peds_menu(){
         process_custom_peds_category_menu(choice.value);
         return false;
     };
-    return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类", onconfirm, NULL, NULL);
+    return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类 1", onconfirm, NULL, NULL);
+}
+
+static bool process_custom_peds2_category_menu(const std::string& category){
+    auto it = g_CustomPeds2.find(category);
+    if(it == g_CustomPeds2.end()) return false;
+    std::vector<MenuItem<std::string>*> items;
+    int pos = 0;
+    for(auto &pr : it->second){
+        MenuItem<std::string>* m = new MenuItem<std::string>();
+        m->caption = pr.second;
+        m->value = pr.first;
+        m->isLeaf = true;
+        items.push_back(m);
+    }
+    static int selectedPed2 = 0;
+    auto onconfirm = [](MenuItem<std::string> choice)->bool{
+        bool result = applyChosenSkin(choice.value);
+        if (!result) {
+            std::stringstream ss;
+            ss << "~r~错误！~s~找不到此模型：\n[~y~" << choice.value << "~s~]";
+            set_status_text(ss.str());
+        }
+        return false;
+    };
+    return draw_generic_menu<std::string>(items, &selectedPed2, category, onconfirm, NULL, NULL);
+}
+
+bool process_custom_peds2_menu(){
+    if(!ensure_custom_peds2_loaded()){
+        set_status_text("ent-Peds-2.xml 自定义角色模型读取失败!");
+        return false;
+    }
+    
+    // 如果没有分类，显示提示信息
+    if (g_CustomPedCategories2.empty()) {
+        set_status_text("未找到ent-Peds-2.xml角色模型分类，请检查 ent-Peds-2.xml");
+        return false;
+    }
+    
+    std::vector<MenuItem<std::string>*> items;
+    for(size_t i=0;i<g_CustomPedCategories2.size();++i){
+        MenuItem<std::string>* m = new MenuItem<std::string>();
+        m->caption = g_CustomPedCategories2[i];
+        m->value = g_CustomPedCategories2[i];
+        m->isLeaf = false;
+        items.push_back(m);
+    }
+    static int selCat2 = 0;
+    auto onconfirm = [](MenuItem<std::string> choice)->bool{
+        process_custom_peds2_category_menu(choice.value);
+        return false;
+    };
+    return draw_generic_menu<std::string>(items, &selCat2, "新增角色模型分类 2", onconfirm, NULL, NULL);
 }
 
 // Export functions for bodyguards module
@@ -504,6 +719,14 @@ std::map<std::string, std::vector<std::pair<std::string, std::string>>> get_cust
 
 std::vector<std::string> get_custom_ped_categories() {
     return g_CustomPedCategories;
+}
+
+std::map<std::string, std::vector<std::pair<std::string, std::string>>> get_custom_peds2_map() {
+    return g_CustomPeds2;
+}
+
+std::vector<std::string> get_custom_ped_categories2() {
+    return g_CustomPedCategories2;
 }
 
 /***
@@ -1195,37 +1418,40 @@ bool onconfirm_skinchanger_menu(MenuItem<int> choice)
 		case 0:
 			process_savedskin_menu();
 			break;
-		case 1: // 新增角色模型 (自定义 XML)
+		case 1: // 新增角色模型 1 (自定义 XML1)
 			process_custom_peds_menu();
 			break;
-		case 2: // 更换皮肤
+		case 2: // 新增角色模型 2 (自定义 XML2)
+			process_custom_peds2_menu();
+			break;
+		case 3: // 更换皮肤
 			process_skinchanger_category_menu();
 			break;
-		case 3: // 修改当前皮肤
+		case 4: // 修改当前皮肤
 			process_skinchanger_detail_menu();
 			break;
-		case 4: // 修改当前饰品
+		case 5: // 修改当前饰品
 			process_prop_menu();
 			break;
-		case 5: // 重置当前皮肤
+		case 6: // 重置当前皮肤
 			PED::SET_PED_DEFAULT_COMPONENT_VARIATION(playerPed);
 			set_status_text("已重置为默认皮肤！");
 			break;
-		case 6: // 删除当前饰品
+		case 7: // 删除当前饰品
 			PED::CLEAR_ALL_PED_PROPS(playerPed);
 			clear_props_m = -1;
 			ped_prop_idx = -1;
 			break;
-		case 7: // 随机外观皮肤
+		case 8: // 随机外观皮肤
 			PED::CLEAR_ALL_PED_PROPS(playerPed);
 			PED::SET_PED_RANDOM_COMPONENT_VARIATION(playerPed, true);
 			PED::SET_PED_RANDOM_PROPS(playerPed);
 			break;
-		case 8: // 随机头部饰品
+		case 9: // 随机头部饰品
 			PED::CLEAR_ALL_PED_PROPS(playerPed);
 			PED::SET_PED_RANDOM_PROPS(playerPed);
 			break;
-		case 9: // 玩家佩戴头盔
+		case 10: // 玩家佩戴头盔
 			if (helmet_on == false) {
 				Hash model = -1;
 				if (PED::GET_PED_TYPE(playerPed) == 0) model = GAMEPLAY::GET_HASH_KEY("player_zero");
@@ -1300,7 +1526,14 @@ bool process_skinchanger_menu()
 
     // 新增：自定义角色模型
     item = new MenuItem<int>();
-    item->caption = "新增角色模型";
+    item->caption = "新增角色模型 1";
+    item->value = i++;
+    item->isLeaf = false;
+    menuItems.push_back(item);
+
+    // 新增：第二套自定义角色模型
+    item = new MenuItem<int>();
+    item->caption = "新增角色模型 2";
     item->value = i++;
     item->isLeaf = false;
     menuItems.push_back(item);
