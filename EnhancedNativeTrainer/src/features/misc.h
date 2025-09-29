@@ -171,26 +171,53 @@ const int MENU_ITEM_TOP_OFFSET_DEFAULT_INDEX = 0;
 extern int MenuItemTopOffsetIndex;
 extern bool MenuItemTopOffsetChanged;
 
-// 预览图左右判断依据 - 默认 500.0f
+// 车辆预览图左右判断依据 - 默认 500.0f
 const std::vector<std::string> MISC_PREVIEW_POSITION_THRESHOLD_CAPTIONS{ "默认", "200", "300", "400", "450", "550", "600", "650", "700", "750", "800", "850", "900" };
 const float MISC_PREVIEW_POSITION_THRESHOLD_VALUES[] = { 500.0f, 200.0f, 300.0f, 400.0f, 450.0f, 550.0f, 600.0f, 650.0f, 700.0f, 750.0f, 800.0f, 850.0f, 900.0f };
 const int PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX = 0;
 extern int PreviewPositionThresholdIndex;
 extern bool PreviewPositionThresholdChanged;
 
-// 预览图分辨率适配值 - 默认 1920.0f
+// 车辆预览图分辨率适配值 - 默认 1920.0f
 const std::vector<std::string> MISC_PREVIEW_RESOLUTION_SCALE_CAPTIONS{ "默认 (1080P)", "2560 (2k)", "3840 (4K)", "1760", "1680", "1600", "1440", "1366", "1280", "2816", "3072", "3200", "3328",  };
 const float MISC_PREVIEW_RESOLUTION_SCALE_VALUES[] = { 1920.0f, 2560.0f, 3840.0f, 1760.0f, 1680.0f, 1600.0f, 1440.0f, 1366.0f, 1280.0f, 2816.0f, 3072.0f, 3200.0f, 3328.0f };
 const int PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX = 0;
 extern int PreviewResolutionScaleIndex;
 extern bool PreviewResolutionScaleChanged;
 
-// 预览图间距 - 默认 8.0f
+// 车辆预览图间距 - 默认 8.0f
 const std::vector<std::string> MISC_PREVIEW_SPACING_CAPTIONS{ "默认", "0", "1", "2", "3", "4", "5", "6", "7", "9", "10", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "50" };
 const float MISC_PREVIEW_SPACING_VALUES[] = { 8.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 9.0f, 10.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f, 41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 50.0f };
 const int PREVIEW_SPACING_DEFAULT_INDEX = 0;
 extern int PreviewSpacingIndex;
 extern bool PreviewSpacingChanged;
+
+// 人物预览图左右判断依据 - 默认 500.0f
+const std::vector<std::string> MISC_PED_PREVIEW_POSITION_THRESHOLD_CAPTIONS{ "默认", "200", "300", "400", "450", "550", "600", "650", "700", "750", "800", "850", "900" };
+const float MISC_PED_PREVIEW_POSITION_THRESHOLD_VALUES[] = { 500.0f, 200.0f, 300.0f, 400.0f, 450.0f, 550.0f, 600.0f, 650.0f, 700.0f, 750.0f, 800.0f, 850.0f, 900.0f };
+const int PED_PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX = 0;
+extern int PedPreviewPositionThresholdIndex;
+extern bool PedPreviewPositionThresholdChanged;
+extern float pedPreviewPositionThreshold;
+
+// 人物预览图分辨率适配值 - 默认 1920.0f
+const std::vector<std::string> MISC_PED_PREVIEW_RESOLUTION_SCALE_CAPTIONS{ "默认 (1080P)", "2560 (2k)", "3840 (4K)", "1760", "1680", "1600", "1440", "1366", "1280", "2816", "3072", "3200", "3328",  };
+const float MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[] = { 1920.0f, 2560.0f, 3840.0f, 1760.0f, 1680.0f, 1600.0f, 1440.0f, 1366.0f, 1280.0f, 2816.0f, 3072.0f, 3200.0f, 3328.0f };
+const int PED_PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX = 0;
+extern int PedPreviewResolutionScaleIndex;
+extern bool PedPreviewResolutionScaleChanged;
+extern float pedPreviewResolutionScale;
+
+// 人物预览图间距 - 默认 8.0f
+const std::vector<std::string> MISC_PED_PREVIEW_SPACING_CAPTIONS{ "默认", "0", "1", "2", "3", "4.5", "6", "7", "8", "9", "10.5", "12", "13.5", "15", "16.5", "18", "19.5", "21", "22.5", "24", "25.5", "27", "28.5", "30", "31.5", "33", "34.5", "36", "37.5", "39", "40.5", "42", "43.5", "45", "46.5", "48", "49.5", "51", "52.5", "54", "55.5", "57", "58.5", "60", "61.5", "63", "66", "70" };
+const float MISC_PED_PREVIEW_SPACING_VALUES[] = { 8.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.5f, 6.0f, 7.0f, 8.0f, 9.0f, 10.5f, 12.0f, 13.5f, 15.0f, 16.5f, 18.0f, 19.5f, 21.0f, 22.5f, 24.0f, 25.5f, 27.0f, 28.5f, 30.0f, 31.5f, 33.0f, 34.5f, 36.0f, 37.5f, 39.0f, 40.5f, 42.0f, 43.5f, 45.0f, 46.5f, 48.0f, 49.5f, 51.0f, 52.5f, 54.0f, 55.5f, 57.0f, 58.5f, 60.0f, 61.5f, 63.0f, 66.0f, 70.0f };
+const int PED_PREVIEW_SPACING_DEFAULT_INDEX = 0;
+extern int PedPreviewSpacingIndex;
+extern bool PedPreviewSpacingChanged;
+extern float pedPreviewSpacing;
+
+// 显示人物预览图开关(复选框方式显示)
+extern bool featureShowPedPreviews;
 
 void process_misc_menu();
 
@@ -237,15 +264,27 @@ void onchange_misc_preview_position_threshold_index(int value, SelectFromListMen
 void onchange_misc_preview_resolution_scale_index(int value, SelectFromListMenuItem* source);
 void onchange_misc_preview_spacing_index(int value, SelectFromListMenuItem* source);
 
+// 人物预览图设置：回调函数原型（用于函数指针传递，需要提前声明）
+void onchange_misc_ped_preview_position_threshold_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_ped_preview_resolution_scale_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_ped_preview_spacing_index(int value, SelectFromListMenuItem* source);
+
 void process_misc_font_settings_menu();
 
 void process_misc_menu_layout_settings_menu();
 
 void process_misc_vehicle_preview_settings_menu();
 
+void process_misc_ped_preview_settings_menu();
+
+// 合并后的预览图设置菜单（车辆 + 人物）
+void process_misc_preview_settings_menu();
+
 void process_misc_menu_key_settings_menu();
 
 bool is_vehicle_preview_enabled();
+
+bool is_ped_preview_enabled();
 
 bool is_hud_hidden();
 

@@ -92,3 +92,24 @@ bool process_custom_peds2_menu();
 bool ensure_custom_peds2_loaded();
 std::map<std::string, std::vector<std::pair<std::string, std::string>>> get_custom_peds2_map();
 std::vector<std::string> get_custom_ped_categories2();
+
+// 人物预览图相关结构体和函数声明
+struct PedImage {
+	Hash modelName;
+	char* dict;
+	char* imgName;
+	int localID;
+};
+
+static std::vector<PedImage> ALL_PED_IMAGES;
+
+// 自定义人物预览图（外置 XML）缓存
+static std::map<Hash, std::pair<std::string, std::string>> g_CustomPedImages; // 模型哈希 -> (字典名, 图片名)
+static FILETIME g_LastPedPreviewXmlModifyTime = {0}; // 预览图XML文件最后修改时间
+
+// 人物预览图相关函数声明
+bool is_ped_preview_enabled();
+bool create_sample_ped_previews_xml(const char* xmlPath);
+bool load_custom_ped_previews_from_xml(const char* xmlPath);
+bool ensure_custom_ped_previews_loaded();
+MenuItemImage* ped_image_preview_finder(MenuItem<std::string> choice);

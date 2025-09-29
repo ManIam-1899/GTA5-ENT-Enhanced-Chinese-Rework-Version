@@ -139,6 +139,7 @@ bool featureHidePlayerInfo = false;
 bool featureShowFPS = false;
 bool featurenowheelblurslow = false;
 bool featureShowVehiclePreviews = true;
+bool featureShowPedPreviews = true;
 bool featureShowStatusMessage = true;
 bool featureNoAutoRespawn = false;
 bool featureMiscJellmanScenery = false;
@@ -765,12 +766,12 @@ bool onconfirm_trainerconfig_menu(MenuItem<int> choice){
 	else if(choice.value == 64){
 		process_misc_font_settings_menu();
 	}
-	else if(choice.value == 65){
+    else if(choice.value == 65){
 		process_misc_menu_layout_settings_menu();
 	}
-	else if(choice.value == 66){
-		process_misc_vehicle_preview_settings_menu();
-	}
+    else if(choice.value == 66){
+        process_misc_preview_settings_menu();
+    }
 	return false;
 }
 
@@ -786,14 +787,14 @@ void process_misc_vehicle_preview_settings_menu() {
 	// 添加预览图左右判断依据设置
 	listItem = new SelectFromListMenuItem(MISC_PREVIEW_POSITION_THRESHOLD_CAPTIONS, onchange_misc_preview_position_threshold_index);
 	listItem->wrap = false;
-	listItem->caption = "预览图右侧显示切换";
+	listItem->caption = "预览图左侧显示切换";
 	listItem->value = PreviewPositionThresholdIndex;
 	menuItems.push_back(listItem);
 
 	// 添加预览图分辨率适配值设置
 	listItem = new SelectFromListMenuItem(MISC_PREVIEW_RESOLUTION_SCALE_CAPTIONS, onchange_misc_preview_resolution_scale_index);
 	listItem->wrap = false;
-	listItem->caption = "预览图分辨率适配";
+	listItem->caption = "预览图间距分辨率适配";
 	listItem->value = PreviewResolutionScaleIndex;
 	menuItems.push_back(listItem);
 
@@ -811,6 +812,66 @@ void process_misc_vehicle_preview_settings_menu() {
 	menuItems.push_back(toggleItem);
 
 	draw_generic_menu<int>(menuItems, &activeLineIndexVehiclePreview, caption, NULL, NULL, NULL);
+}
+
+// 合并后的预览图设置（车辆 + 人物）
+int activeLineIndexPreviewSettings = 0;
+
+void process_misc_preview_settings_menu() {
+    const std::string caption = "预览图设置（车辆+人物）";
+
+    std::vector<MenuItem<int>*> menuItems;
+    SelectFromListMenuItem *listItem;
+
+    // 车辆预览图设置（三项 + 开关）
+    listItem = new SelectFromListMenuItem(MISC_PREVIEW_POSITION_THRESHOLD_CAPTIONS, onchange_misc_preview_position_threshold_index);
+    listItem->wrap = false;
+    listItem->caption = "车辆：预览图左侧显示切换";
+    listItem->value = PreviewPositionThresholdIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_PREVIEW_RESOLUTION_SCALE_CAPTIONS, onchange_misc_preview_resolution_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "车辆：预览图间距分辨率适配";
+    listItem->value = PreviewResolutionScaleIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_PREVIEW_SPACING_CAPTIONS, onchange_misc_preview_spacing_index);
+    listItem->wrap = false;
+    listItem->caption = "车辆：预览图间距";
+    listItem->value = PreviewSpacingIndex;
+    menuItems.push_back(listItem);
+
+    ToggleMenuItem<int>* toggleItem = new ToggleMenuItem<int>();
+    toggleItem->caption = "车辆：显示预览图";
+    toggleItem->toggleValue = &featureShowVehiclePreviews;
+    menuItems.push_back(toggleItem);
+
+    // 人物预览图设置（三项 + 开关）
+    listItem = new SelectFromListMenuItem(MISC_PED_PREVIEW_POSITION_THRESHOLD_CAPTIONS, onchange_misc_ped_preview_position_threshold_index);
+    listItem->wrap = false;
+    listItem->caption = "人物：预览图左侧显示切换";
+    listItem->value = PedPreviewPositionThresholdIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_PED_PREVIEW_RESOLUTION_SCALE_CAPTIONS, onchange_misc_ped_preview_resolution_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "人物：预览图间距分辨率适配";
+    listItem->value = PedPreviewResolutionScaleIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_PED_PREVIEW_SPACING_CAPTIONS, onchange_misc_ped_preview_spacing_index);
+    listItem->wrap = false;
+    listItem->caption = "人物：预览图间距";
+    listItem->value = PedPreviewSpacingIndex;
+    menuItems.push_back(listItem);
+
+    toggleItem = new ToggleMenuItem<int>();
+    toggleItem->caption = "人物：显示预览图";
+    toggleItem->toggleValue = &featureShowPedPreviews;
+    menuItems.push_back(toggleItem);
+
+    draw_generic_menu<int>(menuItems, &activeLineIndexPreviewSettings, caption, NULL, NULL, NULL);
 }
 
 // 菜单按键设置确认处理函数
@@ -1008,12 +1069,12 @@ void process_misc_trainerconfig_menu(){
 	menuLayoutSettingsItem->isLeaf = false;
 	menuItems.push_back(menuLayoutSettingsItem);
 
-	// 添加车辆预览图设置菜单项
-	MenuItem<int>* vehiclePreviewSettingsItem = new MenuItem<int>();
-	vehiclePreviewSettingsItem->caption = "车辆预览图设置";
-	vehiclePreviewSettingsItem->value = 66;
-	vehiclePreviewSettingsItem->isLeaf = false;
-	menuItems.push_back(vehiclePreviewSettingsItem);
+    // 合并后的预览图设置菜单项（车辆 + 人物）
+    MenuItem<int>* previewSettingsItem = new MenuItem<int>();
+    previewSettingsItem->caption = "预览图设置（车辆+人物）";
+    previewSettingsItem->value = 66; // 复用原66，避免遍历判断新增分支
+    previewSettingsItem->isLeaf = false;
+    menuItems.push_back(previewSettingsItem);
 
 	listItem = new SelectFromListMenuItem(MISC_TRAINERCONTROL_CAPTIONS, onchange_misc_trainercontrol_index);
 	listItem->wrap = false;
@@ -1869,6 +1930,7 @@ void reset_misc_globals(){
 	//featureControllerIgnoreInTrainer = false;
 	//featureBlockInputInMenu = false;
 	featureShowVehiclePreviews = true;
+	featureShowPedPreviews = true;
 	featureShowStatusMessage = true;
 	airbrake_enable = true;
 	show_transparency = true;
@@ -2816,6 +2878,11 @@ void add_misc_generic_settings(std::vector<StringPairSettingDBRow>* results){
 	results->push_back(StringPairSettingDBRow{"PreviewPositionThresholdIndex", std::to_string(PreviewPositionThresholdIndex)});
 	results->push_back(StringPairSettingDBRow{"PreviewResolutionScaleIndex", std::to_string(PreviewResolutionScaleIndex)});
 	results->push_back(StringPairSettingDBRow{"PreviewSpacingIndex", std::to_string(PreviewSpacingIndex)});
+	// 添加人物预览图设置
+	results->push_back(StringPairSettingDBRow{"PedPreviewPositionThresholdIndex", std::to_string(PedPreviewPositionThresholdIndex)});
+	results->push_back(StringPairSettingDBRow{"PedPreviewResolutionScaleIndex", std::to_string(PedPreviewResolutionScaleIndex)});
+	results->push_back(StringPairSettingDBRow{"PedPreviewSpacingIndex", std::to_string(PedPreviewSpacingIndex)});
+	results->push_back(StringPairSettingDBRow{"featureShowPedPreviews", featureShowPedPreviews ? "1" : "0"});
 	results->push_back(StringPairSettingDBRow{"screenfltr", screenfltr});
 }
 
@@ -2959,6 +3026,31 @@ void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings)
 			previewSpacing = MISC_PREVIEW_SPACING_VALUES[PreviewSpacingIndex];
 			PreviewSpacingChanged = true;
 		}
+		// 添加人物预览图设置的加载
+		else if (setting.name.compare("PedPreviewPositionThresholdIndex") == 0) {
+			PedPreviewPositionThresholdIndex = stoi(setting.value);
+			if (PedPreviewPositionThresholdIndex < 0) PedPreviewPositionThresholdIndex = 0;
+			if (PedPreviewPositionThresholdIndex >= (int)MISC_PED_PREVIEW_POSITION_THRESHOLD_CAPTIONS.size()) PedPreviewPositionThresholdIndex = (int)MISC_PED_PREVIEW_POSITION_THRESHOLD_CAPTIONS.size() - 1;
+			pedPreviewPositionThreshold = MISC_PED_PREVIEW_POSITION_THRESHOLD_VALUES[PedPreviewPositionThresholdIndex];
+			PedPreviewPositionThresholdChanged = true;
+		}
+		else if (setting.name.compare("PedPreviewResolutionScaleIndex") == 0) {
+			PedPreviewResolutionScaleIndex = stoi(setting.value);
+			if (PedPreviewResolutionScaleIndex < 0) PedPreviewResolutionScaleIndex = 0;
+			if (PedPreviewResolutionScaleIndex >= (int)MISC_PED_PREVIEW_RESOLUTION_SCALE_CAPTIONS.size()) PedPreviewResolutionScaleIndex = (int)MISC_PED_PREVIEW_RESOLUTION_SCALE_CAPTIONS.size() - 1;
+			pedPreviewResolutionScale = MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[PedPreviewResolutionScaleIndex];
+			PedPreviewResolutionScaleChanged = true;
+		}
+		else if (setting.name.compare("PedPreviewSpacingIndex") == 0) {
+			PedPreviewSpacingIndex = stoi(setting.value);
+			if (PedPreviewSpacingIndex < 0) PedPreviewSpacingIndex = 0;
+			if (PedPreviewSpacingIndex >= (int)MISC_PED_PREVIEW_SPACING_CAPTIONS.size()) PedPreviewSpacingIndex = (int)MISC_PED_PREVIEW_SPACING_CAPTIONS.size() - 1;
+			pedPreviewSpacing = MISC_PED_PREVIEW_SPACING_VALUES[PedPreviewSpacingIndex];
+			PedPreviewSpacingChanged = true;
+		}
+		else if (setting.name.compare("featureShowPedPreviews") == 0) {
+			featureShowPedPreviews = (setting.value == "1");
+		}
 		else if (setting.name.compare("screenfltr") == 0) {
 			screenfltr = setting.value;
 		}
@@ -2967,6 +3059,10 @@ void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings)
 
 bool is_vehicle_preview_enabled(){
 	return featureShowVehiclePreviews;
+}
+
+bool is_ped_preview_enabled(){
+	return featureShowPedPreviews;
 }
 
 //bool 菜单中是否阻止输入(){
@@ -3131,6 +3227,21 @@ bool PreviewResolutionScaleChanged = false;
 int PreviewSpacingIndex = PREVIEW_SPACING_DEFAULT_INDEX; // 预览图间距
 bool PreviewSpacingChanged = false;
 
+// 人物预览图设置变量定义
+int PedPreviewPositionThresholdIndex = PED_PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX; // 人物预览图左右判断依据
+bool PedPreviewPositionThresholdChanged = false;
+float pedPreviewPositionThreshold = MISC_PED_PREVIEW_POSITION_THRESHOLD_VALUES[PED_PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX];
+
+int PedPreviewResolutionScaleIndex = PED_PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX; // 人物预览图分辨率适配值
+bool PedPreviewResolutionScaleChanged = false;
+float pedPreviewResolutionScale = MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[PED_PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX];
+
+int PedPreviewSpacingIndex = PED_PREVIEW_SPACING_DEFAULT_INDEX; // 人物预览图间距
+bool PedPreviewSpacingChanged = false;
+float pedPreviewSpacing = MISC_PED_PREVIEW_SPACING_VALUES[PED_PREVIEW_SPACING_DEFAULT_INDEX];
+
+
+
 // 菜单布局设置相关函数实现
 void onchange_misc_menu_width_index(int value, SelectFromListMenuItem* source) {
     MenuWidthIndex = value;
@@ -3200,6 +3311,25 @@ void onchange_misc_preview_spacing_index(int value, SelectFromListMenuItem* sour
 	PreviewSpacingChanged = true;
 }
 
+// 人物预览图设置相关函数实现
+void onchange_misc_ped_preview_position_threshold_index(int value, SelectFromListMenuItem* source) {
+	PedPreviewPositionThresholdIndex = value;
+	pedPreviewPositionThreshold = MISC_PED_PREVIEW_POSITION_THRESHOLD_VALUES[value];
+	PedPreviewPositionThresholdChanged = true;
+}
+
+void onchange_misc_ped_preview_resolution_scale_index(int value, SelectFromListMenuItem* source) {
+	PedPreviewResolutionScaleIndex = value;
+	pedPreviewResolutionScale = MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[value];
+	PedPreviewResolutionScaleChanged = true;
+}
+
+void onchange_misc_ped_preview_spacing_index(int value, SelectFromListMenuItem* source) {
+	PedPreviewSpacingIndex = value;
+	pedPreviewSpacing = MISC_PED_PREVIEW_SPACING_VALUES[value];
+	PedPreviewSpacingChanged = true;
+}
+
 // 菜单项宽度和左侧偏移已合并到标题设置中，不再需要单独的onchange函数
 
 void onchange_misc_menu_item_top_offset_index(int value, SelectFromListMenuItem* source) {
@@ -3261,6 +3391,21 @@ void reset_menu_layout_to_defaults() {
     PreviewSpacingIndex = PREVIEW_SPACING_DEFAULT_INDEX;
     previewSpacing = MISC_PREVIEW_SPACING_VALUES[PreviewSpacingIndex];
     PreviewSpacingChanged = true;
+
+    // 重置人物预览图设置
+    PedPreviewPositionThresholdIndex = PED_PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX;
+    pedPreviewPositionThreshold = MISC_PED_PREVIEW_POSITION_THRESHOLD_VALUES[PedPreviewPositionThresholdIndex];
+    PedPreviewPositionThresholdChanged = true;
+
+    PedPreviewResolutionScaleIndex = PED_PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX;
+    pedPreviewResolutionScale = MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[PedPreviewResolutionScaleIndex];
+    PedPreviewResolutionScaleChanged = true;
+
+    PedPreviewSpacingIndex = PED_PREVIEW_SPACING_DEFAULT_INDEX;
+    pedPreviewSpacing = MISC_PED_PREVIEW_SPACING_VALUES[PedPreviewSpacingIndex];
+    PedPreviewSpacingChanged = true;
+
+    featureShowPedPreviews = true;
 }
 
 bool onconfirm_menu_layout_reset(MenuItem<int> choice) {

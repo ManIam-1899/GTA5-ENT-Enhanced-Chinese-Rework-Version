@@ -1241,22 +1241,64 @@ bool draw_generic_menu(MenuParameters<T> params){
 			}
 
 			if(image != NULL){
-				int screen_w, screen_h; // 这段代码用于计算游戏内，车辆预览图的坐标。
+				int screen_w, screen_h; // 这段代码用于计算游戏内，人物和车辆预览图的坐标。
 				GRAPHICS::GET_SCREEN_RESOLUTION(&screen_w, &screen_h);
 
 				float lineXPx;
-				// 判断菜单左侧偏移是否大于预览图左右判断依据，自动切换预览图显示位置
-				if(menuLeftOffset > previewPositionThreshold) {
+				// 根据预览图类型计算不同的宽度和设置
+				float previewWidth;
+				float currentPreviewResolutionScale;
+				float currentPreviewSpacing;
+				float currentPreviewPositionThreshold;
+				
+				if (image->dict && strcmp(image->dict, "ENT_ped_previews") == 0) {
+					// 人物预览图设置
+					extern float pedPreviewResolutionScale;
+					extern float pedPreviewSpacing;
+					extern float pedPreviewPositionThreshold;
+					previewWidth = 128.0f * screen_w / pedPreviewResolutionScale;
+					currentPreviewResolutionScale = pedPreviewResolutionScale;
+					currentPreviewSpacing = pedPreviewSpacing;
+					currentPreviewPositionThreshold = pedPreviewPositionThreshold;
+				} else {
+					// 车辆预览图设置（默认）
+					extern float previewResolutionScale;
+					extern float previewSpacing;
+					extern float previewPositionThreshold;
+					previewWidth = 256.0f * screen_w / previewResolutionScale;
+					currentPreviewResolutionScale = previewResolutionScale;
+					currentPreviewSpacing = previewSpacing;
+					currentPreviewPositionThreshold = previewPositionThreshold;
+				}
+				
+				// 判断菜单左侧偏移是否大于预览图左右判断依据，根据当前预览图类型，自动切换预览图显示位置。
+				if(menuLeftOffset > currentPreviewPositionThreshold) {
 					// 菜单在右侧，预览图显示在左侧
-					lineXPx = menuLeftOffset - (256.0f * screen_w / previewResolutionScale) - previewSpacing;
+					// lineXPx 应该是预览图的左上角位置，间距控制预览图右边缘和菜单左边缘之间的距离
+					lineXPx = menuLeftOffset - currentPreviewSpacing - previewWidth;
 				} else {
 					// 菜单在左侧，预览图显示在右侧
-					lineXPx = menuLeftOffset + menuWidth + previewSpacing;
+					// lineXPx 应该是预览图的左上角位置，间距控制预览图左边缘和菜单右边缘之间的距离
+					lineXPx = menuLeftOffset + menuWidth + currentPreviewSpacing;
 				}
 				float lineXGame = lineXPx / (float) screen_w;
 				float lineYGame = activeLineY / (float) screen_h;
 
-				draw_ingame_sprite(image, lineXGame, lineYGame, 256, 128);
+				// 根据预览图类型设置不同的尺寸
+				// 车辆预览图：宽度256，高度128
+				// 人物预览图：宽度128，高度256
+				int imageWidth, imageHeight;
+				if (image->dict && strcmp(image->dict, "ENT_ped_previews") == 0) {
+					// 人物预览图
+					imageWidth = 128;
+					imageHeight = 256;
+				} else {
+					// 车辆预览图（默认）
+					imageWidth = 256;
+					imageHeight = 128;
+				}
+				
+				draw_ingame_sprite(image, lineXGame, lineYGame, imageWidth, imageHeight);
 			}
 
 			if(periodic_feature_call != NULL){

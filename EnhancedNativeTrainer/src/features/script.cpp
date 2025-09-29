@@ -2804,6 +2804,21 @@ void ScriptMain(){
 		}
 		else
 			write_text_to_log_file("无法注册纹理文件: " + fullPath + " 注册文件不存在!");
+
+		// 注册人物预览图纹理文件
+		const std::string pedName = "ENT_ped_previews.ytd"; 
+		std::string pedFullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Peds\\" + pedName;
+		int pedTextureID = 0;
+
+		if (does_file_exist(pedFullPath.c_str()))
+		{
+			if (pedTextureID = RegisterFile(pedFullPath, pedName))
+				write_text_to_log_file("注册的人物预览图纹理文件： " + pedFullPath + " 纹理标识符 ID " + std::to_string(pedTextureID));
+			else
+				write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath);
+		}
+		else
+			write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath + " 注册文件不存在!");
 		
 		write_text_to_log_file("查找 shop_controller 脚本");
 
