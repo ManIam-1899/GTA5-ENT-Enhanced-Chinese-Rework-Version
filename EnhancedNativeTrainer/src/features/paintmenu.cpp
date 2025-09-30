@@ -806,7 +806,7 @@ bool process_paint_menu(){
 	item = new MenuItem<int>();
 	item->caption = "车辆随机颜色";
 	item->value = 164;
-	item->isLeaf = true;
+	item->isLeaf = false;
 	menuItems.push_back(item);
 
 	return draw_generic_menu<int>(menuItems, 0, "选择喷涂部位", onconfirm_paint_menu, NULL, NULL, vehicle_menu_interrupt);//22

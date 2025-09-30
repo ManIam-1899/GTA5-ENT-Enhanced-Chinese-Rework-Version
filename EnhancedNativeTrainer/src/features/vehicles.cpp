@@ -5532,6 +5532,7 @@ bool process_custom_carspawn_menu()
         MenuItem<int>* item = new MenuItem<int>();
         item->caption = cat;
         item->value = cidx++;
+        item->isLeaf = false;
         menuItems.push_back(item);
     }
 
