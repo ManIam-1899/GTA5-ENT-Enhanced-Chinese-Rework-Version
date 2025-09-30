@@ -116,6 +116,7 @@ bool featurePlayerUnlimitedAbility = false;
 bool featurePlayerNoNoise = false;
 bool featurePlayerFastSwim = false;
 bool featurePlayerFastRun = false;
+bool featurePlayerFastWalk = false;
 bool featurePlayerRunApartments = false;
 bool featurePlayerInvisible = false;
 bool featurePlayerInvisibleInVehicle = false;
@@ -243,6 +244,8 @@ int current_player_jumpfly = 0;
 bool current_player_jumpfly_Changed = true;
 int current_player_superjump = 0;
 bool current_player_superjump_Changed = true;
+int current_player_walkspeed = 0;
+bool current_player_walkspeed_Changed = true;
 
 /* Prop unblocker related code - will need to clean up later*/
 //与道具解锁器相关的代码 - 以后需要清理
@@ -302,6 +305,11 @@ void onchange_player_wanted_maxpossible_level_mode(int value, SelectFromListMenu
 void onchange_player_movement_mode(int value, SelectFromListMenuItem* source) {
 	current_player_movement = value;
 	current_player_movement_Changed = true;
+}
+
+void onchange_player_walkspeed_mode(int value, SelectFromListMenuItem* source) {
+	current_player_walkspeed = value;
+	current_player_walkspeed_Changed = true;
 }
 
 void onchange_player_jumpfly_mode(int value, SelectFromListMenuItem* source) {
@@ -1515,18 +1523,43 @@ void update_features() {
 		PLAYER::SET_SWIM_MULTIPLIER_FOR_PLAYER(player, 1.49);
 	}
 
-	// 玩家快速奔跑
-	if(featurePlayerFastRun){
-		if (AI::IS_PED_SPRINTING(PLAYER::PLAYER_PED_ID())) PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.49);
-		else PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.0);
+	// 提前判定奔跑状态，降低延迟
+	bool isSprinting = AI::IS_PED_SPRINTING(PLAYER::PLAYER_PED_ID()) || CONTROLS::IS_CONTROL_PRESSED(2, 21);
+
+	// 玩家快速奔跑（与“奔跑速度”调节一致，不再固定1.49x）
+	if (featurePlayerFastRun) {
+		float runMult = (float)PLAYER_MOVEMENT_VALUES[current_player_movement];
+		if (runMult <= 0.0f) runMult = 1.0f; // 正常
+		// 保持冲刺乘数为 1.0，统一由移动速率覆盖控制
+		PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.0f);
+	} else {
+		PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.0f);
 	}
 
-	// 玩家奔跑速度
-	if (PLAYER_MOVEMENT_VALUES[current_player_movement] > 0.00) {
-		if (AI::IS_PED_SPRINTING(PLAYER::PLAYER_PED_ID())) PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_movement]);
-		else PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
-		//if (CONTROLS::IS_CONTROL_PRESSED(2, 21) && PED::IS_PED_ON_FOOT(playerPed)) PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_movement]);
-		//if (CONTROLS::IS_CONTROL_RELEASED(2, 21) && PED::IS_PED_ON_FOOT(playerPed)) PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+	// 玩家移动速度（奔跑/行走）
+	if (PED::IS_PED_ON_FOOT(playerPed)) {
+		if (isSprinting) {
+			// 仅在启用“快速奔跑”时应用滑条；关闭时使用正常速度
+			if (featurePlayerFastRun) {
+				if (PLAYER_MOVEMENT_VALUES[current_player_movement] > 0.00) {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_movement]);
+				} else {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+				}
+			} else {
+				PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+			}
+		} else {
+			if (featurePlayerFastWalk) {
+				if (PLAYER_MOVEMENT_VALUES[current_player_walkspeed] > 0.00) {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_walkspeed]);
+				} else {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+				}
+			} else {
+				PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+			}
+		}
 	}
 
 	// 玩家超级跳跃
@@ -2072,41 +2105,60 @@ bool player_movement_speed() {
 	int i = 0;
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "快速游泳";
-	toggleItem->value = i++;
-	toggleItem->toggleValue = &featurePlayerFastSwim;
-	menuItems.push_back(toggleItem);
-
-	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "快速奔跑";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featurePlayerFastRun;
 	menuItems.push_back(toggleItem);
-	
-	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_superjump_mode);
-	listItem->wrap = false;
-	listItem->caption = "超级跳跃";
-	listItem->value = current_player_superjump;
-	menuItems.push_back(listItem);
 
-	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_jumpfly_mode);
-	listItem->wrap = false;
-	listItem->caption = "空中飞行";
-	listItem->value = current_player_jumpfly;
-	menuItems.push_back(listItem);
-
+	// 奔跑速度
 	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_movement_mode);
 	listItem->wrap = false;
 	listItem->caption = "奔跑速度";
 	listItem->value = current_player_movement; 
 	menuItems.push_back(listItem);
 
+	// 快速行走开关
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "快速行走";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePlayerFastWalk;
+	menuItems.push_back(toggleItem);
+
+	// 行走速度
+	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_walkspeed_mode);
+	listItem->wrap = false;
+	listItem->caption = "行走速度";
+	listItem->value = current_player_walkspeed;
+	menuItems.push_back(listItem);
+
+	// 快速游泳（移到醉酒模式上面）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "快速游泳";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePlayerFastSwim;
+	menuItems.push_back(toggleItem);
+
+	// 醉酒模式
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "醉酒模式";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featurePlayerDrunk;
 	toggleItem->toggleValueUpdated = &featurePlayerDrunkUpdated;
 	menuItems.push_back(toggleItem);
+
+	// 超级跳跃
+	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_superjump_mode);
+	listItem->wrap = false;
+	listItem->caption = "超级跳跃";
+	listItem->value = current_player_superjump;
+	menuItems.push_back(listItem);
+
+	// 空中飞行
+	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_jumpfly_mode);
+	listItem->wrap = false;
+	listItem->caption = "空中飞行";
+	listItem->value = current_player_jumpfly;
+	menuItems.push_back(listItem);
 	
 	return draw_generic_menu<int>(menuItems, &PlayerMovementMenuIndex, caption, onconfirm_PlayerMovement_menu, NULL, NULL);
 }
@@ -2629,6 +2681,7 @@ void reset_globals(){
 	current_player_movement = 0;
 	current_player_jumpfly = 0;
 	current_player_superjump = 0;
+	current_player_walkspeed = 0;
 	current_player_mostwanted = 1;
 	mostwanted_level_enable = 1;
 	wanted_maxpossible_level = 4;
@@ -2649,6 +2702,7 @@ void reset_globals(){
 		featurePlayerMostWanted =
 		featurePlayerFastSwim =
 		featurePlayerFastRun =
+		featurePlayerFastWalk =
 		featurePlayerRunApartments =
 		featurePlayerInvisible =
 		featurePlayerInvisibleInVehicle =
@@ -2956,6 +3010,7 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerMostWanted", &featurePlayerMostWanted});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerNoSwitch", &featurePlayerNoSwitch});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerFastRun", &featurePlayerFastRun}); 
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerFastWalk", &featurePlayerFastWalk});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerRunApartments", &featurePlayerRunApartments});
 	results->push_back(FeatureEnabledLocalDefinition{"featureRagdollIfInjured", &featureRagdollIfInjured}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerInvisible", &featurePlayerInvisible}); 
@@ -3054,6 +3109,7 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 	add_anims_generic_settings(&settings);
 
 	settings.push_back(StringPairSettingDBRow{"frozenWantedLevel", std::to_string(frozenWantedLevel)});
+	settings.push_back(StringPairSettingDBRow{"current_player_walkspeed", std::to_string(current_player_walkspeed)});
 
 	return settings;
 }
@@ -3094,6 +3150,10 @@ void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 		else if (setting.name.compare("current_player_movement") == 0) {
 			current_player_movement = stoi(setting.value);
 		}
+		else if (setting.name.compare("current_player_walkspeed") == 0) {
+			current_player_walkspeed = stoi(setting.value);
+		}
+
 		else if (setting.name.compare("current_player_jumpfly") == 0) {
 			current_player_jumpfly = stoi(setting.value);
 		}
