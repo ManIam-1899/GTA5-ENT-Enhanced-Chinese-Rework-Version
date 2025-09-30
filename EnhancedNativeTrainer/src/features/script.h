@@ -69,6 +69,7 @@ extern bool featureShowStatusMessage;
 extern bool featureNoAutoRespawn;
 extern bool player_died;
 extern bool featureWantedLevelFrozen;
+extern bool featurePlayerNeverWanted;
 extern bool in_prison;
 extern bool super_jump_no_parachute;
 extern int myENTGroup;

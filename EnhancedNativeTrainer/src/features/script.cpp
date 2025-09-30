@@ -111,6 +111,7 @@ bool featurePlayerInvincibleUpdated = false;
 bool featureNoFallDamage = false;
 bool featureFireProof = false;
 bool featurePlayerIgnoredByPolice = false;
+bool featurePlayerNeverWanted = false;
 bool featurePlayerUnlimitedAbility = false;
 bool featurePlayerNoNoise = false;
 bool featurePlayerFastSwim = false;
@@ -144,6 +145,9 @@ bool featureWantedLevelNoSWATVehiclesUpdated = false;
 bool NoTaxiWhistling = false;
 bool featurePlayerCanBeHeadshot = false;
 bool featureRespawnsWhereDied = false;
+bool featurePlayerSuicide = false;
+bool featurePlayerSuicideUpdated = false;
+DWORD featurePlayerSuicideTime = 0;
 bool lev_message = false;
 bool engine_running = true;
 bool we_have_troubles, iaminside = false;
@@ -990,7 +994,50 @@ void update_features() {
 		//featureWantedLevelFrozenUpdated = false;
 		featureWantedLevelFrozenUpdated = true;
 	}
-	
+
+	// 永不通缉功能
+	if (featurePlayerNeverWanted) {
+		// 每帧强制清零，保证手动加星也会被立刻清掉
+		if (PLAYER::GET_PLAYER_WANTED_LEVEL(player) > 0) {
+			PLAYER::SET_PLAYER_WANTED_LEVEL(player, 0, false);
+			PLAYER::SET_PLAYER_WANTED_LEVEL_NOW(player, 0);
+		}
+
+		// 让警察忽视玩家
+		PLAYER::SET_POLICE_IGNORE_PLAYER(player, true);
+		// 禁止派遣警察
+		PLAYER::SET_DISPATCH_COPS_FOR_PLAYER(player, false);
+		// 禁止通缉等级倍率
+		PLAYER::SET_WANTED_LEVEL_MULTIPLIER(0.0f);
+	} else {
+		// 恢复默认值
+		PLAYER::SET_POLICE_IGNORE_PLAYER(player, false);
+		PLAYER::SET_DISPATCH_COPS_FOR_PLAYER(player, true);
+		PLAYER::SET_WANTED_LEVEL_MULTIPLIER(1.0f);
+	}
+
+	// 自杀功能
+	if (featurePlayerSuicideUpdated) {
+		if (bPlayerExists && featurePlayerSuicide) {
+			// 设置玩家血量为0，实现自杀
+			ENTITY::SET_ENTITY_HEALTH(playerPed, 0);
+			set_status_text("自杀已执行完毕！");
+			// 记录自杀时间，开始3秒冷却
+			featurePlayerSuicideTime = GetTickCount();
+		}
+		featurePlayerSuicideUpdated = false;
+	}
+
+	// 检查自杀功能的3秒冷却时间
+	if (featurePlayerSuicide && featurePlayerSuicideTime > 0) {
+		DWORD currentTime = GetTickCount();
+		if (currentTime - featurePlayerSuicideTime >= 3000) { // 3秒 = 3000毫秒
+			// 冷却时间结束，清除复选框状态
+			featurePlayerSuicide = false;
+			featurePlayerSuicideTime = 0;
+		}
+	}
+
 	// 禁止警察直升机
 	if (featureWantedLevelNoPHeli) {
 		GAMEPLAY::ENABLE_DISPATCH_SERVICE(2, false);
@@ -2219,28 +2266,28 @@ bool onconfirm_player_menu(MenuItem<int> choice){
 		case 1:
 			heal_player();
 			break;
-		case 7:
+		case 8:
 			maxwantedlevel_menu();
 			break;
-		case 8:
+		case 9:
 			mostwanted_menu();
 			break;
-		case 12:
+		case 13:
 			player_movement_speed();
 			break;
-		case 13:
+		case 14:
 			process_ragdoll_menu();
 			break;
-		case 18:
+		case 19:
 			process_anims_menu_top();
 			break;
-		case 19:
+		case 20:
 			process_player_life_menu();
 			break;
-		case 20:
+		case 21:
 			process_player_prison_menu();
 			break;
-		case 21:
+		case 22:
 			process_player_forceshield_menu();
 			break;
 		default:
@@ -2251,7 +2298,7 @@ bool onconfirm_player_menu(MenuItem<int> choice){
 }
 
 void process_player_menu(){
-	const int lineCount = 29;
+	const int lineCount = 31;
 
 	const std::string caption = "玩家选项";
 
@@ -2263,6 +2310,7 @@ void process_player_menu(){
 		{"无燃烧伤害", &featureFireProof, NULL, true},
 		{"增加或减少现金", NULL, NULL, true, CASH},
 		{"当前通缉等级", NULL, NULL, true, WANTED},
+		{"永不通缉", &featurePlayerNeverWanted, NULL, true},
 		{"通缉等级设置", NULL, NULL, false},
 		{"通缉逃犯", NULL, NULL, false},
 		{"无限能力", &featurePlayerUnlimitedAbility, NULL, true},
@@ -2285,6 +2333,7 @@ void process_player_menu(){
 		{"第一人称, 死亡/被捕视角", &featureFirstPersonDeathCamera, NULL },
 		{"无潜水氧气面罩", &featureNoScubaGearMask, NULL, true },
 		{"无潜水吸氧呼吸声", &featureNoScubaSound, NULL, true },
+		{"自行了结", &featurePlayerSuicide, &featurePlayerSuicideUpdated, true },
 	};
 
 	draw_menu_from_struct_def(lines, lineCount, &activeLineIndexPlayer, caption, onconfirm_player_menu);
@@ -2593,6 +2642,8 @@ void reset_globals(){
 		featureNoFallDamage =
 		featureFireProof =
 		featurePlayerIgnoredByPolice =
+		featurePlayerNeverWanted =
+		featurePlayerSuicide =
 		featurePlayerUnlimitedAbility =
 		featurePlayerNoNoise =
 		featurePlayerMostWanted =
@@ -2621,8 +2672,11 @@ void reset_globals(){
 		featurePedPrison_Robe =
 		featureWantedLevelFrozen = false;
 
+	featurePlayerSuicideTime = 0;
+
 		featurePlayerInvincibleUpdated =
 		featurePlayerDrunkUpdated =
+		featurePlayerSuicideUpdated =
 		featureNightVisionUpdated =
 		featureThermalVisionUpdated =
 		featurePlayerLifeUpdated =
@@ -2885,6 +2939,7 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featureFireProof", &featureFireProof});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedLevelFrozen", &featureWantedLevelFrozen/*, &featureWantedLevelFrozenUpdated*/});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerIgnoredByPolice", &featurePlayerIgnoredByPolice}); 
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerNeverWanted", &featurePlayerNeverWanted});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedLevelNoPHeli", &featureWantedLevelNoPHeli});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedNoPRoadB", &featureWantedNoPRoadB});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedLevelNoPBoats", &featureWantedLevelNoPBoats});
