@@ -74,6 +74,10 @@ bool featureBodyguardWeaponAttach = false;
 bool featureBodyguardOnMap = false;
 bool featureBodyguardInfAmmo = false;
 
+// 记录开关状态变化，用于即时刷新标记
+bool prevFeatureBodyguardOnMap = false;
+bool prevFeatureBodyBlipNumberState = false;
+
 int BodyWeaponSetIndex = 0;
 
 bool hotkey_b = false;
@@ -138,7 +142,7 @@ int BodyGroupFormationIndex = 1;
 bool BodyGroupFormationChanged = true;
 
 // 显示编号
-const std::vector<std::string> BODY_SHOWNUMBERS_CAPTIONS{ "当菜单打开时", "始终", "从不" };
+const std::vector<std::string> BODY_SHOWNUMBERS_CAPTIONS{ "仅ENT菜单打开时", "始终", "从不" };
 int BodyShowNumbersIndex = 0;
 bool BodyShowNumbersChanged = true;
 
@@ -1587,7 +1591,7 @@ bool onconfirm_bodyguard_blips_menu(MenuItem<int> choice)
 }
 
 void process_bodyguard_blips_menu(){
-	const std::string caption = "保镖位置标记";
+	const std::string caption = "保镖位置雷达标记";
 
 	std::vector<MenuItem<int>*> menuItems;
 	SelectFromListMenuItem *listItem;
@@ -1596,7 +1600,7 @@ void process_bodyguard_blips_menu(){
 	int i = 0;
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "启用";
+	toggleItem->caption = "启用/禁用";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureBodyguardOnMap;
 	menuItems.push_back(toggleItem);
@@ -2059,6 +2063,36 @@ void add_body_blip() {
 	}
 }
 
+// 根据当前设置刷新保镖标记（启用/禁用或样式更改）
+void refresh_bodyguard_blips() {
+    if (featureBodyguardOnMap) {
+        // 重建全部保镖标记，应用最新样式
+        add_body_blip();
+    } else {
+        // 关闭时移除所有保镖标记
+        if (!BLIPTABLE_BODYGUARD.empty()) {
+            for (int i = 0; i < BLIPTABLE_BODYGUARD.size(); i++) {
+                if (UI::DOES_BLIP_EXIST(BLIPTABLE_BODYGUARD[i])) {
+                    UI::REMOVE_BLIP(&BLIPTABLE_BODYGUARD[i]);
+                }
+            }
+            BLIPTABLE_BODYGUARD.clear();
+            BLIPTABLE_BODYGUARD.shrink_to_fit();
+        }
+    }
+
+    // 重置样式变化标志位
+    BodyBlipSize_Changed = false;
+    BodyBlipColour_Changed = false;
+    BodyBlipSymbol_Changed = false;
+    BodyBlipFlash_Changed = false;
+    BodyShowNumbersChanged = false;
+
+    // 记录当前开关状态
+    prevFeatureBodyguardOnMap = featureBodyguardOnMap;
+    prevFeatureBodyBlipNumberState = featureBodyBlipNumber;
+}
+
 bool not_bodyguards_in_vehicle()
 {
 	for (int n = 0; n < spawnedENTBodyguards.size(); n++) {
@@ -2098,6 +2132,26 @@ void maintain_bodyguards(){
 			B_VEHICLE.shrink_to_fit();
 		}
 	}
+
+    // 保镖标记刷新：当开关或样式变化时即时更新
+    {
+        bool onMapToggled = (prevFeatureBodyguardOnMap != featureBodyguardOnMap);
+        bool numberToggled = (prevFeatureBodyBlipNumberState != featureBodyBlipNumber);
+
+        if (onMapToggled || numberToggled || BodyBlipSize_Changed || BodyBlipColour_Changed || BodyBlipSymbol_Changed || BodyBlipFlash_Changed || BodyShowNumbersChanged) {
+            refresh_bodyguard_blips();
+        } else if (featureBodyguardOnMap) {
+            // 保证数量同步（例如保镖增删时）
+            if (BLIPTABLE_BODYGUARD.size() != spawnedENTBodyguards.size()) {
+                refresh_bodyguard_blips();
+            }
+        } else {
+            // 已关闭但仍有残留标记时清理
+            if (!BLIPTABLE_BODYGUARD.empty()) {
+                refresh_bodyguard_blips();
+            }
+        }
+    }
 	
 	// 武器选择
 	if (under_weapon_menu == true && (IsKeyDown(KeyConfig::KEY_MENU_SELECT) || CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, controller_binds["KEY_MENU_SELECT"].first) || IsKeyDown(KeyConfig::KEY_MENU_BACK) || IsKeyDown(KeyConfig::KEY_TOGGLE_MAIN_MENU))) {
@@ -2588,8 +2642,8 @@ bool process_bodyguard_menu(){
 		menuItems.push_back(listItem);
 
 		item = new MenuItem<int>();
-		item->caption = "保镖位置标记";
-		item->value = 11;
+		item->caption = "保镖位置雷达标记";
+		item->value = 12;
 		item->isLeaf = false;
 		menuItems.push_back(item);
 
@@ -2695,7 +2749,7 @@ bool process_bodyguard_menu(){
 
 		listItem = new SelectFromListMenuItem(BODY_SHOWNUMBERS_CAPTIONS, onchange_body_shownumber_index);
 		listItem->wrap = false;
-		listItem->caption = "显示保镖的编号";
+		listItem->caption = "保镖头顶显示编号";
 		listItem->value = BodyShowNumbersIndex;
 		menuItems.push_back(listItem);
 
@@ -2887,7 +2941,7 @@ bool onconfirm_bodyguard_menu(MenuItem<int> choice){
 		case 8:
 			process_bodyguard_weapons_menu();
 			break;
-		case 11:
+		case 12:
 			process_bodyguard_blips_menu();
 			break;
 		case 22:
@@ -3019,6 +3073,8 @@ void reset_bodyguards_globals(){
 	activeLineIndexBodyguardBlips = 0;
 	featureBodyBlipNumber = false;
 	featureBodyguardOnMap = false;
+	prevFeatureBodyguardOnMap = false;
+	prevFeatureBodyBlipNumberState = false;
 	featureBodyguardInvincible = false;
 	featureNoBodBlood = false;
 	featureBAggressivePed = false;
