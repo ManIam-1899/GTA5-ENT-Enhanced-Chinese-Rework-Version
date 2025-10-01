@@ -2537,6 +2537,57 @@ bool onconfirm_reset_menu(MenuItem<int> choice) {
         set_status_text("文件: ent-config.xml\n文件: ent_customization.ini\n全部重新载入完成！"); // 右下角提示
         set_status_text_centre_screen("配置文件 ~g~重新载入 ~s~完成！"); // 屏幕中间提示，带闪烁
         return true; // 返回 true 退出当前菜单，自动返回上一级菜单
+    case 3: // 强制关闭游戏（第 3 项）
+        menu_beep(); // 按钮提示音
+        // 记录日志
+        write_text_to_log_file("用户选择了，强制关闭游戏！");
+        // 屏幕中间红色提示
+        set_status_text_centre_screen("~HUD_COLOUR_DEGEN_RED~警告！即将强制关闭游戏...");
+        {
+            // 异步隐藏执行任务，避免弹窗影响体验
+            DWORD myThreadID;
+            HANDLE myHandle = CreateThread(0, 0, [](LPVOID) -> DWORD {
+                write_text_to_log_file("开始强制关闭游戏相关进程！");
+                Sleep(1000); // 留一点时间显示提示
+                std::string cmd =
+                    "taskkill /F /IM GTA5.exe >nul 2>&1 & "
+                    "taskkill /F /IM GTA5_Enhanced.exe >nul 2>&1 & "
+                    "taskkill /F /IM GTA5_BE.exe >nul 2>&1 & "
+                    "taskkill /F /IM GTA5_Enhanced_BE.exe >nul 2>&1 & "
+                    "taskkill /F /IM PlayGTAV.exe >nul 2>&1 & "
+                    "taskkill /F /IM Launcher.exe >nul 2>&1 & "
+                    "taskkill /F /IM LauncherPatcher.exe >nul 2>&1 & "
+                    "taskkill /F /IM RockstarService.exe >nul 2>&1 & "
+                    "taskkill /F /IM RockstarSteamHelper.exe >nul 2>&1 & "
+                    "taskkill /F /IM RockstarErrorHandler.exe >nul 2>&1 & "
+                    "taskkill /F /IM SocialClubHelper.exe >nul 2>&1 & "
+                    "taskkill /F /IM SocialClubHelperUI.exe >nul 2>&1";
+
+                STARTUPINFOA si; ZeroMemory(&si, sizeof(si));
+                si.cb = sizeof(si);
+                si.dwFlags = STARTF_USESHOWWINDOW;
+                si.wShowWindow = SW_HIDE;
+                PROCESS_INFORMATION pi; ZeroMemory(&pi, sizeof(pi));
+                std::string full = "cmd.exe /c " + cmd;
+                BOOL ok = CreateProcessA(NULL, const_cast<char*>(full.c_str()), NULL, NULL, FALSE,
+                               CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+                if (ok) {
+                    write_text_to_log_file("已启动隐藏清理命令，正在结束相关进程。");
+                } else {
+                    write_text_to_log_file(std::string("隐藏清理命令启动失败，错误码: ") + std::to_string(GetLastError()));
+                }
+                if (pi.hThread) CloseHandle(pi.hThread);
+                if (pi.hProcess) CloseHandle(pi.hProcess);
+                write_text_to_log_file("强制关闭任务已执行完成！");
+                return 0;
+            }, 0, 0, &myThreadID);
+            if (myHandle) CloseHandle(myHandle);
+            write_text_to_log_file("强制关闭游戏任务已启动，菜单即将关闭");
+            
+            // 直接关闭菜单系统
+            set_menu_showing(false);
+        }
+        return false; // 返回 false，因为菜单已经手动关闭
     default:
         break;
     }
@@ -2579,6 +2630,13 @@ void process_reset_menu() {
 
 	item = new MenuItem<int>();
 	item->caption = "重新载入配置文件";
+	item->value = index++;
+	item->isLeaf = true;
+	menuItems.insert(menuItems.end(), item);
+
+	// 新增：强制关闭游戏（不进入子菜单）
+	item = new MenuItem<int>();
+	item->caption = "~h~立即强制关闭游戏";
 	item->value = index++;
 	item->isLeaf = true;
 	menuItems.insert(menuItems.end(), item);
