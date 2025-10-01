@@ -39,9 +39,12 @@ int timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 int HotkeyFlowRateIndex = DEFAULT_HOTKEY_FLOW_RATE;
 
 bool featureTimeSynced = false;
+bool featureTimeSyncedUpdated = false;
 bool featureShowtime = false;
 bool featurehotkeytime = false;
 bool featureSpeedAimInVeh = false;
+bool featureFreezeTime = false;
+bool featureFreezeTimeUpdated = false;
 bool timeFlowRateChanged = true, timeFlowRateLocked = true;
 bool HotkeyFlowRateChanged = true, HotkeyFlowRateLocked = true;
 
@@ -140,6 +143,11 @@ void onchange_aiming_speed_callback(int value, SelectFromListMenuItem* source) {
 
 void onchange_time_flow_rate_callback(int value, SelectFromListMenuItem* source) {
 	timeFlowRateIndex = value, timeFlowRateChanged = true, timeFlowRateLocked = false;
+	featureFreezeTime = (value == 0);
+	if (value == 0) {
+		// 选择“冻结时间”项时，关闭系统时间同步，保持互斥
+		featureTimeSynced = false;
+	}
 }
 
 void onchange_hotkey_flow_rate_callback(int value, SelectFromListMenuItem* source) {
@@ -153,6 +161,8 @@ void onchange_hotkey_freeze_unfreeze_time() {
 		timeFlowRateChanged = true;
 		set_status_text("时间已冻结！");
 		requireRefreshOfTime = true;
+		// 通过热键开启冻结时，关闭系统时间同步，保持互斥
+		featureTimeSynced = false;
 	}
 	else
 	{
@@ -167,6 +177,9 @@ void onchange_hotkey_freeze_unfreeze_time() {
 		set_status_text("时间已解冻！");
 		requireRefreshOfTime = true;
 	}
+	// 同步复选框状态
+	featureFreezeTime = (timeFlowRateIndex == 0);
+	featureFreezeTimeUpdated = true;
 }
 
 bool onconfirm_time_flowrate_menu(MenuItem<int> choice) {
@@ -174,9 +187,6 @@ bool onconfirm_time_flowrate_menu(MenuItem<int> choice) {
 		if (featureTimeSynced) {
 			set_status_text("时间已与电脑系统同步！");
 		}
-	}
-	else if (choice.value == 666) {
-		onchange_hotkey_freeze_unfreeze_time();
 	}
 	return false;
 }
@@ -189,6 +199,8 @@ bool flowtime_menu_interrupt() {
 }
 
 void all_time_flow_rate() {
+	// 保留菜单选择的行索引，避免刷新后光标跳到第一项
+	static int activeLineIndexTimeFlow = 0;
 	do {
 		requireRefreshOfTime = false;
 		std::vector<MenuItem<int>*> menuItems;
@@ -199,7 +211,8 @@ void all_time_flow_rate() {
 		togItem->caption = "时间与电脑系统同步";
 		togItem->value = 0;
 		togItem->toggleValue = &featureTimeSynced;
-		togItem->toggleValueUpdated = NULL;
+		// 添加更新标记，以便在切换时处理互斥逻辑
+		togItem->toggleValueUpdated = &featureTimeSyncedUpdated;
 		menuItems.push_back(togItem);
 
 		SelectFromListMenuItem* listItem = new SelectFromListMenuItem(TIME_SPEED_CAPTIONS, onchange_hotkey_flow_rate_callback);
@@ -228,11 +241,12 @@ void all_time_flow_rate() {
 		listItem->onConfirmFunction = onconfirm_time_flow_rate;
 		menuItems.push_back(listItem);
 
-		item = new MenuItem<int>();
-		item->caption = "冻结时间 [开/关]";
-		item->value = 666;
-		item->isLeaf = true;
-		menuItems.push_back(item);
+		ToggleMenuItem<int>* freezeTog = new ToggleMenuItem<int>();
+		freezeTog->caption = "冻结时间";
+		freezeTog->value = 0;
+		freezeTog->toggleValue = &featureFreezeTime;
+		freezeTog->toggleValueUpdated = &featureFreezeTimeUpdated;
+		menuItems.push_back(freezeTog);
 
 		togItem = new ToggleMenuItem<int>();
 		togItem->caption = "显示当前游戏内时间";
@@ -248,7 +262,8 @@ void all_time_flow_rate() {
 		togItem->toggleValueUpdated = NULL;
 		menuItems.push_back(togItem);
 
-		draw_generic_menu<int>(menuItems, nullptr, "时间设置", onconfirm_time_flowrate_menu, nullptr, nullptr, flowtime_menu_interrupt);
+		// 使用持久化的行索引以在刷新后保持光标位置
+		draw_generic_menu<int>(menuItems, &activeLineIndexTimeFlow, "时间设置", onconfirm_time_flowrate_menu, nullptr, nullptr, flowtime_menu_interrupt);
 	} while (requireRefreshOfTime);
 }
 
@@ -427,23 +442,28 @@ void process_time_menu() {
 
 void reset_time_globals() {
 	featureTimeSynced = false;
+	featureTimeSyncedUpdated = false;
 	timeFlowRateChanged = true;
 	HotkeyFlowRateChanged = true;
 	featureShowtime = false;
 	featurehotkeytime = false;
 	featureSpeedAimInVeh = false;
+	featureFreezeTime = false;
+	featureFreezeTimeUpdated = false;
 
 	timeSpeedIndexWhileAiming = DEFAULT_TIME_SPEED;
 	timeSpeedIndex = DEFAULT_TIME_SPEED;
 	timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 	HotkeyFlowRateIndex = DEFAULT_HOTKEY_FLOW_RATE;
+	frozentimestate = -1;
 }
 
 void add_time_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* results) {
-	results->push_back(FeatureEnabledLocalDefinition{ "featureTimeSynced", &featureTimeSynced });
+	results->push_back(FeatureEnabledLocalDefinition{ "featureTimeSynced", &featureTimeSynced, &featureTimeSyncedUpdated });
 	results->push_back(FeatureEnabledLocalDefinition{ "featureShowtime", &featureShowtime });
 	results->push_back(FeatureEnabledLocalDefinition{ "featurehotkeytime", &featurehotkeytime });
 	results->push_back(FeatureEnabledLocalDefinition{ "featureSpeedAimInVeh", &featureSpeedAimInVeh });
+	results->push_back(FeatureEnabledLocalDefinition{ "featureFreezeTime", &featureFreezeTime, &featureFreezeTimeUpdated });
 }
 
 void movetime_day_forward() {
@@ -973,19 +993,47 @@ void add_time_generic_settings(std::vector<StringPairSettingDBRow>* results) {
 	results->push_back(StringPairSettingDBRow{ "HotkeyFlowRateIndex", std::to_string(HotkeyFlowRateIndex) });
 }
 
+static inline void apply_freeze_time_state();
+
 void update_time_features(Player player) {
-	// 时间同步
-	if (featureTimeSynced) {
-		if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
-			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE, timeFlowRateChanged = true;
+    // 处理“冻结时间”复选框状态变化（优先），并确保与“系统同步”互斥
+    if (featureFreezeTimeUpdated) {
+        featureFreezeTimeUpdated = false;
+        if (featureFreezeTime) {
+            // 当开启冻结时间时，关闭系统时间同步
+            featureTimeSynced = false;
+        }
+        apply_freeze_time_state();
+    }
 
-		}
+    // 处理“时间与电脑系统同步”复选框状态变化，并确保与“冻结时间”互斥
+    if (featureTimeSyncedUpdated) {
+        featureTimeSyncedUpdated = false;
+        if (featureTimeSynced) {
+            // 关闭冻结时间（如果已开启），并恢复正常流速
+            if (featureFreezeTime) {
+                featureFreezeTime = false;
+                apply_freeze_time_state();
+            }
+            if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+                timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
+                timeFlowRateChanged = true;
+            }
+            requireRefreshOfTime = true;
+        }
+    }
 
-		time_t now = time(0);
-		tm t;
-		localtime_s(&t, &now);
-		TIME::SET_CLOCK_TIME(t.tm_hour, t.tm_min, t.tm_sec);
-	}
+    // 时间同步
+    if (featureTimeSynced) {
+        if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+            timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE, timeFlowRateChanged = true;
+        }
+
+        time_t now = time(0);
+        tm t;
+        localtime_s(&t, &now);
+        TIME::SET_CLOCK_TIME(t.tm_hour, t.tm_min, t.tm_sec);
+    }
 
 	if ((PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0) && featureSpeedAimInVeh) || !featureSpeedAimInVeh) slow_aim = true;
 	if (!PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0) && featureSpeedAimInVeh) slow_aim = false;
@@ -1274,3 +1322,25 @@ void update_time_features(Player player) {
 	}
 
 } // 更新时间功能结束
+static inline void apply_freeze_time_state() {
+	if (featureFreezeTime) {
+		if (timeFlowRateIndex != 0) {
+			frozentimestate = timeFlowRateIndex;
+		}
+		timeFlowRateIndex = 0;
+		timeFlowRateChanged = true;
+		set_status_text("~y~时间已冻结！");
+		requireRefreshOfTime = true;
+	}
+	else {
+		if (frozentimestate != -1) {
+			timeFlowRateIndex = frozentimestate;
+		}
+		else {
+			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
+		}
+		timeFlowRateChanged = true;
+		set_status_text("~g~时间已解冻！");
+		requireRefreshOfTime = true;
+	}
+}

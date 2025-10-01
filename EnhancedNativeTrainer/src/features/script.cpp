@@ -2636,7 +2636,7 @@ void process_reset_menu() {
 
 	// 新增：强制关闭游戏（不进入子菜单）
 	item = new MenuItem<int>();
-	item->caption = "~h~立即强制关闭游戏";
+	item->caption = "~h~立即强制关闭游戏 (操作不可逆)";
 	item->value = index++;
 	item->isLeaf = true;
 	menuItems.insert(menuItems.end(), item);

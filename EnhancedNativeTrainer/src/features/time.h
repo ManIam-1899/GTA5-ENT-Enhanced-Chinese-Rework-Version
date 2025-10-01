@@ -17,6 +17,10 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <vector>
 #include "..\storage\database.h"
 
+extern bool featureFreezeTime;
+extern bool featureFreezeTimeUpdated;
+extern bool featureTimeSyncedUpdated;
+
 void process_time_menu();
 
 void reset_time_globals();
