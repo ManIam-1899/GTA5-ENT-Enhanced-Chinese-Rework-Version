@@ -247,6 +247,22 @@ bool current_player_superjump_Changed = true;
 int current_player_walkspeed = 0;
 bool current_player_walkspeed_Changed = true;
 
+// 湿身程度（参考 Menyoo 的 Sweat Level 逻辑）
+bool featurePlayerClothesSoaked = false;
+bool featurePlayerClothesSoakedUpdated = false;
+bool featurePlayerClothesDry = false;
+bool featurePlayerClothesDryUpdated = false;
+// 记录上帧状态，用于检测“本帧刚开启”的边沿（避免旧Updated标记导致互斥失效）
+static bool prevClothesSoaked = false;
+static bool prevClothesDry = false;
+
+// 湿度最大高度（可调整以适配不同模型和场景）
+static constexpr float MAX_WETNESS = 5.5f;
+// 干燥清理的帧周期（每 N 帧清理一次，折中性能与效果）
+static constexpr int DRY_CLEAR_PERIOD_FRAMES = 10; // ~0.5s @60fps
+// 湿透施加的帧周期（每 N 帧强制湿身，减少每帧调用负担）
+static constexpr int SOAKED_ENFORCE_PERIOD_FRAMES = 10; // ~0.16s @60fps
+
 /* Prop unblocker related code - will need to clean up later*/
 //与道具解锁器相关的代码 - 以后需要清理
 
@@ -1776,6 +1792,62 @@ void update_features() {
 		featureThermalVisionUpdated = false;
 	}
 
+	// 衣服湿透/干燥互斥与原生恢复
+	// 检测“本帧刚开启”的边沿，用于可靠的互斥裁决（最后开启者优先）
+	bool soakedJustEnabled = (featurePlayerClothesSoaked && !prevClothesSoaked);
+	bool dryJustEnabled    = (featurePlayerClothesDry    && !prevClothesDry);
+
+	// 互斥裁决：若二者同时为真，后开启者覆盖前者
+	if (featurePlayerClothesSoaked && featurePlayerClothesDry) {
+		if (soakedJustEnabled && !dryJustEnabled) {
+			// 刚开启湿透，关闭干燥
+			featurePlayerClothesDry = false;
+		} else if (dryJustEnabled && !soakedJustEnabled) {
+			// 刚开启干燥，关闭湿透
+			featurePlayerClothesSoaked = false;
+		} else {
+			// 若无法判定（极少见，同时切换或无边沿），使用Updated作次级判定；若仍无法判定则默认关闭湿透
+			if (featurePlayerClothesDryUpdated && !featurePlayerClothesSoakedUpdated) {
+				featurePlayerClothesSoaked = false;
+			} else if (featurePlayerClothesSoakedUpdated && !featurePlayerClothesDryUpdated) {
+				featurePlayerClothesDry = false;
+			} else {
+				featurePlayerClothesSoaked = false;
+			}
+		}
+	}
+
+	// 应用选项效果（与原生系统兼容）
+	if (featurePlayerClothesSoaked) {
+		if (ENTITY::DOES_ENTITY_EXIST(playerPed) && !ENTITY::IS_ENTITY_DEAD(playerPed)) {
+			// 仅在“刚开启”或按周期施加，避免每帧调用造成性能浪费
+			if (soakedJustEnabled || (game_frame_num % SOAKED_ENFORCE_PERIOD_FRAMES == 0)) {
+				PED::SET_PED_WETNESS_ENABLED_THIS_FRAME(playerPed);
+				PED::SET_PED_WETNESS_HEIGHT(playerPed, MAX_WETNESS);
+			}
+		}
+		// 不在此处清除 Updated 标记，保留用于互斥裁决
+	} else if (featurePlayerClothesDry) {
+		if (ENTITY::DOES_ENTITY_EXIST(playerPed) && !ENTITY::IS_ENTITY_DEAD(playerPed)) {
+			// 仅在“本帧刚开启干燥”时清除一次，避免每帧调用造成浪费
+			if (dryJustEnabled) {
+				PED::CLEAR_PED_WETNESS(playerPed);
+			}
+			// 周期性清理，保持干燥状态，同时避免每帧调用的性能消耗
+			if (game_frame_num % DRY_CLEAR_PERIOD_FRAMES == 0) {
+				PED::CLEAR_PED_WETNESS(playerPed);
+			}
+		}
+		// 保持不干预其余帧，由原生系统维持干燥/再湿逻辑
+	} else {
+		// 两者都关闭：不干预，让游戏原生湿透/干燥系统接管
+		// 不调用 CLEAR_PED_WETNESS 或 SET_PED_SWEAT，避免屏蔽原生效果
+	}
+
+	// 更新上一帧状态，用于下一帧的边沿检测
+	prevClothesSoaked = featurePlayerClothesSoaked;
+	prevClothesDry    = featurePlayerClothesDry;
+
 	// 在死亡时禁用空中刹车
 	if(ENTITY::IS_ENTITY_DEAD(playerPed)){
 		exit_airbrake_menu_if_showing();
@@ -2350,7 +2422,7 @@ bool onconfirm_player_menu(MenuItem<int> choice){
 }
 
 void process_player_menu(){
-	const int lineCount = 31;
+	const int lineCount = 33;
 
 	const std::string caption = "玩家选项";
 
@@ -2386,6 +2458,8 @@ void process_player_menu(){
 		{"无潜水氧气面罩", &featureNoScubaGearMask, NULL, true },
 		{"无潜水吸氧呼吸声", &featureNoScubaSound, NULL, true },
 		{"自行了结", &featurePlayerSuicide, &featurePlayerSuicideUpdated, true },
+		{"衣服保持湿透", &featurePlayerClothesSoaked, &featurePlayerClothesSoakedUpdated, true},
+		{"衣服保持干燥", &featurePlayerClothesDry, &featurePlayerClothesDryUpdated, true},
 	};
 
 	draw_menu_from_struct_def(lines, lineCount, &activeLineIndexPlayer, caption, onconfirm_player_menu);
@@ -2725,6 +2799,8 @@ void reset_globals(){
 		featurePrison_Robe =
 		featurePedPrison_Robe =
 		featureWantedLevelFrozen = false;
+		featurePlayerClothesSoaked =
+		featurePlayerClothesDry = false;
 
 	featurePlayerSuicideTime = 0;
 
@@ -2738,6 +2814,8 @@ void reset_globals(){
 		featurePlayerStatsUpdated =
 		featurePlayerNoSwitch =
 		featureWantedLevelFrozenUpdated = true;
+		featurePlayerClothesSoakedUpdated =
+		featurePlayerClothesDryUpdated = true;
 
 	set_status_text("所有设置已重置为默认！");
 
@@ -3021,6 +3099,8 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerLife", &featurePlayerLife, &featurePlayerLifeUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Hardcore", &featurePrison_Hardcore});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Robe", &featurePrison_Robe});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerClothesSoaked", &featurePlayerClothesSoaked, &featurePlayerClothesSoakedUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerClothesDry", &featurePlayerClothesDry, &featurePlayerClothesDryUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePedPrison_Robe", &featurePedPrison_Robe});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Yard", &featurePrison_Yard});
 	//results->push_back(FeatureEnabledLocalDefinition{"featureLevitation", &featureLevitation});
