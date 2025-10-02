@@ -105,6 +105,12 @@ bool onlineWarningShown = false;
 
 bool injured_drunk = false;
 
+// 手动触发自动保存的防重入标志（仅用于手动触发，不影响自动保存）
+static volatile LONG g_manual_save_in_progress = 0;
+// 保存完成后的提示挂起标志（由后台线程置位，主线程消耗并提示）
+static volatile LONG g_manual_save_notify_pending = 0;
+static volatile LONG g_auto_save_notify_pending = 0;
+
 // 功能
 bool featurePlayerInvincible = false;
 bool featurePlayerInvincibleUpdated = false;
@@ -637,11 +643,20 @@ void update_features() {
 
 	everInitialised = true;
 	game_frame_num++;
-	if(game_frame_num >= 216000){
+	if(game_frame_num >= 216000){//自动保存，最大帧数：216000，之后重置为 0
 		game_frame_num = 0;
 	}
 
-	if(game_frame_num % 3600 == 0){
+	// 处理保存完成后的挂起提示（避免在后台线程中直接调用 UI 导致崩溃）
+	if (InterlockedExchange(&g_manual_save_notify_pending, 0) == 1) {
+		set_status_text_centre_screen("~s~自动保存，~g~执行完毕！");//手动触发的保存提示
+	}
+	if (InterlockedExchange(&g_auto_save_notify_pending, 0) == 1) {
+		// 使用统一的 set_status_text 在屏幕底部显示自动保存完成提示
+		set_status_text("~g~自动保存完成！");//自动触发的保存提示
+	}
+
+	if (game_frame_num % 3600 == 0) {//自动保存，固定间隔：默认3600 帧（约 60 秒）
 		DWORD myThreadID;
 		HANDLE myHandle = CreateThread(0, 0, save_settings_thread, 0, 0, &myThreadID);
 		CloseHandle(myHandle);
@@ -2537,7 +2552,39 @@ bool onconfirm_reset_menu(MenuItem<int> choice) {
         set_status_text("文件: ent-config.xml\n文件: ent_customization.ini\n全部重新载入完成！"); // 右下角提示
         set_status_text_centre_screen("配置文件 ~g~重新载入 ~s~完成！"); // 屏幕中间提示，带闪烁
         return true; // 返回 true 退出当前菜单，自动返回上一级菜单
-    case 3: // 强制关闭游戏（第 3 项）
+    case 3: // 手动触发自动保存（第 3 项）
+        menu_beep(); // 按钮提示音
+        write_text_to_log_file("用户手动触发自动保存");
+        set_status_text("~p~用户手动触发自动保存！");
+        {
+            // 防重入：如果已有手动保存线程在执行，则直接提示并跳过
+            if (InterlockedCompareExchange(&g_manual_save_in_progress, 1, 0) != 0) {
+                set_status_text_centre_screen("~s~自动保存已在进行中，请稍候...");
+                return true; // 退出当前菜单
+            }
+
+            // 使用独立线程执行保存，避免阻塞菜单；保存完成后再提示
+            DWORD myThreadID;
+            HANDLE myHandle = CreateThread(0, 0, [](LPVOID) -> DWORD {
+                write_text_to_log_file("手动自动保存线程开始");
+                save_settings();
+                // 在主线程提示：置位挂起标志
+                InterlockedExchange(&g_manual_save_notify_pending, 1);
+                InterlockedExchange(&g_manual_save_in_progress, 0);
+                write_text_to_log_file("手动自动保存线程结束");
+                return 0;
+            }, 0, 0, &myThreadID);
+
+            if (myHandle) {
+                CloseHandle(myHandle);
+            } else {
+                // 线程创建失败，恢复标志并提示失败
+                InterlockedExchange(&g_manual_save_in_progress, 0);
+                set_status_text_centre_screen("~s~自动保存，~r~执行失败！");
+            }
+        }
+        return true; // 返回 true 退出当前菜单，自动返回上一级菜单
+    case 4: // 强制关闭游戏（第 4 项）
         menu_beep(); // 按钮提示音
         // 记录日志
         write_text_to_log_file("用户选择了，强制关闭游戏！");
@@ -2630,6 +2677,13 @@ void process_reset_menu() {
 
 	item = new MenuItem<int>();
 	item->caption = "重新载入配置文件";
+	item->value = index++;
+	item->isLeaf = true;
+	menuItems.insert(menuItems.end(), item);
+
+	// 新增：手动触发自动保存
+	item = new MenuItem<int>();
+	item->caption = "手动触发自动保存";
 	item->value = index++;
 	item->isLeaf = true;
 	menuItems.insert(menuItems.end(), item);
@@ -3355,7 +3409,9 @@ void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 }
 
 DWORD WINAPI save_settings_thread(LPVOID lpParameter){
+	// 自动保存线程：仅执行保存，完成后置位提示标志，由主线程绘制提示
 	save_settings();
+	InterlockedExchange(&g_auto_save_notify_pending, 1);
 	return 0;
 }
 
