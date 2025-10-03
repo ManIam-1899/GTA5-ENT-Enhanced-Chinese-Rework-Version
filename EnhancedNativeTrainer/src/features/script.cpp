@@ -111,6 +111,10 @@ static volatile LONG g_manual_save_in_progress = 0;
 static volatile LONG g_manual_save_notify_pending = 0;
 static volatile LONG g_auto_save_notify_pending = 0;
 
+// 自动保存提示频率控制
+static int g_auto_save_count = 0;
+static const int AUTO_SAVE_NOTIFY_INTERVAL = 10; // 每10次自动保存才显示一次提示（1次大约60秒）
+
 // 功能
 bool featurePlayerInvincible = false;
 bool featurePlayerInvincibleUpdated = false;
@@ -674,8 +678,14 @@ void update_features() {
 		set_status_text_centre_screen("~s~自动保存，~g~执行完毕！");//手动触发的保存提示
 	}
 	if (InterlockedExchange(&g_auto_save_notify_pending, 0) == 1) {
-		// 使用统一的 set_status_text 在屏幕底部显示自动保存完成提示
-		set_status_text("~g~自动保存完成！");//自动触发的保存提示
+		// 自动保存提示频率控制：只在特定次数时显示提示
+		g_auto_save_count++;
+		if (g_auto_save_count >= AUTO_SAVE_NOTIFY_INTERVAL) {
+			// 使用统一的 set_status_text 在屏幕底部显示自动保存完成提示
+			set_status_text("~g~自动保存完成！");//自动触发的保存提示
+			g_auto_save_count = 0; // 重置计数器
+		}
+		// 如果不满足显示条件，则静默完成自动保存，不显示提示
 	}
 
 	if (game_frame_num % 3600 == 0) {//自动保存，固定间隔：默认3600 帧（约 60 秒）
