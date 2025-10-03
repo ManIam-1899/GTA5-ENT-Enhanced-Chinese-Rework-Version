@@ -242,8 +242,8 @@ int curr_cam = -1;
 int curr_hlth = -1;
 
 // 玩家跑步速度 && 汉考克模式(美国一部电影中的主角)
-const std::vector<std::string> PLAYER_MOVEMENT_CAPTIONS{ "正常", "0.5x", "1x", "2x", "3x", "4x", "5x", "6x", "7x", "8x", "9x", "10x" };
-const double PLAYER_MOVEMENT_VALUES[] = { 0.00, 0.60, 1.00, 2.00, 3.00, 4.00, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00 };
+const std::vector<std::string> PLAYER_MOVEMENT_CAPTIONS{ "正常", "0.5x", "1x", "1.5x", "2x", "2.5x", "3x", "3.5x", "4x", "4.5x", "5x", "6x", "7x", "8x", "9x", "10x" };
+const double PLAYER_MOVEMENT_VALUES[] = { 0.00, 0.60, 1.00, 1.50, 2.00, 2.50, 3.00, 3.50, 4.00, 4.50, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00 };
 int current_player_movement = 0;
 bool current_player_movement_Changed = true; 
 int current_player_jumpfly = 0;
