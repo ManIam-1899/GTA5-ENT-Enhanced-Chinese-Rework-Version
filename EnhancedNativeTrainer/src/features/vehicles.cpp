@@ -1831,13 +1831,14 @@ bool process_veh_seat_menu()
 			item->caption = SEAT_NAMES[i];
 			menuItems.push_back(item);
 		}
+		
+		return draw_generic_menu<int>(menuItems, &vehSeatIndexMenuIndex, "车辆座位选项", onconfirm_seat_menu, NULL, NULL);
 	}
 	else 
 	{
 		set_status_text("玩家不在载具中！");
+		return false;
 	}
-
-	return draw_generic_menu<int>(menuItems, &vehSeatIndexMenuIndex, "车辆座位选项", onconfirm_seat_menu, NULL, NULL);
 }
 
 bool onconfirm_colours_menu(MenuItem<int> choice)
@@ -2721,8 +2722,7 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 			if(process_veh_door_menu()) return false;
 			break;
 		case 24: // 座位菜单
-			if (PED::IS_PED_SITTING_IN_ANY_VEHICLE(playerPed))
-				if(process_veh_seat_menu()) return false;
+			if(process_veh_seat_menu()) return false;// 始终调用座位菜单，让其内部负责显示“玩家不在载具中！”提示并阻止菜单
 			break;
 		case 25: // 车辆转向灯菜单
 			process_visualize_menu();
@@ -6337,7 +6337,7 @@ bool process_savedveh_menu(){
 		std::vector<MenuItem<int>*> menuItems;
 
 		MenuItem<int> *item = new MenuItem<int>();
-		item->isLeaf = false;
+		item->isLeaf = true;
 		item->value = -1;
 		item->caption = "创建新的车辆存档";
 		item->sortval = -2;
