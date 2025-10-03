@@ -815,7 +815,7 @@ void write_config_ini_file(){
 
 			result.push_back(std::string(";;;; 增强型 原生修改器：配置 INI 文件（开始） ;;;;\n\n;;; （删除此文件以恢复默认颜色配置） ;;;\n"));
 
-			result.push_back(std::string(";; 菜单颜色（开始） ;;\n;\t请遵循 RGBA 颜色系统，每个颜色组件的值范围为 0 ~ 255 ;"));
+			result.push_back(std::string(";; 菜单颜色（开始） ;;\n;; 请遵循 RGBA 颜色系统，每个颜色组件的值范围为 0 ~ 255 ;;"));
 			for(auto a : lines){
 				for(int b = 0; b < ENTColor::colsVarsNum; b++){
 					if(a.compare(0, ENTColor::colsVarsReverse.at(b).length() + 1, (ENTColor::colsVarsReverse.at(b) + tmpk[0])) == 0){
