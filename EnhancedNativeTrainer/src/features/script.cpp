@@ -1650,8 +1650,8 @@ void update_features() {
 
 	if (NPC_RAGDOLL_VALUES[current_no_ragdoll] > 0 && !PED::IS_PED_IN_ANY_VEHICLE(playerPed, true)) {
 		if (noragdoll_m != current_no_ragdoll) {
-			if (current_no_ragdoll == 1) set_status_text("坠落动作已启用！");
-			if (current_no_ragdoll == 2) set_status_text("坠落动作已禁用！");
+			if (current_no_ragdoll == 1) set_status_text("~p~~h~开启: 布娃娃效果 模式一\n禁布娃娃, 保留坠落动作!");
+			if (current_no_ragdoll == 2) set_status_text("~b~~h~开启: 布娃娃效果 模式二\n禁布娃娃, 删除坠落动作!");
 			noragdoll_m = current_no_ragdoll;
 		}
 		if(bPlayerExists){
