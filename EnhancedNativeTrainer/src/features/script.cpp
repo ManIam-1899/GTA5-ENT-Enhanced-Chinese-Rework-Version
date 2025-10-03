@@ -262,12 +262,34 @@ bool featurePlayerClothesDryUpdated = false;
 static bool prevClothesSoaked = false;
 static bool prevClothesDry = false;
 
+// 水底行走功能
+bool featurePlayerWalkUnderwater = false;
+bool featurePlayerWalkUnderwaterUpdated = false;
+
+// 水上行走功能
+bool featurePlayerWalkOnWater = false;
+bool featurePlayerWalkOnWaterUpdated = false;
+Object waterPlatform = NULL;
+
+// 记录上帧状态，用于检测"本帧刚开启"的边沿（避免旧Updated标记导致互斥失效）
+static bool prevWalkUnderwater = false;
+static bool prevWalkOnWater = false;
+
 // 湿度最大高度（可调整以适配不同模型和场景）
 static constexpr float MAX_WETNESS = 5.5f;
 // 干燥清理的帧周期（每 N 帧清理一次，折中性能与效果）
 static constexpr int DRY_CLEAR_PERIOD_FRAMES = 10; // ~0.5s @60fps
 // 湿透施加的帧周期（每 N 帧强制湿身，减少每帧调用负担）
 static constexpr int SOAKED_ENFORCE_PERIOD_FRAMES = 10; // ~0.16s @60fps
+
+// 获取水面高度的辅助函数
+float GetWaterHeight(Vector3 pos) {
+	float waterHeight = 0.0f;
+	if (WATER::GET_WATER_HEIGHT(pos.x, pos.y, pos.z, &waterHeight)) {
+		return waterHeight;
+	}
+	return -1000.0f; // 如果没有水，返回一个很低的值
+}
 
 /* Prop unblocker related code - will need to clean up later*/
 //与道具解锁器相关的代码 - 以后需要清理
@@ -1863,6 +1885,144 @@ void update_features() {
 	prevClothesSoaked = featurePlayerClothesSoaked;
 	prevClothesDry    = featurePlayerClothesDry;
 
+	// 水底行走和水上行走功能（互斥）
+	// 检测"本帧刚开启"的边沿，用于可靠的互斥裁决
+	bool underwaterJustEnabled = (featurePlayerWalkUnderwater && !prevWalkUnderwater);
+	bool onWaterJustEnabled = (featurePlayerWalkOnWater && !prevWalkOnWater);
+
+	// 互斥裁决：若二者同时为真，后开启者覆盖前者
+	if (featurePlayerWalkUnderwater && featurePlayerWalkOnWater) {
+		if (underwaterJustEnabled && !onWaterJustEnabled) {
+			// 刚开启水底行走，关闭水上行走
+			featurePlayerWalkOnWater = false;
+			featurePlayerWalkOnWaterUpdated = true;
+		} else if (onWaterJustEnabled && !underwaterJustEnabled) {
+			// 刚开启水上行走，关闭水底行走
+			featurePlayerWalkUnderwater = false;
+			featurePlayerWalkUnderwaterUpdated = true;
+		} else {
+			// 若无法判定（极少见），使用Updated作次级判定；若仍无法判定则默认关闭水底行走
+			if (featurePlayerWalkOnWaterUpdated && !featurePlayerWalkUnderwaterUpdated) {
+				featurePlayerWalkUnderwater = false;
+				featurePlayerWalkUnderwaterUpdated = true;
+			} else if (featurePlayerWalkUnderwaterUpdated && !featurePlayerWalkOnWaterUpdated) {
+				featurePlayerWalkOnWater = false;
+				featurePlayerWalkOnWaterUpdated = true;
+			} else {
+				featurePlayerWalkUnderwater = false;
+				featurePlayerWalkUnderwaterUpdated = true;
+			}
+		}
+	}
+
+	// 水底行走功能实现（完全参考MenyooSP的Set_Walkunderwater函数）
+	if (featurePlayerWalkUnderwater && bPlayerExists) {
+		if (ENTITY::IS_ENTITY_IN_WATER(playerPed)) {
+			// 禁用游泳状态标志，使玩家可以在水下行走（与MenyooSP一致）
+			PED::SET_PED_CONFIG_FLAG(playerPed, 65, false);  // IsSwimming
+			PED::SET_PED_CONFIG_FLAG(playerPed, 66, false);  // WasSwimming
+			PED::SET_PED_CONFIG_FLAG(playerPed, 168, false); // _0xD8072639
+
+			Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+			
+			// 添加水下照明效果（与MenyooSP一致）
+			GRAPHICS::DRAW_LIGHT_WITH_RANGE(playerPos.x, playerPos.y, playerPos.z + 1.5f, 255, 255, 251, 100.0f, 1.5f);
+			GRAPHICS::DRAW_LIGHT_WITH_RANGE(playerPos.x, playerPos.y, playerPos.z + 50.0f, 255, 255, 251, 200.0f, 1.0f);
+
+			// 让跳跃感觉更自然（就像不在水下一样）- 与MenyooSP一致
+			if (PED::IS_PED_JUMPING(playerPed)) {
+				ENTITY::APPLY_FORCE_TO_ENTITY(playerPed, 1, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.0f, true, true, true, true, false, true);
+			}
+
+			// 如果玩家在水面上方，让其下沉（与MenyooSP一致）
+			if (ENTITY::GET_ENTITY_HEIGHT_ABOVE_GROUND(playerPed) > 1.0f) {
+				PED::SET_PED_CONFIG_FLAG(playerPed, 60, false);  // IsStanding
+				PED::SET_PED_CONFIG_FLAG(playerPed, 61, false);  // WasStanding
+				PED::SET_PED_CONFIG_FLAG(playerPed, 104, false); // OpenDoorArmIK
+				PED::SET_PED_CONFIG_FLAG(playerPed, 276, false); // EdgeDetected
+				PED::SET_PED_CONFIG_FLAG(playerPed, 76, true);   // IsInTheAir
+				ENTITY::APPLY_FORCE_TO_ENTITY(playerPed, 1, 0.0f, 0.0f, -0.7f, 0.0f, 0.0f, 0.0f, true, true, true, true, false, true);
+			}
+
+			// 停止游泳任务（与MenyooSP一致）
+			if (AI::GET_IS_TASK_ACTIVE(playerPed, 281) || PED::IS_PED_SWIMMING(playerPed) || PED::IS_PED_SWIMMING_UNDER_WATER(playerPed)) {
+				AI::CLEAR_PED_TASKS_IMMEDIATELY(playerPed);
+			}
+		}
+	}
+
+    // 水上行走功能实现（不干扰玩家移动，只提供平台支撑）
+    if (featurePlayerWalkOnWater && bPlayerExists && PED::IS_PED_ON_FOOT(playerPed)) {
+        Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+        float waterHeight = GetWaterHeight(playerPos);
+
+        // 检查玩家是否在水面附近
+        if (waterHeight > -1000.0f && playerPos.z <= waterHeight + 2.0f) {
+            // 如果平台不存在或需要重新创建，创建一个隐形平台
+            if (!ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+                Hash platformModel = GAMEPLAY::GET_HASH_KEY("prop_huge_display_02");
+                STREAMING::REQUEST_MODEL(platformModel);
+                while (!STREAMING::HAS_MODEL_LOADED(platformModel)) {
+                    WAIT(0);
+                }
+                // 将平台放置在水面稍下方，让玩家脚部更贴近水面
+                waterPlatform = OBJECT::CREATE_OBJECT(platformModel, playerPos.x, playerPos.y, waterHeight - 0.025f, true, false, false);
+                if (ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+                    ENTITY::SET_ENTITY_VISIBLE(waterPlatform, false); // 隐形
+                    ENTITY::SET_ENTITY_COLLISION(waterPlatform, true, true); // 启用碰撞
+                    ENTITY::FREEZE_ENTITY_POSITION(waterPlatform, true); // 冻结位置
+                    ENTITY::SET_ENTITY_INVINCIBLE(waterPlatform, true); // 无敌
+                    // 旋转平台使其成为水平承托面（参考脚本版 90° X 轴）
+                    ENTITY::SET_ENTITY_ROTATION(waterPlatform, 90.0f, 0.0f, 0.0f, 2, true);
+                }
+                STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(platformModel);
+
+                // 刚开启时，如玩家在水下则轻微上移到水面附近
+                if (playerPos.z < waterHeight + 0.5f) {
+                    ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight + 0.05f, false, false, true);
+                }
+            } else {
+                // 更新平台位置跟随玩家，平台稍低于水面（无偏移放置）
+                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(waterPlatform, playerPos.x, playerPos.y, waterHeight - 0.025f, false, false, true);
+            }
+
+            // 如果玩家在水下太深，轻微上移到水面附近（不强制传送）
+            if (playerPos.z < waterHeight - 0.5f) {
+                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight - 0.1f, false, false, true);
+            }
+
+            // 开启水上行走时，降低波浪强度以避免大浪顶起角色
+            // 仅在世界设定为“默认”波浪时调整，避免覆盖用户自定义设置
+            if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+                WATER::_SET_WAVES_INTENSITY(0.1f);
+            }
+        }
+    } else if (!featurePlayerWalkOnWater && ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+        // 刚关闭水上行走，删除平台
+        OBJECT::DELETE_OBJECT(&waterPlatform);
+        waterPlatform = NULL;
+        // 恢复默认波浪强度（若世界设置为“默认”）
+        if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+            WATER::_RESET_WAVES_INTENSITY();
+        }
+    }
+
+    // 检查玩家状态，如果死亡或不在步行状态，清理水上行走平台
+    if (featurePlayerWalkOnWater && (!bPlayerExists || ENTITY::IS_ENTITY_DEAD(playerPed) || !PED::IS_PED_ON_FOOT(playerPed))) {
+        if (ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+            OBJECT::DELETE_OBJECT(&waterPlatform);
+            waterPlatform = NULL;
+            // 恢复默认波浪强度（若世界设置为“默认”）
+            if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+                WATER::_RESET_WAVES_INTENSITY();
+            }
+        }
+    }
+
+	// 更新上一帧状态
+	prevWalkUnderwater = featurePlayerWalkUnderwater;
+	prevWalkOnWater = featurePlayerWalkOnWater;
+
 	// 在死亡时禁用空中刹车
 	if(ENTITY::IS_ENTITY_DEAD(playerPed)){
 		exit_airbrake_menu_if_showing();
@@ -2437,7 +2597,7 @@ bool onconfirm_player_menu(MenuItem<int> choice){
 }
 
 void process_player_menu(){
-	const int lineCount = 33;
+	const int lineCount = 35;
 
 	const std::string caption = "玩家选项";
 
@@ -2475,6 +2635,8 @@ void process_player_menu(){
 		{"自行了结", &featurePlayerSuicide, &featurePlayerSuicideUpdated, true },
 		{"衣服保持湿透", &featurePlayerClothesSoaked, &featurePlayerClothesSoakedUpdated, true},
 		{"衣服保持干燥", &featurePlayerClothesDry, &featurePlayerClothesDryUpdated, true},
+		{"水底行走", &featurePlayerWalkUnderwater, &featurePlayerWalkUnderwaterUpdated, true},
+		{"水上行走", &featurePlayerWalkOnWater, &featurePlayerWalkOnWaterUpdated, true},
 	};
 
 	draw_menu_from_struct_def(lines, lineCount, &activeLineIndexPlayer, caption, onconfirm_player_menu);
@@ -2913,6 +3075,8 @@ void reset_globals(){
 		featureWantedLevelFrozen = false;
 		featurePlayerClothesSoaked =
 		featurePlayerClothesDry = false;
+		featurePlayerWalkUnderwater =
+		featurePlayerWalkOnWater = false;
 
 	featurePlayerSuicideTime = 0;
 
@@ -2928,6 +3092,8 @@ void reset_globals(){
 		featureWantedLevelFrozenUpdated = true;
 		featurePlayerClothesSoakedUpdated =
 		featurePlayerClothesDryUpdated = true;
+		featurePlayerWalkUnderwaterUpdated =
+		featurePlayerWalkOnWaterUpdated = true;
 
 	set_status_text("所有设置已重置为默认！");
 
@@ -3213,6 +3379,8 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Robe", &featurePrison_Robe});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerClothesSoaked", &featurePlayerClothesSoaked, &featurePlayerClothesSoakedUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerClothesDry", &featurePlayerClothesDry, &featurePlayerClothesDryUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerWalkUnderwater", &featurePlayerWalkUnderwater, &featurePlayerWalkUnderwaterUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerWalkOnWater", &featurePlayerWalkOnWater, &featurePlayerWalkOnWaterUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePedPrison_Robe", &featurePedPrison_Robe});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Yard", &featurePrison_Yard});
 	//results->push_back(FeatureEnabledLocalDefinition{"featureLevitation", &featureLevitation});

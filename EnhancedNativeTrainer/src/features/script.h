@@ -67,6 +67,8 @@ extern bool featurePlayerInvisible;
 extern bool featurePlayerInvisibleInVehicle;
 extern bool featureShowStatusMessage;
 extern bool featureNoAutoRespawn;
+extern bool featurePlayerWalkUnderwater;
+extern bool featurePlayerWalkOnWater;
 extern bool player_died;
 extern bool featureWantedLevelFrozen;
 extern bool featurePlayerNeverWanted;
