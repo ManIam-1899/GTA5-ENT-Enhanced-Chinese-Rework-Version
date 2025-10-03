@@ -1584,6 +1584,8 @@ extern bool featureRestoreTracked;
 extern bool featureDisableIgnition;
 extern int EngineRunningIndex;
 extern int LevitationIndex;
+// 冻结车辆 触发式功能：通过菜单项或快捷键触发
+void vehicle_freeze_toggle();
 
 extern std::string  veh_to_spawn;
 extern bool repairing_engine;

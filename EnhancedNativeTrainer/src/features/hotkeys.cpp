@@ -344,6 +344,9 @@ void trigger_function_for_hotkey_onkeyup(int hotkey)
 	case HKEY_TRAFFIC_TOGGLE:
 		Traffic_switching();
 		break;
+	case HKEY_VEHICLE_FREEZE_TOGGLE:
+		vehicle_freeze_toggle();
+		break;
 	default:
 	{
 		std::ostringstream ss;

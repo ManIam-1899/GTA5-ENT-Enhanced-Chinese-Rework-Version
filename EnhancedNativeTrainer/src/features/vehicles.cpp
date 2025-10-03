@@ -191,6 +191,9 @@ int sheshark_light_toogle = 1;
 bool featureDespawnScriptDisabled = false;
 bool featureDespawnScriptDisabledUpdated = false;
 
+// 冻结车辆：记录车辆冻结前速度，用于解冻恢复
+static std::unordered_map<Vehicle, float> FROZEN_VEHICLE_PREV_SPEED;
+
 int activeLineIndexVeh = 0;
 int activeSavedVehicleIndex = -1;
 int activeLineIndexSpeed = 0;
@@ -2752,6 +2755,9 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 		case 52: // 车辆盗窃
 			process_routine_of_ringer_menu();
 			break;
+		case 53: // 冻结车辆
+			vehicle_freeze_toggle();
+			break;
 		default:
 			break;
 	}
@@ -3095,6 +3101,12 @@ void process_veh_menu(){
 	item->isLeaf = false;
 	menuItems.push_back(item);
 
+	item = new MenuItem<int>();
+	item->caption = "冻结车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
 	draw_generic_menu<int>(menuItems, &activeLineIndexVeh, caption, onconfirm_veh_menu, NULL, NULL);
 }
 
@@ -3103,6 +3115,44 @@ void speedlimiter_switching(){
 	if (speedlimiter_switch) set_status_text("车辆限速 已开启！");
 	else set_status_text("车辆限速器 已关闭！");
 	WAIT(100);
+}
+
+// 触发：冻结/解冻 当前驾驶车辆
+void vehicle_freeze_toggle(){
+    Ped playerPed = PLAYER::PLAYER_PED_ID();
+    if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+        set_status_text("~r~玩家不在载具中，无法冻结车辆！");
+        WAIT(250);
+        return;
+    }
+    Vehicle vcur = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+    if (!ENTITY::DOES_ENTITY_EXIST(vcur)) {
+        set_status_text("~y~未检测到有效载具！");
+        WAIT(250);
+        return;
+    }
+
+    bool isFrozen = FROZEN_VEHICLE_PREV_SPEED.find(vcur) != FROZEN_VEHICLE_PREV_SPEED.end();
+    if (!isFrozen) {
+        float prevSpeed = ENTITY::GET_ENTITY_SPEED(vcur);
+        FROZEN_VEHICLE_PREV_SPEED[vcur] = prevSpeed;
+        VEHICLE::SET_VEHICLE_FORWARD_SPEED(vcur, 0.0f);
+        ENTITY::FREEZE_ENTITY_POSITION(vcur, true);
+        set_status_text("当前车辆 已冻结！");
+    } else {
+        ENTITY::FREEZE_ENTITY_POSITION(vcur, false);
+        float restoreSpeed = 0.0f;
+        auto it = FROZEN_VEHICLE_PREV_SPEED.find(vcur);
+        if (it != FROZEN_VEHICLE_PREV_SPEED.end()) {
+            restoreSpeed = it->second;
+            FROZEN_VEHICLE_PREV_SPEED.erase(it);
+        }
+        if (restoreSpeed > 0.0f) {
+            VEHICLE::SET_VEHICLE_FORWARD_SPEED(vcur, restoreSpeed);
+        }
+        set_status_text("当前车辆 已解冻！");
+    }
+    WAIT(250);
 }
 
 void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
@@ -5372,6 +5422,21 @@ void reset_vehicle_globals() {
 
 	featureDespawnScriptDisabled = false;
 	featureDespawnScriptDisabledUpdated = false;
+
+	// 清理：解除所有已冻结车辆并恢复速度（与“重置所有”保持一致）
+	if (!FROZEN_VEHICLE_PREV_SPEED.empty()) {
+		for (auto& kv : FROZEN_VEHICLE_PREV_SPEED) {
+			Vehicle veh = kv.first;
+			if (ENTITY::DOES_ENTITY_EXIST(veh)) {
+				ENTITY::FREEZE_ENTITY_POSITION(veh, false);
+				float restoreSpeed = kv.second;
+				if (restoreSpeed > 0.0f) {
+					VEHICLE::SET_VEHICLE_FORWARD_SPEED(veh, restoreSpeed);
+				}
+			}
+		}
+		FROZEN_VEHICLE_PREV_SPEED.clear();
+	}
 }
 
 void keyboard_tip_message(char* curr_message_s) {
@@ -5408,6 +5473,7 @@ bool process_carspawn_menu() {
 			MenuItem<int>* item = new MenuItem<int>();
 			item->caption = "其他";
 			item->value = i;
+			item->isLeaf = false;
 			menuItems.push_back(item);
 			break;
 		}
@@ -5415,6 +5481,7 @@ bool process_carspawn_menu() {
 		MenuItem<int>* item = new MenuItem<int>();
 		item->caption = get_class_label(i);
 		item->value = i;
+		item->isLeaf = false;
 		menuItems.push_back(item);
 	}
 
