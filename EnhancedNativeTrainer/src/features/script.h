@@ -20,7 +20,6 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\storage\database.h"
 #include "..\debug\debuglog.h"
 #include "skins.h"
-#include "script.h"
 #include "vehicles.h"
 #include "misc.h"
 #include "teleportation.h"
@@ -121,6 +120,9 @@ static inline std::string &rtrim(std::string &s) {
 static inline std::string &trim(std::string &s) {
 	return ltrim(rtrim(s));
 }
+
+// 获取水面高度（供水上/水下行走等功能调用）
+float GetWaterHeight(Vector3 pos);
 
 void ScriptMain();
 

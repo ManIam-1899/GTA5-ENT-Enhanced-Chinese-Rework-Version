@@ -1976,29 +1976,29 @@ void update_features() {
                     WAIT(0);
                 }
                 // 将平台放置在水面稍下方，让玩家脚部更贴近水面
-                waterPlatform = OBJECT::CREATE_OBJECT(platformModel, playerPos.x, playerPos.y, waterHeight - 0.025f, true, false, false);
+                waterPlatform = OBJECT::CREATE_OBJECT(platformModel, playerPos.x, playerPos.y, waterHeight - 0.10f, true, false, false);
                 if (ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
                     ENTITY::SET_ENTITY_VISIBLE(waterPlatform, false); // 隐形
                     ENTITY::SET_ENTITY_COLLISION(waterPlatform, true, true); // 启用碰撞
                     ENTITY::FREEZE_ENTITY_POSITION(waterPlatform, true); // 冻结位置
                     ENTITY::SET_ENTITY_INVINCIBLE(waterPlatform, true); // 无敌
                     // 旋转平台使其成为水平承托面（参考脚本版 90° X 轴）
-                    ENTITY::SET_ENTITY_ROTATION(waterPlatform, 90.0f, 0.0f, 0.0f, 2, true);
+                    ENTITY::SET_ENTITY_ROTATION(waterPlatform, 270.0f, 0.0f, 0.0f, 2, true);
                 }
                 STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(platformModel);
 
                 // 刚开启时，如玩家在水下则轻微上移到水面附近
                 if (playerPos.z < waterHeight + 0.5f) {
-                    ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight + 0.05f, false, false, true);
+                    ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight + 0.10f, false, false, true);
                 }
             } else {
                 // 更新平台位置跟随玩家，平台稍低于水面（无偏移放置）
-                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(waterPlatform, playerPos.x, playerPos.y, waterHeight - 0.025f, false, false, true);
+                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(waterPlatform, playerPos.x, playerPos.y, waterHeight - 0.10f, false, false, true);
             }
 
             // 如果玩家在水下太深，轻微上移到水面附近（不强制传送）
             if (playerPos.z < waterHeight - 0.5f) {
-                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight - 0.1f, false, false, true);
+                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight + 0.10f, false, false, true);
             }
 
             // 开启水上行走时，降低波浪强度以避免大浪顶起角色
