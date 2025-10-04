@@ -2743,13 +2743,15 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 		{
 			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
 				set_status_text("~r~玩家不在载具中！");
-				//返回 true;
+				break;
 			}
 			Hash currVehModel = ENTITY::GET_ENTITY_MODEL(PED::GET_VEHICLE_PED_IS_USING(playerPed));
 			if (GAMEPLAY::GET_HASH_KEY("CUBAN800") == currVehModel) {
 				if (process_veh_weapons_menu()) return false;
 			}
-			else set_status_text("~r~错误: 开启弹仓投弹, 需要古邦800飞机！");
+			else {
+				set_status_text("~r~错误: 开启弹仓投弹, 需要古邦800飞机！");
+			}
 		}
 			break;
 		case 52: // 车辆盗窃
@@ -2757,6 +2759,53 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 			break;
 		case 53: // 冻结车辆
 			vehicle_freeze_toggle();
+			break;
+		case 54: // 删除车辆
+		{
+			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+				set_status_text("~r~玩家不在载具中，无法删除车辆！");
+				break;
+			}
+
+			Vehicle vcur = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+			if (!ENTITY::DOES_ENTITY_EXIST(vcur)) {
+				set_status_text("~y~未检测到有效载具！");
+				break;
+			}
+
+			// 让玩家先离车
+			AI::TASK_LEAVE_VEHICLE(playerPed, vcur, 16);
+			
+			// 让所有其他乘员离车
+			int maxSeats = VEHICLE::GET_VEHICLE_MAX_NUMBER_OF_PASSENGERS(vcur);
+			for (int seat = -1; seat <= maxSeats; ++seat) {
+				if (seat == -1) continue; // 跳过驾驶座，玩家已处理
+				Ped occ = VEHICLE::GET_PED_IN_VEHICLE_SEAT(vcur, seat);
+				if (occ != 0 && ENTITY::DOES_ENTITY_EXIST(occ)) {
+					AI::TASK_LEAVE_VEHICLE(occ, vcur, 16);
+				}
+			}
+
+			// 等待足够时间让乘员离开
+			WAIT(150);
+
+			// 清理冻结记录
+			auto it = FROZEN_VEHICLE_PREV_SPEED.find(vcur);
+			if (it != FROZEN_VEHICLE_PREV_SPEED.end()) {
+				FROZEN_VEHICLE_PREV_SPEED.erase(it);
+			}
+
+			// 设为任务实体并删除
+			ENTITY::SET_ENTITY_AS_MISSION_ENTITY(vcur, true, true);
+			VEHICLE::DELETE_VEHICLE(&vcur);
+
+			// 验证删除结果
+			if (ENTITY::DOES_ENTITY_EXIST(vcur)) {
+				set_status_text("~r~车辆删除失败！");
+			} else {
+				set_status_text("车辆已成功删除！");
+			}
+		}
 			break;
 		default:
 			break;
@@ -3107,6 +3156,12 @@ void process_veh_menu(){
 	item->isLeaf = true;
 	menuItems.push_back(item);
 
+	item = new MenuItem<int>();
+	item->caption = "删除车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
 	draw_generic_menu<int>(menuItems, &activeLineIndexVeh, caption, onconfirm_veh_menu, NULL, NULL);
 }
 
@@ -3122,13 +3177,11 @@ void vehicle_freeze_toggle(){
     Ped playerPed = PLAYER::PLAYER_PED_ID();
     if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
         set_status_text("~r~玩家不在载具中，无法冻结车辆！");
-        WAIT(250);
         return;
     }
     Vehicle vcur = PED::GET_VEHICLE_PED_IS_USING(playerPed);
     if (!ENTITY::DOES_ENTITY_EXIST(vcur)) {
         set_status_text("~y~未检测到有效载具！");
-        WAIT(250);
         return;
     }
 
@@ -3152,7 +3205,7 @@ void vehicle_freeze_toggle(){
         }
         set_status_text("当前车辆 已解冻！");
     }
-    WAIT(250);
+    WAIT(150);
 }
 
 void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){

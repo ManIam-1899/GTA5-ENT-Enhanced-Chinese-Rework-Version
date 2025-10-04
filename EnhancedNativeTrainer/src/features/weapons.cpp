@@ -1502,7 +1502,7 @@ bool process_weapon_menu(){
 	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "火焰弹";
+	toggleItem->caption = "火焰弹药";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureWeaponFireAmmo;
 	toggleItem->toggleValueUpdated = NULL;

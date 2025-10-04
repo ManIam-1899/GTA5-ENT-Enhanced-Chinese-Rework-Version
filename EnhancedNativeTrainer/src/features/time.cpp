@@ -159,7 +159,7 @@ void onchange_hotkey_freeze_unfreeze_time() {
 		frozentimestate = timeFlowRateIndex;
 		timeFlowRateIndex = 0;
 		timeFlowRateChanged = true;
-		set_status_text("时间已冻结！");
+		write_text_to_log_file("时间已冻结！");//提示重复了，这里改为日志记录
 		requireRefreshOfTime = true;
 		// 通过热键开启冻结时，关闭系统时间同步，保持互斥
 		featureTimeSynced = false;
@@ -174,7 +174,7 @@ void onchange_hotkey_freeze_unfreeze_time() {
 			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 			timeFlowRateChanged = true;
 		}
-		set_status_text("时间已解冻！");
+		write_text_to_log_file("时间已解冻！");//提示重复了，这里改为日志记录
 		requireRefreshOfTime = true;
 	}
 	// 同步复选框状态
@@ -993,17 +993,22 @@ void add_time_generic_settings(std::vector<StringPairSettingDBRow>* results) {
 	results->push_back(StringPairSettingDBRow{ "HotkeyFlowRateIndex", std::to_string(HotkeyFlowRateIndex) });
 }
 
-static inline void apply_freeze_time_state();
+static inline void apply_freeze_time_state(bool suppressStatus = false);
 
 void update_time_features(Player player) {
     // 处理“冻结时间”复选框状态变化（优先），并确保与“系统同步”互斥
+    // 首次加载配置会将 updateFlag 置为 true，这里用静态量抑制初次提示
+    static bool freezeStateInitialized = false;
+
     if (featureFreezeTimeUpdated) {
         featureFreezeTimeUpdated = false;
         if (featureFreezeTime) {
             // 当开启冻结时间时，关闭系统时间同步
             featureTimeSynced = false;
         }
-        apply_freeze_time_state();
+        // 仅在“冻结时间”为关闭且首次加载时抑制“时间已解冻”提示
+        apply_freeze_time_state(!featureFreezeTime && !freezeStateInitialized);
+        freezeStateInitialized = true;
     }
 
     // 处理“时间与电脑系统同步”复选框状态变化，并确保与“冻结时间”互斥
@@ -1013,7 +1018,9 @@ void update_time_features(Player player) {
             // 关闭冻结时间（如果已开启），并恢复正常流速
             if (featureFreezeTime) {
                 featureFreezeTime = false;
-                apply_freeze_time_state();
+                // 如果是首次加载并且此处关闭了冻结时间，则抑制“时间已解冻”提示
+                apply_freeze_time_state(!featureFreezeTime && !freezeStateInitialized);
+                freezeStateInitialized = true;
             }
             if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
                 timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
@@ -1322,14 +1329,14 @@ void update_time_features(Player player) {
 	}
 
 } // 更新时间功能结束
-static inline void apply_freeze_time_state() {
+static inline void apply_freeze_time_state(bool suppressStatus) {
 	if (featureFreezeTime) {
 		if (timeFlowRateIndex != 0) {
 			frozentimestate = timeFlowRateIndex;
 		}
 		timeFlowRateIndex = 0;
 		timeFlowRateChanged = true;
-		set_status_text("~y~时间已冻结！");
+		if (!suppressStatus) set_status_text("~y~时间已冻结！");
 		requireRefreshOfTime = true;
 	}
 	else {
@@ -1340,7 +1347,7 @@ static inline void apply_freeze_time_state() {
 			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 		}
 		timeFlowRateChanged = true;
-		set_status_text("~g~时间已解冻！");
+		if (!suppressStatus) set_status_text("~g~时间已解冻！");
 		requireRefreshOfTime = true;
 	}
 }
