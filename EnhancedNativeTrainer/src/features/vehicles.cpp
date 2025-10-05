@@ -120,6 +120,8 @@ bool featureNoVehFallOff = false;
 bool featureVehSteerAngle = false;
 bool featureRollWhenShoot = false;
 bool featureTractionControl = false;
+bool featureVehDriveOnWater = false;
+static bool prevVehDriveOnWater = false; // 防止每帧重复提示，记录上次状态
 bool featureSticktoground = false;
 bool featureDropSpikes = false;
 bool featureAirStrike = false;
@@ -187,6 +189,7 @@ bool tracked_being_restored = false;
 int nitrous_m = -2;
 
 int sheshark_light_toogle = 1;
+Object vehWaterPlatform = NULL;
 
 bool featureDespawnScriptDisabled = false;
 bool featureDespawnScriptDisabledUpdated = false;
@@ -3162,6 +3165,12 @@ void process_veh_menu(){
 	item->isLeaf = true;
 	menuItems.push_back(item);
 
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "水上驾驶";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureVehDriveOnWater;
+	menuItems.push_back(toggleItem);
+
 	draw_generic_menu<int>(menuItems, &activeLineIndexVeh, caption, onconfirm_veh_menu, NULL, NULL);
 }
 
@@ -3436,6 +3445,25 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 					VEHICLE::SET_VEHICLE_FIXED(veh);
 				}
 			}
+
+			// 水淹保护（统一应用于三种无敌模式）：避免车辆因落水变为无法驾驶/熄火
+			// 非船/潜艇且在水中或低于水面高度时，强制保持可驾驶与引擎运行
+			if (!is_this_a_boat_or_sub(veh)) {
+				if (ENTITY::IS_ENTITY_IN_WATER(veh)) {
+					VEHICLE::SET_VEHICLE_UNDRIVEABLE(veh, false);
+					VEHICLE::SET_VEHICLE_ENGINE_ON(veh, true, true, false);
+				}
+				else {
+					Vector3 vpos = ENTITY::GET_ENTITY_COORDS(veh, true);
+					float wHeight = -1000.0f;
+					if (WATER::GET_WATER_HEIGHT(vpos.x, vpos.y, vpos.z, &wHeight)) {
+						if (vpos.z < (wHeight - 0.10f)) {
+							VEHICLE::SET_VEHICLE_UNDRIVEABLE(veh, false);
+							VEHICLE::SET_VEHICLE_ENGINE_ON(veh, true, true, false);
+						}
+					}
+				}
+			}
 		}
 		featureVehInvincibleUpdated = true;
 	}
@@ -3624,6 +3652,80 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 			VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 1.0);
 		}
 	}
+
+	// 水上驾驶状态提示（一次性）
+	bool driveOnWaterJustEnabled = (featureVehDriveOnWater && !prevVehDriveOnWater);
+	bool driveOnWaterJustDisabled = (!featureVehDriveOnWater && prevVehDriveOnWater);
+	if (driveOnWaterJustEnabled) {
+		set_status_text("水上驾驶 已启用！");
+	}
+	else if (driveOnWaterJustDisabled) {
+		set_status_text("水上驾驶 已关闭！");
+	}
+
+	// 水上驾车：为载具在水面上提供隐形承托平台
+	// 与水上行走保持一致，加入玩家存在判断，避免极端情况下空引用
+	if (featureVehDriveOnWater && bPlayerExists && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+		Vehicle veh = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		Vector3 vehPos = ENTITY::GET_ENTITY_COORDS(veh, true);
+		float waterHeight = GetWaterHeight(vehPos);
+
+		if (waterHeight > -1000.0f && vehPos.z <= waterHeight + 2.0f) {
+			if (!ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+				Hash platformModel = GAMEPLAY::GET_HASH_KEY("prop_huge_display_02");//此物体和水上行走的一样
+				STREAMING::REQUEST_MODEL(platformModel);
+				while (!STREAMING::HAS_MODEL_LOADED(platformModel)) {
+					WAIT(0);
+				}
+				vehWaterPlatform = OBJECT::CREATE_OBJECT(platformModel, vehPos.x, vehPos.y, waterHeight - 0.10f, true, false, false);
+				if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+					ENTITY::SET_ENTITY_VISIBLE(vehWaterPlatform, false);
+					ENTITY::SET_ENTITY_COLLISION(vehWaterPlatform, true, true);
+					ENTITY::FREEZE_ENTITY_POSITION(vehWaterPlatform, true);
+					ENTITY::SET_ENTITY_INVINCIBLE(vehWaterPlatform, true);
+					ENTITY::SET_ENTITY_ROTATION(vehWaterPlatform, 270.0f, 0.0f, 0.0f, 2, true);
+				}
+				STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(platformModel);
+			} else {
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(vehWaterPlatform, vehPos.x, vehPos.y, waterHeight - 0.10f, false, false, true);
+			}
+
+			// 刚开启时：若载具低于水面 0.5 米，轻微上浮至水面（与水上行走一致）
+			if (driveOnWaterJustEnabled && vehPos.z < waterHeight - 0.5f) {
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(veh, vehPos.x, vehPos.y, waterHeight + 0.10f, false, false, true);
+			}
+
+			// 启用期间：若载具在水里或水底超过 0.5 米，自动上浮至水面
+			if (vehPos.z < waterHeight - 0.5f) {
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(veh, vehPos.x, vehPos.y, waterHeight + 0.10f, false, false, true);
+			}
+
+			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+				WATER::_SET_WAVES_INTENSITY(0.1f);
+			}
+		}
+	}
+
+	else if (!featureVehDriveOnWater && ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+		OBJECT::DELETE_OBJECT(&vehWaterPlatform);
+		vehWaterPlatform = NULL;
+		if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+			WATER::_RESET_WAVES_INTENSITY();
+		}
+	}
+
+	if (featureVehDriveOnWater && (!bPlayerExists || ENTITY::IS_ENTITY_DEAD(playerPed) || !PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0))) {
+		if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+			OBJECT::DELETE_OBJECT(&vehWaterPlatform);
+			vehWaterPlatform = NULL;
+			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+				WATER::_RESET_WAVES_INTENSITY();
+			}
+		}
+	}
+
+	// 更新状态记录，防止提示重复
+	prevVehDriveOnWater = featureVehDriveOnWater;
 
 	// 车辆隐形
 	if (FUEL_COLOURS_R_VALUES[VehInvisIndexN] > 0 && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
@@ -5447,6 +5549,8 @@ void reset_vehicle_globals() {
 		featureShowPedCons =
 		featureVehLightsOn = false;
 
+	featureVehDriveOnWater = false;
+
 	featureLockVehicleDoorsUpdated = false;
 	featureRoutineAnimations = true;
 		featureBlipNumber = true;
@@ -5475,6 +5579,15 @@ void reset_vehicle_globals() {
 
 	featureDespawnScriptDisabled = false;
 	featureDespawnScriptDisabledUpdated = false;
+
+	// 清理：删除水上驾车平台并恢复波浪强度
+	if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+		OBJECT::DELETE_OBJECT(&vehWaterPlatform);
+		vehWaterPlatform = NULL;
+	}
+	if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+		WATER::_RESET_WAVES_INTENSITY();
+	}
 
 	// 清理：解除所有已冻结车辆并恢复速度（与“重置所有”保持一致）
 	if (!FROZEN_VEHICLE_PREV_SPEED.empty()) {
@@ -5815,6 +5928,7 @@ void add_vehicle_feature_enablements(std::vector<FeatureEnabledLocalDefinition>*
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSteerAngle", &featureVehSteerAngle});
 	results->push_back(FeatureEnabledLocalDefinition{"featureRollWhenShoot", &featureRollWhenShoot});
 	results->push_back(FeatureEnabledLocalDefinition{"featureTractionControl", &featureTractionControl});
+	results->push_back(FeatureEnabledLocalDefinition{"featureVehDriveOnWater", &featureVehDriveOnWater});
 	results->push_back(FeatureEnabledLocalDefinition{"featureSticktoground", &featureSticktoground});
 	results->push_back(FeatureEnabledLocalDefinition{"featureDropSpikes", &featureDropSpikes});
 	results->push_back(FeatureEnabledLocalDefinition{"featureAirStrike", &featureAirStrike});
