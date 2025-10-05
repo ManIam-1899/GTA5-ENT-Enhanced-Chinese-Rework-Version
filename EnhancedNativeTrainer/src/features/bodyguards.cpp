@@ -610,7 +610,7 @@ bool process_bod_individual_weapon_menu() {
 	}
 
 	std::string label = VOV_WEAPON_CAPTIONS[lastSelectedBodWeaponCategory].at(lastSelectedBodWeapon); // 武器索引
-	std::string label_caption = UI::_GET_LABEL_TEXT(&label[0]);
+	std::string label_caption = get_weapon_label_with_fallback(label);
 
 	if (label_caption.compare("手枪口径 .50") == 0) {
 		label_caption = "手枪口径 .50"; // 菜单标题不支持符号
@@ -1520,8 +1520,7 @@ bool process_bodyguard_weapons_category_menu(int category){
 
 	for(auto a : VOV_WEAPON_CAPTIONS[category]){
 		toggleItem = new ToggleMenuItem<int>();
-		if (UI::DOES_TEXT_LABEL_EXIST((char*)a.c_str())) toggleItem->caption = UI::_GET_LABEL_TEXT((char*)a.c_str());
-		else toggleItem->caption = a;
+		toggleItem->caption = get_weapon_label_with_fallback(a);
 		toggleItem->value = index;
 		toggleItem->toggleValue = bodyguardWeaponsToggle[category].at(index++);
 		toggleItem->toggleValueUpdated = nullptr;

@@ -546,9 +546,7 @@ bool process_individual_weapon_menu(int weaponIndex){
 	lastSelectedWeapon = weaponIndex;
 
 	std::string label = VOV_WEAPON_CAPTIONS[lastSelectedWeaponCategory].at(weaponIndex);
-	std::string label_caption = UI::_GET_LABEL_TEXT(&label[0]);
-
-	if (label_caption.empty()) label_caption = label;
+	std::string label_caption = get_weapon_label_with_fallback(label);
 
 	if(label_caption.compare("手枪 .50") == 0){
 		label_caption = "手枪 .50"; // 菜单标题无法处理符号
@@ -704,7 +702,7 @@ bool process_weapons_in_category_menu(int category){
 	for(int i = 0; i < VOV_WEAPON_CAPTIONS[category].size(); i++){
 		MenuItem<int> *item = new MenuItem<int>();
 		std::string label = VOV_WEAPON_CAPTIONS[category].at(i);
-		std::string label_caption = UI::_GET_LABEL_TEXT(&label[0]);
+		std::string label_caption = get_weapon_label_with_fallback(label);
 		item->caption = label_caption;
 
 		const char* value = VOV_WEAPON_VALUES[category].at(i).c_str();
