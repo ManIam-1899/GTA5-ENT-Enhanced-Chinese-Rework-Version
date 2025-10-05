@@ -152,6 +152,11 @@ bool BodyBlipFlash_Changed = true;
 int FollowInVehicleIndex = 0;
 bool FollowInVehicleChanged = true;
 
+// 跟随玩家/原地待命
+const std::vector<std::string> BODY_FOLLOW_MODE_CAPTIONS{ "跟随玩家", "原地待命" };
+int BodyFollowModeIndex = 0; // 默认跟随玩家
+bool BodyFollowModeChanged = true;
+
 // 保镖生命值
 int BodyHealthIndex = 6;
 bool BodyHealthChanged = true;
@@ -2590,10 +2595,11 @@ bool process_bodyguard_menu(){
 		menuItems.push_back(item);
 
 		item = new MenuItem<int>();
-		item->caption = "切换保镖跟随玩家的方式";
-		item->value = 4;
-		item->isLeaf = true;
-		menuItems.push_back(item);
+		listItem = new SelectFromListMenuItem(BODY_FOLLOW_MODE_CAPTIONS, onchange_body_follow_mode_index);
+		listItem->wrap = false;
+		listItem->caption = "保镖跟随玩家的方式"; // 改为选择项：跟随玩家 / 原地待命
+		listItem->value = BodyFollowModeIndex;
+		menuItems.push_back(listItem);
 
 		item = new MenuItem<int>();
 		std::ostringstream ss3;
@@ -2923,9 +2929,7 @@ bool onconfirm_bodyguard_menu(MenuItem<int> choice){
 			//中断;
 		}
 		case 4:
-			stop_b = !stop_b;
-			if (stop_b) set_status_text("原地待命！");
-			else set_status_text("跟随玩家！");
+			// 已改为选择项，确认键不再切换；保持空分支
 			break;
 		case 5:
 			spawning_a_ped = true;
@@ -2982,6 +2986,7 @@ void add_bodyguards_feature_enablements2(std::vector<StringPairSettingDBRow>* re
 	results->push_back(StringPairSettingDBRow{ "BodyBlipSymbolIndexN", std::to_string(BodyBlipSymbolIndexN) });
 	results->push_back(StringPairSettingDBRow{ "BodyBlipFlashIndex", std::to_string(BodyBlipFlashIndex) });
 	results->push_back(StringPairSettingDBRow{ "FollowInVehicleIndex", std::to_string(FollowInVehicleIndex) });
+	results->push_back(StringPairSettingDBRow{ "BodyFollowModeIndex", std::to_string(BodyFollowModeIndex) });
 	results->push_back(StringPairSettingDBRow{ "BodyWeaponSetIndex", std::to_string(BodyWeaponSetIndex) });
 	results->push_back(StringPairSettingDBRow{ "BodyHealthIndex", std::to_string(BodyHealthIndex) });
 	results->push_back(StringPairSettingDBRow{ "BodyShowNumbersIndex", std::to_string(BodyShowNumbersIndex) });
@@ -3040,6 +3045,10 @@ void handle_generic_settings_bodyguards(std::vector<StringPairSettingDBRow>* set
 		else if (setting.name.compare("FollowInVehicleIndex") == 0) {
 			FollowInVehicleIndex = stoi(setting.value);
 		}
+		else if (setting.name.compare("BodyFollowModeIndex") == 0) {
+			BodyFollowModeIndex = stoi(setting.value);
+			stop_b = (BodyFollowModeIndex == 1);
+		}
 		else if (setting.name.compare("BodyWeaponSetIndex") == 0) {
 			BodyWeaponSetIndex = stoi(setting.value);
 		}
@@ -3093,6 +3102,8 @@ void reset_bodyguards_globals(){
 	BodyBlipSymbolIndexN = 0;
 	BodyBlipFlashIndex = 0;
 	FollowInVehicleIndex = 0;
+	BodyFollowModeIndex = 0; // 默认为跟随玩家
+	stop_b = false; // 同步状态为跟随
 	BodyWeaponSetIndex = 0;
 	BodyHealthIndex = 6;
 	BodyShowNumbersIndex = 0;
@@ -3154,6 +3165,16 @@ void onchange_body_blipflash_index(int value, SelectFromListMenuItem* source){
 void onchange_random_bodyguard_pool_index(int value, SelectFromListMenuItem* source) {
 	RandomBodyguardPoolIndex = value;
 	RandomBodyguardPoolChanged = true;
+}
+
+// 跟随玩家/原地待命
+void onchange_body_follow_mode_index(int value, SelectFromListMenuItem* source) {
+	BodyFollowModeIndex = value;
+	BodyFollowModeChanged = true;
+	// 应用行为与提示信息
+	stop_b = (value == 1);
+	if (stop_b) set_status_text("保镖：原地待命！");
+	else set_status_text("保镖：跟随玩家！");
 }
 
 // Custom peds functions for bodyguards

@@ -81,6 +81,7 @@ void onchange_bodyguards_body_weapons(int value, SelectFromListMenuItem* source)
 void onchange_body_groupformation_index(int value, SelectFromListMenuItem* source);
 
 void onchange_follow_invehicle_index(int value, SelectFromListMenuItem* source);
+void onchange_body_follow_mode_index(int value, SelectFromListMenuItem* source);
 
 void onchange_body_health_index(int value, SelectFromListMenuItem* source);
 
