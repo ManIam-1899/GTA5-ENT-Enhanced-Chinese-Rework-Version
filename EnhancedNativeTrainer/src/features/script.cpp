@@ -2143,7 +2143,7 @@ bool onconfirm_powerpunch_menu(MenuItem<int> choice)
 			set_status_text(ss.str());
 		}
 		keyboard_on_screen_already = true;
-		curr_message = "输入冲击强度："; // 强力拳击力量
+		curr_message = "输入冲击力强度："; // 强力拳击力量
 		std::string result_p = show_keyboard("手动输入名称", (char *)lastPowerWeapon.c_str());
 		if (!result_p.empty()) {
 			if (strlen(result_p.c_str()) > 18) result_p = "9223372036854775807"; // result_p.resize(18);
@@ -2158,7 +2158,7 @@ bool onconfirm_powerpunch_menu(MenuItem<int> choice)
 }
 
 void process_powerpunch_menu() {
-	const std::string caption = "冲击波选项";
+	const std::string caption = "冲击力选项";
 
 	std::vector<MenuItem<int>*> menuItems;
 	SelectFromListMenuItem *listItem;
@@ -2193,12 +2193,12 @@ void process_powerpunch_menu() {
 
 	listItem = new SelectFromListMenuItem(WEAPONS_POWERPUNCH_CAPTIONS, onchange_power_punch_index);
 	listItem->wrap = false;
-	listItem->caption = "超能冲击强度";
+	listItem->caption = "设置冲击力强度";
 	listItem->value = PowerPunchIndex;
 	menuItems.push_back(listItem);
 
 	item = new MenuItem<int>();
-	item->caption = "自定义冲击强度";
+	item->caption = "自定义冲击力强度";
 	item->value = i++;
 	item->isLeaf = true;
 	menuItems.push_back(item);
@@ -2538,7 +2538,7 @@ bool process_player_forceshield_menu() {
 	int i = 0;
 
 	item = new MenuItem<int>();
-	item->caption = "冲击波";
+	item->caption = "冲击力";
 	item->value = i++;
 	item->isLeaf = false;
 	menuItems.push_back(item);
