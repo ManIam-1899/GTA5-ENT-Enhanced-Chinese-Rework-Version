@@ -2565,7 +2565,7 @@ bool process_bodyguard_menu(){
 
 		item = new MenuItem<int>();
 		std::ostringstream ss0;
-		ss0 << "生成保镖: " << get_current_model_name(); 
+		ss0 << "生成保镖: ~h~" << get_current_model_name(); 
 		item->caption = ss0.str();
 		item->value = 0;
 		item->isLeaf = true;
@@ -2597,7 +2597,7 @@ bool process_bodyguard_menu(){
 
 		item = new MenuItem<int>();
 		std::ostringstream ss3;
-		ss3 << "生成为路人: " << get_current_model_name();
+		ss3 << "生成为路人: ~h~" << get_current_model_name();
 		item->caption = ss3.str();
 		item->value = 5;
 		item->isLeaf = true;

@@ -19,6 +19,8 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <string>
 #include <unordered_map>
 
+inline constexpr size_t WEAPON_CATEGORY_COUNT = 8; // 近战/手枪/冲锋枪/步枪/霰弹枪/狙击/重型/投掷
+
 // 统一的武器标签本地化回退：当 UI::_GET_LABEL_TEXT 返回空或 "NULL" 时，使用自定义映射
 inline std::string get_weapon_label_with_fallback(const std::string& key) {
 	std::string localized;
@@ -39,6 +41,23 @@ inline std::string get_weapon_label_with_fallback(const std::string& key) {
 	}
 	return localized;
 }
+
+// 将类似 "\"WEAPON_PISTOL\"" 的字符串规范化为 WEAPON_PISTOL
+inline std::string normalize_weapon_model_key(const std::string& in) {
+	std::string s = in;	// 复制输入字符串，避免直接修改原始数据
+
+	// 去掉首尾空格或制表符，防止配置文件或输入中存在多余空白字符
+	while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(s.begin());
+	while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+
+	// 去掉包裹字符串的双引号，例如从 "WEAPON_PISTOL" 变成 WEAPON_PISTOL
+	if (!s.empty() && s.front() == '"') s.erase(s.begin());
+	if (!s.empty() && s.back() == '"') s.pop_back();
+
+	return s;	// 返回处理后的规范化字符串
+}
+
+// 注意：依赖 VOV_WEAPON_* 的辅助函数在文件后半段定义，以避免前置声明造成外部链接问题
 
 const std::vector<std::string> MENU_WEAPON_CATEGORIES{ "近战武器", "手枪", " 冲锋枪", " 突击步枪", "霰弹枪", " 狙击步枪", "重型武器", "投掷武器" };
 
@@ -70,6 +89,65 @@ const std::vector<std::string> VALUES_THROWN{ "WEAPON_GRENADE", "WEAPON_STICKYBO
 
 const std::vector<std::string> VOV_WEAPON_CAPTIONS[] = {CAPTIONS_MELEE, CAPTIONS_HANDGUN, CAPTIONS_SUBMACHINE, CAPTIONS_ASSAULT, CAPTIONS_SHOTGUN, CAPTIONS_SNIPER, CAPTIONS_HEAVY, CAPTIONS_THROWN};
 const std::vector<std::string> VOV_WEAPON_VALUES[] = {VALUES_MELEE, VALUES_HANDGUN, VALUES_SUBMACHINE, VALUES_ASSAULT, VALUES_SHOTGUN, VALUES_SNIPER, VALUES_HEAVY, VALUES_THROWN};
+
+// 全局静态映射（只初始化一次，兼容原 VOV_WEAPON_VALUES / VOV_WEAPON_CAPTIONS）
+inline const std::unordered_map<std::string, std::string>& get_weapon_caption_map() {
+	static std::unordered_map<std::string, std::string> map;
+	if (map.empty()) {
+		// 1. 遍历原项目的武器表
+		for (size_t cat = 0; cat < WEAPON_CATEGORY_COUNT; ++cat) {
+			const auto& values = VOV_WEAPON_VALUES[cat];
+			const auto& captions = VOV_WEAPON_CAPTIONS[cat];
+			for (size_t i = 0; i < values.size(); ++i) {
+				if (i < captions.size()) {
+					map[values[i]] = captions[i];
+				} else {
+					map[values[i]] = ""; // 数据不一致时留空
+				}
+			}
+		}
+
+		// 2. 添加车辆武器/特殊武器映射
+		static const std::unordered_map<std::string, std::string> kVehicleWeaponDisplay = {
+			{"VEHICLE_WEAPON_MINE_KINETIC", "动能地雷"},
+			{"VEHICLE_WEAPON_MINE_SPIKE", "钉刺地雷"},
+			{"VEHICLE_WEAPON_MINE_EMP", "电磁脉冲地雷"},
+			{"VEHICLE_WEAPON_MINE", "地雷"},
+			{"VEHICLE_WEAPON_MINE_SLICK", "滑油地雷"},
+			{"VEHICLE_WEAPON_MINE_TAR", "沥青地雷"},
+			{"VEHICLE_WEAPON_PLAYER_BULLET", "车载重机枪"},
+			{"VEHICLE_WEAPON_PLAYER_LAZER", "超能激光炮"},
+			{"WEAPON_UNARMED", "徒手/拳头"},
+		};
+		map.insert(kVehicleWeaponDisplay.begin(), kVehicleWeaponDisplay.end());
+	}
+	return map;
+}
+
+// 根据模型名获取本地化标题
+inline std::string localized_caption_from_model(const std::string& modelIn) {
+	std::string m = normalize_weapon_model_key(modelIn);
+	if (m == "关") return m;
+	const auto& map = get_weapon_caption_map();
+	auto it = map.find(m);
+	if (it != map.end()) {
+		if (!it->second.empty()) {
+			return get_weapon_label_with_fallback(it->second);
+		}
+		return m; // 映射为空，返回原模型名
+	}
+	return m;// 都没找到，返回原模型名
+}
+
+// 批量本地化（与原列表顺序一致）
+inline std::vector<std::string> localize_weapon_models(const std::vector<std::string>& models) {
+	std::vector<std::string> out;
+	out.reserve(models.size());
+	for (const auto& s : models) {
+		out.push_back(localized_caption_from_model(s));
+	}
+	return out;
+}
 
 // 武器涂装
 const std::vector<std::string> CAPTIONS_TINT{ "正常", "绿色", "金色", "粉色", "军绿色", "洛圣都警察局", "橙色", "铂金色" };

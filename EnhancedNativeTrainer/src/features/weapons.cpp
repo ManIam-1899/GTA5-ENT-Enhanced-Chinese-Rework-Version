@@ -793,7 +793,9 @@ void process_copweapon_menu(){
 	toggleItem->toggleValue = &featureSwitchWeaponIfDanger;
 	menuItems.push_back(toggleItem);
 
-	listItem = new SelectFromListMenuItem(WEAPONS_COPARMED_CAPTIONS, onchange_cop_armed_index);
+	// 使用本地化标题替换警察装备的模型名显示，保持索引与值不变
+	std::vector<std::string> copLocalized = localize_weapon_models(WEAPONS_COPARMED_CAPTIONS);
+	listItem = new SelectFromListMenuItem(copLocalized, onchange_cop_armed_index);
 	listItem->wrap = false;
 	listItem->caption = "警察的装备";
 	listItem->value = CopCurrArmedIndex;
@@ -1534,9 +1536,11 @@ bool process_weapon_menu(){
 	toggleItem->toggleValueUpdated = NULL;
 	menuItems.push_back(toggleItem);
 
-	listItem = new SelectFromListMenuItem(WEAPONS_VEHICLE_CAPTIONS, onchange_vehicle_weapon_modifier);
+	// 使用本地化标题替换载具武器的模型名显示，但保持索引与值不变
+	std::vector<std::string> vehLocalized = localize_weapon_models(WEAPONS_VEHICLE_CAPTIONS);
+	listItem = new SelectFromListMenuItem(vehLocalized, onchange_vehicle_weapon_modifier);
 	listItem->wrap = false;
-	listItem->caption = "载具武器";
+	listItem->caption = "载具装备武器";
 	listItem->value = VehCurrWeaponIndex;
 	menuItems.push_back(listItem);
 

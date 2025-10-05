@@ -2676,12 +2676,12 @@ void process_localization_menu() {
 		{ "原作者：Flying-Scotsmar,  Slash_Alex", NULL, NULL, true},
 		{ "基于 Alexander Blade 的 ScripthookV 构建", NULL, NULL, true},
 		{ "感谢所有原开发者们，感谢帮助我的朋友们", NULL, NULL, true},
-		{ "汉化：随梦&而飞", NULL, NULL, true},
-		{ "感谢：烈火神君,  羽一大魔王", NULL, NULL, true},
+		{ "中文版作者：随梦&而飞", NULL, NULL, true},
+		{ "感谢帮助：烈火神君,  羽一大魔王", NULL, NULL, true},
 		{ "此版本和原英文版有较大区别", NULL, NULL, true},
 		{ "某些配置文件并不互相通用", NULL, NULL, true},
-		{ "使用此汉化版，必须删除以前的 DB 文件", NULL, NULL, true},
 		{ "标题添加 CN 就是为了区分其他版本", NULL, NULL, true},
+		{ "使用此汉化版，必须删除以前的 DB 文件", NULL, NULL, true},
 	};
 
 	// 绘制菜单
