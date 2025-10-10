@@ -1856,6 +1856,10 @@ bool onconfirm_colours2_menu(MenuItem<int> choice)
 
 bool onconfirm_speed_menu(MenuItem<int> choice)
 {
+	// 打开“模拟速度表”子菜单（用固定值判断，避免依赖文字）
+	if (choice.value == -35769) {
+		process_analog_speedometer_menu();
+	}
 	return false;
 }
 
@@ -1868,35 +1872,46 @@ void process_speed_menu(){
 	ToggleMenuItem<int>* toggleItem;
 
 	int i = 0;
+
+	// 总开关：控制传统速度/高度显示（与模拟速度表互斥）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "速度/高度 显示开启";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureSpeedAltitudeMaster;
+	toggleItem->toggleValueUpdated = &featureSpeedAltitudeMasterUpdated;
+	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "单位: KM/H";
+	toggleItem->caption = "单位: KM/H或MPH";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureKMH;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "显示: 高度";
+	toggleItem->caption = "显示: 海拔高度";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureAltitude;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "步行";
+	toggleItem->caption = "步行速度显示";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSpeedOnFoot;
+	toggleItem->toggleValueUpdated = &featureSpeedOnFootUpdated;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "所有地面载具";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSpeedOnGround;
+	toggleItem->toggleValueUpdated = &featureSpeedOnGroundUpdated;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "所有飞行载具";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSpeedInAir;
+	toggleItem->toggleValueUpdated = &featureSpeedInAirUpdated;
 	menuItems.push_back(toggleItem);
 
 	listItem = new SelectFromListMenuItem(VEH_BLIPSIZE_CAPTIONS, onchange_speed_size_index);
@@ -1910,6 +1925,12 @@ void process_speed_menu(){
 	listItem->caption = "显示位置";
 	listItem->value = SpeedPositionIndexN;
 	menuItems.push_back(listItem);
+
+	MenuItem<int>* item = new MenuItem<int>();
+	item->caption = "模拟速度表 (显示圆形表盘)";
+	item->value = -35769; // 固定识别值，避免标题改动导致无法进入
+	item->isLeaf = false;
+	menuItems.push_back(item);
 
 	draw_generic_menu<int>(menuItems, &activeLineIndexSpeed, caption, onconfirm_speed_menu, NULL, NULL);
 }
@@ -5971,6 +5992,7 @@ void add_vehicle_feature_enablements(std::vector<FeatureEnabledLocalDefinition>*
 	results->push_back(FeatureEnabledLocalDefinition{"featureAltitude", &featureAltitude });
 	results->push_back(FeatureEnabledLocalDefinition{"featureSpeedOnGround", &featureSpeedOnGround });
 	results->push_back(FeatureEnabledLocalDefinition{"featureSpeedInAir", &featureSpeedInAir });
+	results->push_back(FeatureEnabledLocalDefinition{"featureSpeedAltitudeMaster", &featureSpeedAltitudeMaster, &featureSpeedAltitudeMasterUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnTuned", &featureVehSpawnTuned});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnOptic", &featureVehSpawnOptic});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWearHelmetOff", &featureWearHelmetOff, &featureWearHelmetOffUpdated});

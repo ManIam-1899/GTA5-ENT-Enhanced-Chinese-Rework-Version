@@ -31,6 +31,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "road_laws.h"
 #include "vehicles.h"
 #include "weapons.h"
+#include "speed_altitude.h"
 #include "../version.h"
 #include "../utils.h"
 #include "../ui_support/file_dialog.h"
@@ -960,6 +961,8 @@ void update_features() {
 	update_area_effects(playerPed);
 	
 	update_speedaltitude(playerPed);
+	// 独立调用：模拟速度表每帧更新（不再耦合到旧速度/高度文本函数）
+	update_speedaltitude_append_analog(playerPed);
 
 	update_weapon_features(bPlayerExists, player);
 
@@ -3013,6 +3016,9 @@ void reset_globals(){
 
 	reset_world_globals();
 
+	// 新增：重置速度/高度模块（包括模拟速度表开关与相关设置）
+	reset_speed_altitude_globals();
+
 	reset_misc_globals();
 
 	reset_prop_globals();
@@ -3472,7 +3478,8 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 	add_world_generic_settings(&settings);
 	add_vehicle_generic_settings(&settings);
 	add_vehmodmenu_generic_settings(&settings);
-	handle_generic_settings_teleportation(&settings);
+	// NOTE: 这里原本误调用了 handle_generic_settings_teleportation，调整为仅聚合 generic 设置
+	// handle_generic_settings_teleportation(&settings);
 	add_world_feature_enablements2(&settings);
 	add_world_feature_enablements3(&settings);
 	add_anims_feature_enablements(&settings);
@@ -3484,6 +3491,9 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 	add_props_generic_settings(&settings);
 	add_weapons_generic_settings(&settings);
 	add_areaeffect_generic_settings(&settings);
+
+	// 速度/高度与模拟速度表（新增）
+	add_speed_altitude_generic_settings(&settings);
 
 	//if(AIMBOT_INCLUDED){
 	//	add_aimbot_esp_generic_settings(&settings);
@@ -3581,6 +3591,9 @@ void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 	handle_generic_settings_vehmodmenu(&settings);
 
 	handle_generic_settings_world(&settings);
+
+    // 速度/高度与模拟速度表（新增）
+    handle_generic_settings_speed_altitude(&settings);
 
 	handle_generic_settings_anims(&settings);
 
