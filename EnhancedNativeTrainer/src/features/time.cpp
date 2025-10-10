@@ -1460,14 +1460,11 @@ static inline void apply_freeze_time_state(bool suppressStatus) {
 
 // ================= 模拟时钟：菜单与渲染 =================
 
-static const std::vector<std::string> ANALOG_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10" };
+static const std::vector<std::string> ANALOG_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10", "风格 11" };
 static const std::vector<std::string> ANALOG_TIME_SOURCE_CAPTIONS{ "游戏时间", "现实时间" };
 
-// 统一的贴图名称表（供菜单回调与绘制共同使用）
-static const char* kFACE_NAMES[11]  = {"Clock0_face",  "Clock1_face",  "Clock2_face",  "Clock3_face",  "Clock4_face",  "Clock5_face",  "Clock6_face",  "Clock7_face",  "Clock8_face",  "Clock9_face",  "Clock10_face"};
-static const char* kHANDH_NAMES[11] = {"Clock0_handh", "Clock1_handh", "Clock2_handh", "Clock3_handh", "Clock4_handh", "Clock5_handh", "Clock6_handh", "Clock7_handh", "Clock8_handh", "Clock9_handh", "Clock10_handh"};
-static const char* kHANDM_NAMES[11] = {"Clock0_handm", "Clock1_handm", "Clock2_handm", "Clock3_handm", "Clock4_handm", "Clock5_handm", "Clock6_handm", "Clock7_handm", "Clock8_handm", "Clock9_handm", "Clock10_handm"};
-static const char* kHANDS_NAMES[11] = {"Clock0_hands", "Clock1_hands", "Clock2_hands", "Clock3_hands", "Clock4_hands", "Clock5_hands", "Clock6_hands", "Clock7_hands", "Clock8_hands", "Clock9_hands", "Clock10_hands"};
+// 贴图名称改为按样式索引动态拼接（与速度表一致的命名匹配方式）
+// 示例：Clock0_face / Clock0_handh / Clock0_handm / Clock0_hands
 
 static void onchange_analog_style(int value, SelectFromListMenuItem* source){
 	analogClockStyleIndex = value;
@@ -1709,14 +1706,16 @@ static inline void draw_analog_clock(){
 		return;
 	}
 
-    const char* dict = "ENT_textures"; // 必须与注册名一致
-    int styleIdx = analogClockStyleIndex;
-    // 防御样式索引越界（数组大小为11）
-    if (styleIdx < 0) styleIdx = 0; else if (styleIdx > 10) styleIdx = 10;
-    const char* face = kFACE_NAMES[styleIdx];
-    const char* handh = kHANDH_NAMES[styleIdx];
-    const char* handm = kHANDM_NAMES[styleIdx];
-    const char* hands = kHANDS_NAMES[styleIdx];
+	const char* dict = "ENT_textures"; // 必须与注册名一致
+	int styleIdx = analogClockStyleIndex;
+	// 防御样式索引越界（当前支持 0到11）
+	if (styleIdx < 0) styleIdx = 0; else if (styleIdx > 11) styleIdx = 11;
+	// 动态拼接贴图名称（便于后期直接添加新样式贴图）
+	char face[32];  char handh[32]; char handm[32]; char hands[32];
+	sprintf_s(face,  "Clock%d_face",  styleIdx);
+	sprintf_s(handh, "Clock%d_handh", styleIdx);
+	sprintf_s(handm, "Clock%d_handm", styleIdx);
+	sprintf_s(hands, "Clock%d_hands", styleIdx);
 
 	// 贴图存在性检查：找不到对应贴图则跳过该层绘制，避免出现白色占位图
 	auto has_texture = [](const char* d, const char* n) -> bool {
@@ -1725,16 +1724,16 @@ static inline void draw_analog_clock(){
 	};
 
 	if (has_texture(dict, face)) {
-		GRAPHICS::DRAW_SPRITE((char*)dict, (char*)face, centerX, centerY, sizeX, sizeY, 0.0f, 255,255,255,255);
+		GRAPHICS::DRAW_SPRITE((char*)dict, face, centerX, centerY, sizeX, sizeY, 0.0f, 255,255,255,255);
 	}
 	if (has_texture(dict, handh)) {
-		GRAPHICS::DRAW_SPRITE((char*)dict, (char*)handh, centerX, centerY, sizeX, sizeY, hourDeg, 255,255,255,255);
+		GRAPHICS::DRAW_SPRITE((char*)dict, handh, centerX, centerY, sizeX, sizeY, hourDeg, 255,255,255,255);
 	}
 	if (has_texture(dict, handm)) {
-		GRAPHICS::DRAW_SPRITE((char*)dict, (char*)handm, centerX, centerY, sizeX, sizeY, minDeg, 255,255,255,255);
+		GRAPHICS::DRAW_SPRITE((char*)dict, handm, centerX, centerY, sizeX, sizeY, minDeg, 255,255,255,255);
 	}
 	if (has_texture(dict, hands)) {
-		GRAPHICS::DRAW_SPRITE((char*)dict, (char*)hands, centerX, centerY, sizeX, sizeY, secDeg, 255,255,255,255);
+		GRAPHICS::DRAW_SPRITE((char*)dict, hands, centerX, centerY, sizeX, sizeY, secDeg, 255,255,255,255);
 	}
 
 	// 下方标签与数字时间（固定字号，位置可自适应）
