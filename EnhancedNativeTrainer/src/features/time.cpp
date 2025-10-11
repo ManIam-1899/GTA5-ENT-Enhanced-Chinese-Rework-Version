@@ -22,9 +22,10 @@ const std::vector<std::string> TIME_SPEED_CAPTIONS{ "最低", "0.1x", "0.2x", "0
 const std::vector<float> TIME_SPEED_VALUES{ 0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f };
 const int DEFAULT_TIME_SPEED = 10;
 
-const std::vector<std::string> TIME_FLOW_RATE_CAPTIONS{ "冻结时间 (0秒/秒)", "每秒半秒 (0.5秒/秒)", "现实时间 (1秒/秒)", "每秒 2 秒", "每秒 3 秒", "每秒 4 秒", "每秒 5 秒", "每秒 6 秒", "每秒 7 秒", "每秒 8 秒", "每秒 9 秒", "每秒 10 秒", "每秒 12 秒", "每秒 15 秒", "正常时间流速 (30秒/秒)", "每秒 1 分钟", "每秒 2 分钟", "每秒 3 分钟", "每秒 4 分钟", "每秒 5 分钟", "每秒 6 分钟", "每秒 7 分钟", "每秒 8 分钟", "每秒 9 分钟", "每秒 10 分钟", "每秒 12 分钟", "每秒 15 分钟", "每秒 30 分钟", "每秒 1 小时", "每秒 2 小时", "每秒 3 小时", "每秒 4 小时", "每秒 5 小时", "每秒 6 小时", "每秒 12 小时", "每秒 1 天" };
+const std::vector<std::string> TIME_FLOW_RATE_CAPTIONS{ "冻结时间 (0秒/秒)", "每秒半秒 (0.5秒/秒)", "现实时间 (1秒/秒)", "每秒 2 秒", "每秒 3 秒", "每秒 4 秒", "每秒 5 秒", "每秒 6 秒", "每秒 7 秒", "每秒 8 秒", "每秒 9 秒", "每秒 10 秒", "每秒 12 秒", "每秒 15 秒", "游戏默认流速 (30秒/秒)", "每秒 1 分钟", "每秒 2 分钟", "每秒 3 分钟", "每秒 4 分钟", "每秒 5 分钟", "每秒 6 分钟", "每秒 7 分钟", "每秒 8 分钟", "每秒 9 分钟", "每秒 10 分钟", "每秒 12 分钟", "每秒 15 分钟", "每秒 30 分钟", "每秒 1 小时", "每秒 2 小时", "每秒 3 小时", "每秒 4 小时", "每秒 5 小时", "每秒 6 小时", "每秒 12 小时", "每秒 1 天" };
 const std::vector<float> TIME_FLOW_RATE_VALUES{ 0.0f, 0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 12.0f, 15.0f, 30.0f, 60.0f, 120.0f, 180.0f, 240.0f, 300.0f, 360.0f, 420.0f, 480.0f, 540.0f, 600.0f, 720.0f, 900.0f, 1800.0f, 3600.0f, 7200.0f, 10800.0f, 14400.0f, 18000.0f, 21600.0f, 43200.0f, 86400.0f };
-const int DEFAULT_TIME_FLOW_RATE = 10;
+// 默认时间流速应为“正常时间流速 (30秒/秒)” -> 索引 14
+const int DEFAULT_TIME_FLOW_RATE = 14;
 
 const int DEFAULT_HOTKEY_FLOW_RATE = 10;
 
@@ -1105,13 +1106,19 @@ void update_time_features(Player player) {
     if (featureTimeSyncedUpdated) {
         featureTimeSyncedUpdated = false;
         if (featureTimeSynced) {
-            // 关闭冻结时间（如果已开启），并恢复正常流速
+            // 开启系统同步时，关闭冻结时间（如果已开启），并将“时间流速”显示为“现实时间 (1秒/秒)”
             if (featureFreezeTime) {
                 featureFreezeTime = false;
-                // 如果是首次加载并且此处关闭了冻结时间，则抑制“时间已解冻”提示
                 apply_freeze_time_state(!featureFreezeTime && !freezeStateInitialized);
                 freezeStateInitialized = true;
             }
+            if (timeFlowRateIndex != 2) { // 索引 2 -> 现实时间 (1秒/秒)
+                timeFlowRateIndex = 2;
+                timeFlowRateChanged = true;
+            }
+            requireRefreshOfTime = true;
+        } else {
+            // 关闭系统同步时，恢复为默认“正常时间流速 (30秒/秒)”
             if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
                 timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
                 timeFlowRateChanged = true;
@@ -1132,8 +1139,10 @@ void update_time_features(Player player) {
 
     // 时间同步
     if (featureTimeSynced) {
-        if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
-            timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE, timeFlowRateChanged = true;
+        // 保持“时间流速”显示为现实时间 (1秒/秒)，并以系统时间强制同步
+        if (timeFlowRateIndex != 2) {
+            timeFlowRateIndex = 2; // 现实时间
+            timeFlowRateChanged = true;
         }
 
         time_t now = time(0);
@@ -1158,7 +1167,7 @@ void update_time_features(Player player) {
 		timeFactor = timeFlowRateIndex == 0 ? -1.0f : 1000.0f / TIME_FLOW_RATE_VALUES.at(timeFlowRateIndex);
 		SYSTEM::SETTIMERA(0);
 	}
-	if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+	if (!featureTimeSynced && timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
 		TIME::PAUSE_CLOCK(true);
 		if (timeFlowRateIndex > 0) {
 			int hours, minutes, seconds = static_cast<int>(static_cast<float>(SYSTEM::TIMERA()) / timeFactor);
@@ -1460,7 +1469,7 @@ static inline void apply_freeze_time_state(bool suppressStatus) {
 
 // ================= 模拟时钟：菜单与渲染 =================
 
-static const std::vector<std::string> ANALOG_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10", "风格 11" };
+static const std::vector<std::string> ANALOG_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10", "风格 11", "风格 12", "风格 13", "风格 14" };
 static const std::vector<std::string> ANALOG_TIME_SOURCE_CAPTIONS{ "游戏时间", "现实时间" };
 
 // 贴图名称改为按样式索引动态拼接（与速度表一致的命名匹配方式）
@@ -1676,9 +1685,12 @@ static inline void draw_analog_clock(){
         tm t; localtime_s(&t, &now);
         hour = t.tm_hour; minute = t.tm_min; second = t.tm_sec;
     }
-    float hourDeg = (30.0f * (float)(hour % 12)) + (0.5f * (float)minute);
-    float minDeg = 6.0f * (float)minute;
-    float secDeg = 6.0f * (float)second;
+    //分针时针改为连续平滑移动方式，分针与时针都会随秒细微移动，满足更自然的模拟时钟效果。
+    float secDeg = 6.0f * (float)second; // 1秒=6°，保持不变
+    float minDeg = (6.0f * (float)minute) + ((6.0f / 60.0f) * (float)second); // 每秒贡献0.1°
+    float hourDeg = (30.0f * (float)(hour % 12))
+                  + ((30.0f / 60.0f)   * (float)minute)   // 每分钟贡献0.5°
+                  + ((30.0f / 3600.0f) * (float)second);  // 每秒贡献约0.00833°
 
     // 按屏幕分辨率进行1:1像素绘制，避免压缩与模糊
     int screenW = 0, screenH = 0;
@@ -1709,7 +1721,7 @@ static inline void draw_analog_clock(){
 	const char* dict = "ENT_textures"; // 必须与注册名一致
 	int styleIdx = analogClockStyleIndex;
 	// 防御样式索引越界（当前支持 0到11）
-	if (styleIdx < 0) styleIdx = 0; else if (styleIdx > 11) styleIdx = 11;
+	if (styleIdx < 0) styleIdx = 0; else if (styleIdx > 14) styleIdx = 14;
 	// 动态拼接贴图名称（便于后期直接添加新样式贴图）
 	char face[32];  char handh[32]; char handm[32]; char hands[32];
 	sprintf_s(face,  "Clock%d_face",  styleIdx);

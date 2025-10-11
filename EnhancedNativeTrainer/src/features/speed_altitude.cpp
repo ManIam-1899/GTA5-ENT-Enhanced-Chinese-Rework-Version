@@ -200,7 +200,7 @@ static SelectFromListMenuItem* gASPosXItem = nullptr;
 static SelectFromListMenuItem* gASPosYItem = nullptr;
 static SelectFromListMenuItem* gASPresetItem = nullptr;
 
-static const std::vector<std::string> ANALOG_SPEEDO_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10", "风格 11", "风格 12", "风格 13" };
+static const std::vector<std::string> ANALOG_SPEEDO_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10", "风格 11", "风格 12", "风格 13", "风格 14" };
 static const std::vector<std::string> ANALOG_SPEEDO_UNIT_CAPTIONS{ "千米", "英里" };
 static const std::vector<int> ANALOG_PIXEL_SIZES{ 128,160,192,224,256,288,320,352,384,416,448,480,512 };
 
@@ -266,7 +266,7 @@ static inline void draw_analog_speedometer(Ped playerPed){
 	float sizeY = pxSize * onePixelH;
 
 	// 根据样式选择贴图名
-	int style = analogSpeedoStyleIndex; if(style<0) style=0; if(style>13) style=13;
+	int style = analogSpeedoStyleIndex; if(style<0) style=0; if(style>14) style=14;
 	char baseName[32]; char needleName[32];
 	sprintf_s(baseName, "speedo_base%d", style);
 	sprintf_s(needleName, "speedo_needle%d", style);
