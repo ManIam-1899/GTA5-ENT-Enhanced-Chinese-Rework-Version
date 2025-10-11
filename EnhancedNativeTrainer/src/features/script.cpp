@@ -283,9 +283,9 @@ static bool prevWalkOnWater = false;
 // 湿度最大高度（可调整以适配不同模型和场景）
 static constexpr float MAX_WETNESS = 5.5f;
 // 干燥清理的帧周期（每 N 帧清理一次，折中性能与效果）
-static constexpr int DRY_CLEAR_PERIOD_FRAMES = 10; // ~0.5s @60fps
+static constexpr int DRY_CLEAR_PERIOD_FRAMES = 1; // 约0.0167 秒
 // 湿透施加的帧周期（每 N 帧强制湿身，减少每帧调用负担）
-static constexpr int SOAKED_ENFORCE_PERIOD_FRAMES = 10; // ~0.16s @60fps
+static constexpr int SOAKED_ENFORCE_PERIOD_FRAMES = 1; // 约0.0167 秒
 
 // 获取水面高度的辅助函数
 float GetWaterHeight(Vector3 pos) {
