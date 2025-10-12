@@ -120,6 +120,34 @@ bool featureWeatherFreezeUpdated = false;
 
 bool featureCloudsFreeze = false;
 
+ // 全图水域设置
+  bool featureDisableOcean = false;
+  int OceanOpacityIndex = 0; // 0%不透明
+
+// 海洋quad结构定义（参考YimMenu）
+struct quad_info
+{
+	uint64_t m_quad_pool;
+	short m_quad_count;
+};
+
+struct ocean_quad
+{
+private:
+	char pad_0[0x8];
+public:
+	int m_opacity;
+private:
+	char pad_1[0x8];
+public:
+	float m_height;
+};
+
+// 海洋相关变量
+static quad_info* g_ocean_quads = nullptr;
+static std::vector<float> original_ocean_heights;
+static bool ocean_initialized = false;
+
 bool featureSnow = false;
 bool featureSnowUpdated = false;
 
@@ -161,6 +189,10 @@ const std::vector<std::string> WORLD_LIGHTNING_INTENSITY_CAPTIONS{ "关", "经�
 const int WORLD_LIGHTNING_INTENSITY_VALUES[] = { -2, 3, -1 };
 int featureLightIntensityIndex = 0;
 bool featureLightIntensityChanged = true;
+
+ // 海洋透明度
+  const std::vector<std::string> OCEAN_OPACITY_CAPTIONS{ "不透明", "5%", "10%", "15%", "20%", "40%", "50%", "60%", "80%", "全透明" };
+  const int OCEAN_OPACITY_VALUES[] = { 0, 5, 10, 15, 20, 40, 50, 60, 80, 100 };
 
 // 火车速度
 const std::vector<std::string> WORLD_TRAIN_SPEED_CAPTIONS{ "关", "0.0", "5.0", "15.0", "30.0", "60.0", "80.0", "130.0", "200.0", "300.0" };
@@ -445,6 +477,10 @@ void onchange_world_waves_index(int value, SelectFromListMenuItem* source) {
 	WorldWavesChanged = true;
 }
 
+void onchange_ocean_opacity_index(int value, SelectFromListMenuItem* source) {
+	OceanOpacityIndex = value;
+}
+
 void onchange_lightning_intensity_index(int value, SelectFromListMenuItem* source) {
 	featureLightIntensityIndex = value;
 	featureLightIntensityChanged = true;
@@ -504,6 +540,9 @@ bool onconfirm_world_menu(MenuItem<int> choice)
 	case -5:
 		process_clouds_menu();
 		break;
+	case -6:
+		process_ocean_menu();
+		break;
 	case 2:
 		// 在 update_features 中设置 featureWorldRandomCops
 		break;
@@ -547,6 +586,12 @@ void process_world_menu()
 	item->isLeaf = false;
 	item->caption = "云层";
 	item->value = -5;
+	menuItems.push_back(item);
+
+	item = new MenuItem<int>();
+	item->isLeaf = false;
+	item->caption = "全部水域设置 (仅限传承)";
+	item->value = -6;
 	menuItems.push_back(item);
 	
 	listItem = new SelectFromListMenuItem(WORLD_GRAVITY_LEVEL_CAPTIONS, onchange_gravity_level_index);
@@ -716,6 +761,96 @@ void process_world_menu()
 	menuItems.push_back(togItem);
 
 	draw_generic_menu<int>(menuItems, &activeLineIndexWorld, caption, onconfirm_world_menu, NULL, NULL);
+}
+
+void process_ocean_menu()
+{
+	const std::string caption = "全部水域设置 (仅限传承)";
+
+	std::vector<MenuItem<int>*> menuItems;
+
+	ToggleMenuItem<int>* toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "禁用所有海洋河流";
+	toggleItem->toggleValue = &featureDisableOcean;
+	menuItems.push_back(toggleItem);
+
+	SelectFromListMenuItem* listItem = new SelectFromListMenuItem(OCEAN_OPACITY_CAPTIONS, onchange_ocean_opacity_index);
+	listItem->wrap = false;
+	listItem->caption = "海洋河流的透明度";
+	listItem->value = OceanOpacityIndex;
+	menuItems.push_back(listItem);
+
+	draw_generic_menu<int>(menuItems, NULL, caption, NULL, NULL, NULL);
+}
+
+// 初始化海洋功能（完全参照YimMenu的实现）
+void init_ocean_features()
+{
+	if (!ocean_initialized) {
+		// 使用YimMenu的精确模式: "74 41 4C 8B 05 ? ? ?"
+		intptr_t ocean_quads_addr = FindPatternJACCO("\x74\x41\x4C\x8B\x05\x00\x00\x00", "xxxxx???");
+		if (ocean_quads_addr) {
+			// 参照YimMenu: ptr.add(5).rip()
+			// add(5) 跳过 "74 41 4C 8B 05" 到达 disp32 位置
+			intptr_t disp_addr = ocean_quads_addr + 5;
+			int32_t disp32 = *reinterpret_cast<int32_t*>(disp_addr);
+			
+			// RIP相对地址计算: 指令结束位置 + disp32
+			// 指令结束位置 = disp_addr + 4 (disp32的大小)
+			intptr_t rip_target = disp_addr + 4 + disp32;
+			
+			// rip_target指向的是ocean_quads的地址，直接读取
+			g_ocean_quads = reinterpret_cast<quad_info*>(rip_target);
+
+			// 保存原始高度（完全参照YimMenu的逻辑）
+			if (g_ocean_quads && g_ocean_quads->m_quad_count > 0) {
+				original_ocean_heights.clear();
+				for (uint64_t i = 0; i < g_ocean_quads->m_quad_count; i++) {
+					const auto index = g_ocean_quads->m_quad_pool + (i * 0x1C);
+					const auto quad = reinterpret_cast<ocean_quad*>(index);
+					if (quad) {
+						original_ocean_heights.push_back(quad->m_height);
+					}
+				}
+				ocean_initialized = true;
+			}
+		}
+	}
+}
+
+// 更新海洋功能（完全参照YimMenu的 ocean.cpp 实现）
+void update_ocean_features()
+{
+	// 确保已初始化
+	if (!ocean_initialized) {
+		init_ocean_features();
+	}
+	
+	// 完全参照YimMenu的on_tick()逻辑
+	if (auto ocean_quads = g_ocean_quads) {
+		for (uint64_t i = 0; i < ocean_quads->m_quad_count; i++) {
+			const auto index = ocean_quads->m_quad_pool + (i * 0x1C);
+			const auto quad = reinterpret_cast<ocean_quad*>(index);
+
+			// 禁用海洋：降低高度（完全参照YimMenu）
+			if (featureDisableOcean)
+				quad->m_height = -10000.f;
+			else if (i < original_ocean_heights.size())
+				quad->m_height = original_ocean_heights[i];
+
+			// 改变海洋透明度（反转语义：0%不透明，100%全透明；按预设列表映射）
+			int ocean_opacity_percent = 0;
+			if (OceanOpacityIndex >= 0 && OceanOpacityIndex < (int)(sizeof(OCEAN_OPACITY_VALUES)/sizeof(OCEAN_OPACITY_VALUES[0])))
+				ocean_opacity_percent = OCEAN_OPACITY_VALUES[OceanOpacityIndex];
+
+			if (ocean_opacity_percent == 0)
+				quad->m_opacity = 0x1A1A1A1A; // 0%：完全不透明（默认）
+			else if (ocean_opacity_percent == 100)
+				quad->m_opacity = 0x01010101; // 100%：完全透明
+			else
+				quad->m_opacity = (int)(255 * (float)((100 - ocean_opacity_percent) / 100.f));
+		}
+	}
 }
 
 void reset_world_globals()
@@ -1144,6 +1279,9 @@ void update_world_features()
 	if (wavesstrength_changed != WORLD_WAVES_VALUES[WorldWavesIndex]) wavesstrength_toggle = false;
 	if (WORLD_WAVES_VALUES[WorldWavesIndex] != -1 && WORLD_WAVES_VALUES[WorldWavesIndex] != -2) WATER::_SET_WAVES_INTENSITY(WORLD_WAVES_VALUES[WorldWavesIndex]);
 	if (WORLD_WAVES_VALUES[WorldWavesIndex] != -1 && WORLD_WAVES_VALUES[WorldWavesIndex] == -2) GAMEPLAY::WATER_OVERRIDE_SET_STRENGTH(1.0f);
+
+	// 海洋控制（基于YimMenu的quad操作方式）
+	update_ocean_features();
 	
 	// 闪电强度
 	if (WORLD_LIGHTNING_INTENSITY_VALUES[featureLightIntensityIndex] > -2 && (GAMEPLAY::GET_PREV_WEATHER_TYPE_HASH_NAME() == 3061285535 || GAMEPLAY::GET_PREV_WEATHER_TYPE_HASH_NAME() == 3373937154)) { // GET_NEXT_WEATHER_TYPE_HASH_NAME

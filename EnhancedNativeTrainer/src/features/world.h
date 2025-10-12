@@ -30,6 +30,8 @@ void process_weather_menu();
 
 void process_clouds_menu();
 
+void process_ocean_menu();
+
 void map_size_hotkey();
 
 void reset_world_globals();
@@ -39,6 +41,12 @@ void update_world_features();
 void onchange_world_radar_map_index(int value, SelectFromListMenuItem* source);
 
 void onchange_world_waves_index(int value, SelectFromListMenuItem* source);
+
+void onchange_ocean_opacity_index(int value, SelectFromListMenuItem* source);
+
+void init_ocean_features();
+
+void update_ocean_features();
 
 void onchange_lightning_intensity_index(int value, SelectFromListMenuItem* source);
 
