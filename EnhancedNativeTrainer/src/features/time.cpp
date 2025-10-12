@@ -166,6 +166,12 @@ void onchange_aiming_speed_callback(int value, SelectFromListMenuItem* source) {
 }
 
 void onchange_time_flow_rate_callback(int value, SelectFromListMenuItem* source) {
+	// 当开启“时间与电脑系统同步”时，阻止用户更改时间流速，并提示警告
+	if (featureTimeSynced) {
+		set_status_text("~r~警告: 时间与系统同步已开启！\n请先关闭同步后再进行更改！");
+		requireRefreshOfTime = true;
+		return;
+	}
 	timeFlowRateIndex = value, timeFlowRateChanged = true, timeFlowRateLocked = false;
 	featureFreezeTime = (value == 0);
 	if (value == 0) {
@@ -1027,9 +1033,6 @@ void handle_generic_settings_time(std::vector<StringPairSettingDBRow>* settings)
 		if (setting.name.compare("timeSpeedIndexWhileAiming") == 0) {
 			timeSpeedIndexWhileAiming = stoi(setting.value);
 		}
-		else if (setting.name.compare("timeFlowRateIndex") == 0) {
-			timeFlowRateIndex = stoi(setting.value);
-		}
 		else if (setting.name.compare("HotkeyFlowRateIndex") == 0) {
 			HotkeyFlowRateIndex = stoi(setting.value);
 		}
@@ -1068,11 +1071,30 @@ void handle_generic_settings_time(std::vector<StringPairSettingDBRow>* settings)
 			analogClockPixelSize = nearest;
 		}
 	}
+
+	// 不单独持久化时间流速：根据“系统同步/冻结时间”状态进行对齐
+	// 开启系统同步 -> 锁定为现实时间 1秒/秒（索引 2）
+	if (featureTimeSynced) {
+		if (timeFlowRateIndex != 2) {
+			timeFlowRateIndex = 2;
+			timeFlowRateChanged = true;
+		}
+	}
+	// 开启冻结时间 -> 交由更新逻辑设置为 0，并刷新状态
+	else if (featureFreezeTime) {
+		featureFreezeTimeUpdated = true;
+	}
+	// 二者都未开启 -> 使用默认 30秒/秒（索引 14）
+	else {
+		if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
+			timeFlowRateChanged = true;
+		}
+	}
 }
 
 void add_time_generic_settings(std::vector<StringPairSettingDBRow>* results) {
 	results->push_back(StringPairSettingDBRow{ "timeSpeedIndexWhileAiming", std::to_string(timeSpeedIndexWhileAiming) });
-	results->push_back(StringPairSettingDBRow{ "timeFlowRateIndex", std::to_string(timeFlowRateIndex) });
 	results->push_back(StringPairSettingDBRow{ "HotkeyFlowRateIndex", std::to_string(HotkeyFlowRateIndex) });
 	results->push_back(StringPairSettingDBRow{ "analogClockStyleIndex", std::to_string(analogClockStyleIndex) });
 	results->push_back(StringPairSettingDBRow{ "analogClockTimeSourceIndex", std::to_string(analogClockTimeSourceIndex) });
@@ -1118,8 +1140,9 @@ void update_time_features(Player player) {
             }
             requireRefreshOfTime = true;
         } else {
-            // 关闭系统同步时，恢复为默认“正常时间流速 (30秒/秒)”
-            if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+            // 关闭系统同步：若未处于冻结状态且当前流速非0，才恢复默认 30秒/秒
+            // 避免在加载时覆盖“冻结时间”的 0 秒/秒状态
+            if (!featureFreezeTime && timeFlowRateIndex != 0 && timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
                 timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
                 timeFlowRateChanged = true;
             }
