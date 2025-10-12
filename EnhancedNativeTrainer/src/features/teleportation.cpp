@@ -789,7 +789,7 @@ void teleport_to_marker(){
 		WAIT(100);
 		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z)){
 			groundFound = true;
-			coords.z += 3.0;
+			coords.z += 1.0;
 			break;
 		}
 	}
@@ -1021,7 +1021,7 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 					WAIT(100);
 					if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(x_coord, y_coord, groundCheckHeight[i], &me_coords.z)) {
 						groundFound = true;
-						me_coords.z += 3.0;
+						me_coords.z += 1.0;
 						break;
 					}
 				}
