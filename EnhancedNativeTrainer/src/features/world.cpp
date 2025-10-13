@@ -825,28 +825,52 @@ void update_ocean_features()
 	if (!ocean_initialized) {
 		init_ocean_features();
 	}
-	
-	// 完全参照YimMenu的on_tick()逻辑
+
+	// 当功能处于“关闭”状态时，彻底不写内存，避免与其他修改器冲突
+	static bool ocean_feature_last_active = false;
+	const bool opacity_is_default = (OceanOpacityIndex == 0);
+	const bool ocean_feature_active = featureDisableOcean || !opacity_is_default;
+
+	// 如果当前不活跃且之前是活跃状态：执行一次性恢复，然后退出
+	if (!ocean_feature_active) {
+		if (ocean_feature_last_active) {
+			if (auto ocean_quads = g_ocean_quads) {
+				for (uint64_t i = 0; i < ocean_quads->m_quad_count; i++) {
+					const auto index = ocean_quads->m_quad_pool + (i * 0x1C);
+					const auto quad = reinterpret_cast<ocean_quad*>(index);
+					if (i < original_ocean_heights.size())
+						quad->m_height = original_ocean_heights[i];
+					// 恢复默认不透明（不再强制覆盖，让其他修改器接管）
+					quad->m_opacity = 0x1A1A1A1A;
+				}
+			}
+			ocean_feature_last_active = false;
+		}
+		return;
+	}
+
+	// 标记为活跃并执行更新（参考YimMenu的逻辑）
+	ocean_feature_last_active = true;
 	if (auto ocean_quads = g_ocean_quads) {
 		for (uint64_t i = 0; i < ocean_quads->m_quad_count; i++) {
 			const auto index = ocean_quads->m_quad_pool + (i * 0x1C);
 			const auto quad = reinterpret_cast<ocean_quad*>(index);
 
-			// 禁用海洋：降低高度（完全参照YimMenu）
+			// 禁用海洋：降低高度（参考YimMenu）
 			if (featureDisableOcean)
 				quad->m_height = -10000.f;
 			else if (i < original_ocean_heights.size())
 				quad->m_height = original_ocean_heights[i];
 
-			// 改变海洋透明度（反转语义：0%不透明，100%全透明；按预设列表映射）
+			// 改变海洋透明度（0%不透明，100%全透明；按预设列表映射）
 			int ocean_opacity_percent = 0;
 			if (OceanOpacityIndex >= 0 && OceanOpacityIndex < (int)(sizeof(OCEAN_OPACITY_VALUES)/sizeof(OCEAN_OPACITY_VALUES[0])))
 				ocean_opacity_percent = OCEAN_OPACITY_VALUES[OceanOpacityIndex];
 
 			if (ocean_opacity_percent == 0)
-				quad->m_opacity = 0x1A1A1A1A; // 0%：完全不透明（默认）
+				quad->m_opacity = 0x1A1A1A1A;
 			else if (ocean_opacity_percent == 100)
-				quad->m_opacity = 0x01010101; // 100%：完全透明
+				quad->m_opacity = 0x01010101;
 			else
 				quad->m_opacity = (int)(255 * (float)((100 - ocean_opacity_percent) / 100.f));
 		}
