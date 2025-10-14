@@ -206,6 +206,15 @@ const int MISC_RADIO_SWITCHING_VALUES[] = { 0, 1, 180, 300, 420, 600, 900, 1800 
 int RadioSwitchingIndex = 0;
 bool RadioSwitchingChanged = true;
 
+// 骑车手机动作动画类型（替换原本误用“前几秒免费”的选项）
+const std::vector<std::string> MISC_PHONE_BIKE_ANIM_CAPTIONS{
+	"车内坐姿看手机",
+	"普通站姿看手机",
+	"街头随意看手机",
+	"女性看手机邮件",
+	"第一人称看手机"
+};
+
 // 训练器控制
 int TrainerControlIndex = 0;
 bool TrainerControlChanged = true;
@@ -1465,9 +1474,9 @@ void process_phoneonbike_menu() {
 	toggleItem->toggleValue = &featureNoPhoneOnHUD;
 	menuItems.push_back(toggleItem);
 
-	listItem = new SelectFromListMenuItem(MISC_PHONE_FREESECONDS_CAPTIONS, onchange_misc_phone_bike_index);
+	listItem = new SelectFromListMenuItem(MISC_PHONE_BIKE_ANIM_CAPTIONS, onchange_misc_phone_bike_index);
 	listItem->wrap = false;
-	listItem->caption = "动作动画类型";
+	listItem->caption = "手机动画类型";
 	listItem->value = PhoneBikeAnimationIndex;
 	menuItems.push_back(listItem);
 
@@ -2222,31 +2231,38 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 	if (featurePhone3DOnBike) {
 		Vehicle veh = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
 
-		if (!STREAMING::HAS_ANIM_DICT_LOADED(anim_dict)) {
-			STREAMING::REQUEST_ANIM_DICT(anim_dict);
-			while (!STREAMING::HAS_ANIM_DICT_LOADED(anim_dict)) WAIT(0);
-		}
-		Vector3 veh_s = ENTITY::GET_ENTITY_VELOCITY(PED::GET_VEHICLE_PED_IS_USING(playerPed));
-		if (MISC_PHONE_FREESECONDS_VALUES[PhoneBikeAnimationIndex] == 0) {
+	// 根据索引设置骑车时手机动画（不再依赖“前几秒免费”的值）
+	Vector3 veh_s = ENTITY::GET_ENTITY_VELOCITY(PED::GET_VEHICLE_PED_IS_USING(playerPed));
+	switch (PhoneBikeAnimationIndex) {
+		case 0:
 			anim_dict = "anim@cellphone@in_car@ps";
 			animation_of_d = "cellphone_text_read_base";
-		}
-		if (MISC_PHONE_FREESECONDS_VALUES[PhoneBikeAnimationIndex] == 3) {
+			break;
+		case 1:
 			anim_dict = "cellphone@";
 			animation_of_d = "cellphone_text_read_base_cover_low";
-		}
-		if (MISC_PHONE_FREESECONDS_VALUES[PhoneBikeAnimationIndex] == 5) {
+			break;
+		case 2:
 			anim_dict = "cellphone@str";
 			animation_of_d = "cellphone_text_read_a";
-		}
-		if (MISC_PHONE_FREESECONDS_VALUES[PhoneBikeAnimationIndex] == 10) {
+			break;
+		case 3:
 			anim_dict = "cellphone@female";
 			animation_of_d = "cellphone_email_read_base";
-		}
-		if (MISC_PHONE_FREESECONDS_VALUES[PhoneBikeAnimationIndex] == 15) {
+			break;
+		case 4:
 			anim_dict = "cellphone@first_person";
 			animation_of_d = "cellphone_text_read_base";
-		}
+			break;
+		default:
+			break;
+	}
+
+	// 确保选定的动画字典已加载
+	if (!STREAMING::HAS_ANIM_DICT_LOADED(anim_dict)) {
+		STREAMING::REQUEST_ANIM_DICT(anim_dict);
+		while (!STREAMING::HAS_ANIM_DICT_LOADED(anim_dict)) WAIT(0);
+	}
 
 		if ((PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 1) && (VEHICLE::IS_THIS_MODEL_A_BIKE(ENTITY::GET_ENTITY_MODEL(veh)) || VEHICLE::IS_THIS_MODEL_A_QUADBIKE(ENTITY::GET_ENTITY_MODEL(veh)))) && PED::IS_PED_RUNNING_MOBILE_PHONE_TASK(playerPed)) { // PED::IS_PED_ON_ANY_BIKE(playerPed)
 			

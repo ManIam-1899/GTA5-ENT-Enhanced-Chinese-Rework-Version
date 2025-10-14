@@ -76,6 +76,9 @@ extern int DefMenuTabIndex;
 const std::vector<std::string> MISC_PHONE_FREESECONDS_CAPTIONS{ "0", "3", "5", "10", "15" };
 const int MISC_PHONE_FREESECONDS_VALUES[] = { 0, 3, 5, 10, 15 };
 
+// 骑车手机动作动画类型（替换原本误用“前几秒免费”的选项）
+extern const std::vector<std::string> MISC_PHONE_BIKE_ANIM_CAPTIONS;
+
 extern bool featureGamePause;
 
 // 标题字体选项
