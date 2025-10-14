@@ -2286,9 +2286,10 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 				accel = false;
 				p_exist = false;
 			}
+			// 修正控制映射：72=刹车(S)，76=手刹(空格)，62=小键盘5(菜单确认)
 			if (CONTROLS::IS_CONTROL_RELEASED(2, 63) && CONTROLS::IS_CONTROL_RELEASED(2, 64)) VEHICLE::_SET_BIKE_LEAN_ANGLE(PED::GET_VEHICLE_PED_IS_USING(playerPed), 0, 0); //  && CONTROLS::IS_CONTROL_PRESSED(2, 71)
 			if (CONTROLS::IS_CONTROL_JUST_PRESSED(2, 75) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 72) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 63) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 64) ||
-				(CONTROLS::IS_CONTROL_JUST_PRESSED(2, 71) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 62) && veh_s.x < 2 && veh_s.y < 2)) { // 离开/刹车/左/右/加速/下
+				(CONTROLS::IS_CONTROL_JUST_PRESSED(2, 71) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 76) && veh_s.x < 2 && veh_s.y < 2)) { // 离开/刹车/左/右/加速/下
 				AI::STOP_ANIM_TASK(playerPed, anim_dict, animation_of_d, 1.0);
 				accel = true;
 				p_exist = false;

@@ -126,6 +126,8 @@ bool featureSticktoground = false;
 bool featureDropSpikes = false;
 bool featureAirStrike = false;
 bool featureReverseWhenBraking = false;
+bool featureInstantBrake = false;
+static bool prevInstantBrake = false; // 瞬间刹停开启时提示一次，避免重复提醒
 bool featureDisableIgnition = false;
 bool featureEngineRunning = false;
 bool featureNoVehFlip = false;
@@ -3192,6 +3194,13 @@ void process_veh_menu(){
 	toggleItem->toggleValue = &featureVehDriveOnWater;
 	menuItems.push_back(toggleItem);
 
+	// 瞬间刹停（类似 YimMenu Instant Brake）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "瞬间刹停";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureInstantBrake;
+	menuItems.push_back(toggleItem);
+
 	draw_generic_menu<int>(menuItems, &activeLineIndexVeh, caption, onconfirm_veh_menu, NULL, NULL);
 }
 
@@ -3656,8 +3665,9 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 		Vector3 vehspeed = ENTITY::GET_ENTITY_VELOCITY(PED::GET_VEHICLE_PED_IS_IN(playerPed, false));
 		if (vehspeed.x < 0) vehspeed.x = (vehspeed.x * -1);
 		if (vehspeed.y < 0) vehspeed.y = (vehspeed.y * -1);
-		if (!CONTROLS::IS_CONTROL_PRESSED(2, 71) && !CONTROLS::IS_CONTROL_PRESSED(2, 62) && !CONTROLS::IS_CONTROL_PRESSED(2, 72) && vehspeed.x < 3 && vehspeed.y < 3) traction_tick = 0;
-		if (CONTROLS::IS_CONTROL_PRESSED(2, 71) || CONTROLS::IS_CONTROL_PRESSED(2, 62) || CONTROLS::IS_CONTROL_PRESSED(2, 72)) {
+		// 修正控制映射：72=刹车(S)，76=手刹(空格)，62=小键盘5(菜单确认)
+		if (!CONTROLS::IS_CONTROL_PRESSED(2, 71) && !CONTROLS::IS_CONTROL_PRESSED(2, 76) && !CONTROLS::IS_CONTROL_PRESSED(2, 72) && vehspeed.x < 3 && vehspeed.y < 3) traction_tick = 0;
+		if (CONTROLS::IS_CONTROL_PRESSED(2, 71) || CONTROLS::IS_CONTROL_PRESSED(2, 76) || CONTROLS::IS_CONTROL_PRESSED(2, 72)) {
 			engine_secs_passed = clock() / CLOCKS_PER_SEC;
 			if (((clock() / (CLOCKS_PER_SEC / 1000)) - engine_secs_curr) != 0) {
 				traction_tick = traction_tick + 1;
@@ -3683,6 +3693,11 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 	else if (driveOnWaterJustDisabled) {
 		set_status_text("水上驾驶 已关闭！");
 	}
+
+// 瞬间刹停：开启时提示一次（左下角），非常驻、非进车触发
+if (featureInstantBrake && !prevInstantBrake) {
+	set_status_text("短按空格刹停, 短按S刹停!\n长按空格持续刹停, 长按S倒车!");
+}
 
 	// 水上驾车：为载具在水面上提供隐形承托平台
 	// 与水上行走保持一致，加入玩家存在判断，避免极端情况下空引用
@@ -3745,8 +3760,9 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 		}
 	}
 
-	// 更新状态记录，防止提示重复
-	prevVehDriveOnWater = featureVehDriveOnWater;
+// 更新状态记录，防止提示重复
+prevVehDriveOnWater = featureVehDriveOnWater;
+prevInstantBrake = featureInstantBrake;
 
 	// 车辆隐形
 	if (FUEL_COLOURS_R_VALUES[VehInvisIndexN] > 0 && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
@@ -3794,6 +3810,31 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 			if (CONTROLS::IS_DISABLED_CONTROL_JUST_RELEASED(2, 72)) {
 				accelerating_c = false;
 				reversing_c = false;
+			}
+		}
+	}
+
+	// 瞬间刹停：参照 YimMenu 逻辑并修正键盘空格（手刹）输入组
+	// 放在“刹车禁止倒车”逻辑之后，以便该逻辑先记录状态，再由瞬间刹停将速度归零，实现共存。
+	if (featureInstantBrake && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+		// 功能开启时的一次性按键提示已在开关触发处通过 set_status_text 显示，：72=刹车(S)，76=手刹(空格)
+		Vehicle curVeh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+		if (ENTITY::DOES_ENTITY_EXIST(curVeh)) {
+			Vector3 speedVec = ENTITY::GET_ENTITY_SPEED_VECTOR(curVeh, true);
+			bool eligible = (speedVec.y >= 1.0f) && VEHICLE::IS_VEHICLE_ON_ALL_WHEELS(curVeh);
+			if (eligible) {
+				// 同时检测输入组 0 和 2，确保键盘空格（手刹）生效
+				// 修正：手刹控制 ID 应为 76（INPUT_VEH_HANDBRAKE），原为 62 导致空格不触发
+				bool brakePressed =
+					CONTROLS::IS_CONTROL_PRESSED(0, 72) ||
+					CONTROLS::IS_CONTROL_PRESSED(0, 76) ||
+					CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, 72) ||
+					CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, 76) ||
+					CONTROLS::IS_CONTROL_PRESSED(2, 72) ||
+					CONTROLS::IS_CONTROL_PRESSED(2, 76);
+				if (brakePressed) {
+					VEHICLE::SET_VEHICLE_FORWARD_SPEED(curVeh, 0.0f);
+				}
 			}
 		}
 	}
@@ -5572,6 +5613,9 @@ void reset_vehicle_globals() {
 
 	featureVehDriveOnWater = false;
 
+	// 重置：默认关闭瞬间刹停
+	featureInstantBrake = false;
+
 	featureLockVehicleDoorsUpdated = false;
 	featureRoutineAnimations = true;
 		featureBlipNumber = true;
@@ -5954,6 +5998,7 @@ void add_vehicle_feature_enablements(std::vector<FeatureEnabledLocalDefinition>*
 	results->push_back(FeatureEnabledLocalDefinition{"featureDropSpikes", &featureDropSpikes});
 	results->push_back(FeatureEnabledLocalDefinition{"featureAirStrike", &featureAirStrike});
 	results->push_back(FeatureEnabledLocalDefinition{"featureReverseWhenBraking", &featureReverseWhenBraking});
+	results->push_back(FeatureEnabledLocalDefinition{"featureInstantBrake", &featureInstantBrake});
 	results->push_back(FeatureEnabledLocalDefinition{"featureDisableIgnition", &featureDisableIgnition});
 	results->push_back(FeatureEnabledLocalDefinition{"featureEngineRunning", &featureEngineRunning});
 	results->push_back(FeatureEnabledLocalDefinition{"featureNoVehFlip", &featureNoVehFlip});
