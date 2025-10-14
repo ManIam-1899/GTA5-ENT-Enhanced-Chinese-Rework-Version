@@ -3662,25 +3662,47 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 		
 	// 牵引力控制
 	if (featureTractionControl && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
-		Vector3 vehspeed = ENTITY::GET_ENTITY_VELOCITY(PED::GET_VEHICLE_PED_IS_IN(playerPed, false));
-		if (vehspeed.x < 0) vehspeed.x = (vehspeed.x * -1);
-		if (vehspeed.y < 0) vehspeed.y = (vehspeed.y * -1);
-		// 修正控制映射：72=刹车(S)，76=手刹(空格)，62=小键盘5(菜单确认)
-		if (!CONTROLS::IS_CONTROL_PRESSED(2, 71) && !CONTROLS::IS_CONTROL_PRESSED(2, 76) && !CONTROLS::IS_CONTROL_PRESSED(2, 72) && vehspeed.x < 3 && vehspeed.y < 3) traction_tick = 0;
-		if (CONTROLS::IS_CONTROL_PRESSED(2, 71) || CONTROLS::IS_CONTROL_PRESSED(2, 76) || CONTROLS::IS_CONTROL_PRESSED(2, 72)) {
-			engine_secs_passed = clock() / CLOCKS_PER_SEC;
-			if (((clock() / (CLOCKS_PER_SEC / 1000)) - engine_secs_curr) != 0) {
-				traction_tick = traction_tick + 1;
-				engine_secs_curr = engine_secs_passed;
+		// 使用标量速度与稳定的毫秒节拍，避免单位不一致导致计数异常
+		Vehicle veh = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		float speed = ENTITY::GET_ENTITY_SPEED(veh);
+		bool accel = CONTROLS::IS_CONTROL_PRESSED(2, 71);
+		bool handbrake = CONTROLS::IS_CONTROL_PRESSED(2, 76);
+		bool brake = CONTROLS::IS_CONTROL_PRESSED(2, 72);
+		static unsigned long long tc_last_ms = 0;
+		static int traction_tick = 0;
+
+		unsigned long long now = GetTickCount64();
+
+		// 松键且低速时复位计数，并恢复正常扭矩
+		if (!accel && !handbrake && !brake && speed < 3.0f) {
+			traction_tick = 0;
+			tc_last_ms = now;
+			VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 1.0f);
+		}
+		// 持续按键期间按固定毫秒步长递增计数并分段限制扭矩
+		else if (accel || handbrake || brake) {
+			if (tc_last_ms == 0) tc_last_ms = now;
+			if (now - tc_last_ms >= 10) { // 每 10ms 增加一次计数，平滑干预
+				traction_tick++;
+				tc_last_ms = now;
 			}
-		}
-		if (traction_tick < 100) {
-			if (traction_tick < 50) VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 0.2);
-			if (traction_tick > 49 && traction_tick < 100) VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 0.6);
-		}
-		else
-		if (traction_tick > 99 && traction_tick < 109) {
-			VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 1.0);
+
+			// 限制 traction_tick 上限，防止无限增长
+			if (traction_tick > 1000) traction_tick = 1000;
+
+			// 可选：根据速度缩放抑制强度（低速时更强）
+			float lowSpeedFactor = (speed < 10.0f) ? 1.0f : 0.5f;
+
+			if (traction_tick < 50) {
+				VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 0.2f * lowSpeedFactor);
+			} else if (traction_tick < 100) {
+				VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 0.6f * lowSpeedFactor);
+			} else {
+				// 计数达到后恢复正常扭矩，避免长时间低扭矩导致驾驶失效
+				VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 1.0f);
+				// 将计数固定在阈值，避免重复恢复
+				if (traction_tick > 100) traction_tick = 100;
+			}
 		}
 	}
 
