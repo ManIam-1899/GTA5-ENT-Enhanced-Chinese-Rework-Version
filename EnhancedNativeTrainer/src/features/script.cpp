@@ -629,6 +629,7 @@ void update_features() {
 	Player player = PLAYER::PLAYER_ID();
 	Ped playerPed = PLAYER::PLAYER_PED_ID();
 	BOOL bPlayerExists = ENTITY::DOES_ENTITY_EXIST(playerPed);
+	static bool prevRunApartments = false;
 
 	// 注释掉阻止进入线上模式的代码
 	/*if (NETWORK::NETWORK_IS_GAME_IN_PROGRESS()) {
@@ -1451,6 +1452,20 @@ void update_features() {
 		if (iaminside == false && PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) > 0) we_have_troubles = true;
 		if (we_have_troubles == true && PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) == 0) we_have_troubles = false;
 	}
+
+	// 关闭“在公寓里跑步”功能时，自动清除“一星”并恢复相关状态
+	if (!featurePlayerRunApartments && prevRunApartments) {
+		if (PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) <= 1) {
+			PLAYER::SET_MAX_WANTED_LEVEL(5);
+			PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), 0, 0);
+			PLAYER::SET_PLAYER_WANTED_LEVEL_NOW(PLAYER::PLAYER_ID(), 0);
+		}
+		PLAYER::SET_POLICE_IGNORE_PLAYER(PLAYER::PLAYER_ID(), false);
+		UI::SHOW_HUD_COMPONENT_THIS_FRAME(1);
+		we_have_troubles = false;
+		iaminside = false;
+	}
+	prevRunApartments = featurePlayerRunApartments;
 	
 	// 最大通缉等级
 	if (PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) > VEH_STARSPUNISH_VALUES[wanted_maxpossible_level]) {
@@ -3398,7 +3413,7 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerNoSwitch", &featurePlayerNoSwitch});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerFastRun", &featurePlayerFastRun}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerFastWalk", &featurePlayerFastWalk});
-	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerRunApartments", &featurePlayerRunApartments});
+	// results->push_back(FeatureEnabledLocalDefinition{"featurePlayerRunApartments", &featurePlayerRunApartments});
 	results->push_back(FeatureEnabledLocalDefinition{"featureRagdollIfInjured", &featureRagdollIfInjured}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerInvisible", &featurePlayerInvisible}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerInvisibleInVehicle", &featurePlayerInvisibleInVehicle}); 
