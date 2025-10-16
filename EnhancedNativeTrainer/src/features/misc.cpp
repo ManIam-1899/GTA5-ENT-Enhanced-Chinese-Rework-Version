@@ -198,13 +198,18 @@ bool PhoneDefaultChanged = true;
 // 收音机关闭
 const std::vector<std::string> MISC_RADIO_OFF_CAPTIONS{ "默认", "始终", "仅限摩托车" };
 int RadioOffIndex = 0;
-bool RadioOffChanged = true;
 
 // 收音机关台切换
 const std::vector<std::string> MISC_RADIO_SWITCHING_CAPTIONS{ "关", "下一首电台歌曲", "每 3 分钟", "每 5 分钟", "每 7 分钟", "每 10 分钟", "每 15 分钟", "每 30 分钟" };
 const int MISC_RADIO_SWITCHING_VALUES[] = { 0, 1, 180, 300, 420, 600, 900, 1800 };
 int RadioSwitchingIndex = 0;
-bool RadioSwitchingChanged = true;
+
+// 在“电台设置选项”页面持有“电台随机切换”下拉项的指针，用于在子菜单中即时刷新显示
+static SelectFromListMenuItem* g_RadioSwitchingSelectItem = NULL;
+
+// 警车收音机功能（驾驶位 + 引擎检测 + 自动清理）
+static bool policeRadioActive = false;
+static Vehicle lastPoliceVeh = 0;
 
 // 骑车手机动作动画类型（替换原本误用“前几秒免费”的选项）
 const std::vector<std::string> MISC_PHONE_BIKE_ANIM_CAPTIONS{
@@ -1127,19 +1132,63 @@ void process_misc_trainerconfig_menu(){
 	draw_generic_menu<int>(menuItems, &activeLineIndexTrainerConfig, caption, onconfirm_trainerconfig_menu, NULL, NULL);
 }
 
-bool onconfirm_misc_freezeradio_menu(MenuItem<int> choice){
-	if(choice.value == -1){
+// 获取电台中文本地化名称（带回退）
+static std::string get_radio_station_label_with_fallback_by_index(int idx) {
+	const char* key = AUDIO::GET_RADIO_STATION_NAME(idx);
+	if (!key) return "";
+	if (UI::DOES_TEXT_LABEL_EXIST(const_cast<char*>(key))) {
+		std::string localized = UI::_GET_LABEL_TEXT(const_cast<char*>(key));
+		if (!localized.empty() && localized != "NULL") return localized;
+	}
+	return key;
+}
+
+// 单选复选框：getter —— 判断本项是否被选中
+static bool is_radio_freeze_toggle_selected(std::vector<int> extras) {
+	int idx = (extras.size() > 0) ? extras[0] : -1;
+	if (idx < 0) {
+		// “无” 选项在未冻结时呈选中状态
+		return !featureRadioFreeze;
+	}
+	return featureRadioFreeze && (radioStationIndex == idx);
+}
+
+// 单选复选框：setter —— 设置当前点击项为选中（互斥）
+static void set_radio_freeze_toggle_selected(bool turnOn, std::vector<int> extras) {
+	int idx = (extras.size() > 0) ? extras[0] : -1;
+	// 点击“无”：仅在需要开启时处理（防止把“无”从选中状态切换为未选中后造成不明确状态）
+	if (idx < 0) {
+		if (turnOn) {
+			featureRadioFreeze = false;
+			featureRadioFreezeUpdated = true;
+			set_status_text("电台固定已成功解除！\n您可以自由切换电台了！");
+		}
+		return;
+	}
+
+	if (turnOn) {
+		// 选择具体电台：开启冻结并固定到该电台
+		featureRadioFreeze = true;
+		featureRadioFreezeUpdated = true;
+		radioStationIndex = idx;
+		// 若当前为“定时随机切换”，与冻结互斥：自动关闭随机切换并提示
+		if (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] > 1) {
+			RadioSwitchingIndex = 0;
+			// 同步主菜单中的“电台随机切换”项显示为“关”
+			if (g_RadioSwitchingSelectItem != NULL) {
+				g_RadioSwitchingSelectItem->value = RadioSwitchingIndex;
+			}
+			set_status_text("电台已冻结, 并关闭随机切换!\n仅允许, 随机切换电台歌曲!");
+		}
+		std::string label = get_radio_station_label_with_fallback_by_index(idx);
+		set_status_text(std::string("已冻结电台, 并固定为:~y~ ") + label);
+		AUDIO::SET_RADIO_TO_STATION_INDEX(idx);
+	} else {
+		// 取消当前电台的选中：回到“无”（即不冻结）
 		featureRadioFreeze = false;
+		featureRadioFreezeUpdated = true;
 		set_status_text("电台固定已成功解除！\n您可以自由切换电台了！");
 	}
-	else{
-		featureRadioFreeze = true;
-		set_status_text(std::string("已冻结电台, 并固定为: ") + std::string(AUDIO::GET_RADIO_STATION_NAME(choice.value)));
-	}
-	featureRadioFreezeUpdated = true;
-	radioStationIndex = choice.value;
-
-	return false;
 }
 
 void play_cutscene(std::string curr_c) {
@@ -1322,21 +1371,37 @@ void process_misc_freezeradio_menu(){
 	std::vector<MenuItem<int> *> menuItems;
 	int const stations = AUDIO::_MAX_RADIO_STATION_INDEX();
 
-	MenuItem<int> *item = new MenuItem<int>();
-	item->caption = "无";
-	item->value = -1;
-	item->isLeaf = true;
-	menuItems.push_back(item);
-
-	for(int a = 0; a < stations; a++){
-		item = new MenuItem<int>();
-		item->caption = AUDIO::GET_RADIO_STATION_NAME(a);
-		item->value = a;
-		item->isLeaf = true;
-		menuItems.push_back(item);
+	// “无” —— 单选复选框（未冻结时选中）
+	{
+		FunctionDrivenToggleMenuItem<int>* tItem = new FunctionDrivenToggleMenuItem<int>();
+		tItem->caption = "~h~## 取消冻结 ##";
+		tItem->value = -1;
+		tItem->getter_call = is_radio_freeze_toggle_selected;
+		tItem->setter_call = set_radio_freeze_toggle_selected;
+		tItem->extra_arguments.push_back(-1);
+		menuItems.push_back(tItem);
 	}
 
-	draw_generic_menu<int>(menuItems, nullptr, "冻结并固定电台", onconfirm_misc_freezeradio_menu, nullptr, nullptr, nullptr);
+	// 所有电台 —— 单选复选框（选择即冻结该电台）
+	for(int a = 0; a < stations; a++){
+		// 先用原始键过滤隐藏电台，避免因本地化导致判断不准确
+		const char* key = AUDIO::GET_RADIO_STATION_NAME(a);
+		if (key && std::string(key) == "HIDDEN_RADIO_MPSUM2_NEWS") {
+			continue;
+		}
+		FunctionDrivenToggleMenuItem<int>* tItem = new FunctionDrivenToggleMenuItem<int>();
+		// 显示游戏本地化的电台名称（中文等），缺失时回退到原始键
+		std::string caption = get_radio_station_label_with_fallback_by_index(a);
+		tItem->caption = caption;
+		tItem->value = a;
+		tItem->getter_call = is_radio_freeze_toggle_selected;
+		tItem->setter_call = set_radio_freeze_toggle_selected;
+		tItem->extra_arguments.push_back(a);
+		menuItems.push_back(tItem);
+	}
+
+	// 切换项不需要确认回调；保留菜单常规行为（分页、高亮等）
+	draw_generic_menu<int>(menuItems, nullptr, "冻结并固定电台", NULL, nullptr, nullptr, nullptr);
 }
 
 bool onconfirm_airbrake_menu(MenuItem<int> choice) {
@@ -1584,6 +1649,8 @@ void process_radio_settings_menu() {
 	listItem->wrap = false;
 	listItem->caption = "电台随机切换";
 	listItem->value = RadioSwitchingIndex;
+	// 记录指针以便在“冻结并固定电台”子菜单中能即时刷新当前选中值
+	g_RadioSwitchingSelectItem = listItem;
 	menuItems.push_back(listItem);
 
 	item = new MenuItem<int>();
@@ -1598,12 +1665,12 @@ void process_radio_settings_menu() {
 	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "统一的电台音量";
+	toggleItem->caption = "使用第一人称电台音量";
 	toggleItem->toggleValue = &featureRealisticRadioVolume;
 	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "恢复 缺失/隐藏的 电台";
+	toggleItem->caption = "解锁 缺失/隐藏的 电台";
 	toggleItem->toggleValue = &featureEnableMissingRadioStation;
 	menuItems.push_back(toggleItem);
 
@@ -1613,6 +1680,9 @@ void process_radio_settings_menu() {
 	menuItems.push_back(toggleItem);
 
 	draw_generic_menu<int>(menuItems, &activeLineIndexRadioSettings, caption, onconfirm_radiosettings_menu, NULL, NULL);
+
+	// 菜单退出后清理指针，避免悬挂引用
+	g_RadioSwitchingSelectItem = NULL;
 }
 
 bool onconfirm_hudsettings_menu(MenuItem<int> choice) {
@@ -1783,12 +1853,19 @@ void onchange_misc_phone_default_index(int value, SelectFromListMenuItem* source
 
 void onchange_misc_radio_off_index(int value, SelectFromListMenuItem* source) {
 	RadioOffIndex = value;
-	RadioOffChanged = true;
 }
 
 void onchange_misc_radio_switching_index(int value, SelectFromListMenuItem* source) {
+	// 当电台已被冻结且用户试图开启“定时随机切换”（值>1）时，提示并阻止后续随机切换
+	if (featureRadioFreeze && MISC_RADIO_SWITCHING_VALUES[value] > 1) {
+		set_status_text("电台已冻结, 并禁止随机切换!\n仅允许, 随机切换电台歌曲!");
+		RadioSwitchingIndex = 0; // 恢复为“关”
+		if (source) source->value = RadioSwitchingIndex; // 同步界面显示
+		return;
+	}
+
+	// 其它情况正常更新（允许 0=关 和 1=下一首电台歌曲）
 	RadioSwitchingIndex = value;
-	RadioSwitchingChanged = true;
 }
 
 void onchange_misc_trainercontrol_index(int value, SelectFromListMenuItem* source) {
@@ -2061,8 +2138,8 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 		radio_v_checked = false;
 	}
 	
-	// 收音机关台切换
-	if (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] > 0 && (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0) || featurePlayerRadio || featurePlayerRadioUpdated)) {
+	// 收音机关台切换（若已冻结电台则不进行随机切换，避免与固定频道冲突）
+	if (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] > 0 && !featureRadioFreeze && (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0) || featurePlayerRadio || featurePlayerRadioUpdated)) {
 		if (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] > 1) {
 			r_secs_passed = clock() / CLOCKS_PER_SEC;
 			if (((clock() / CLOCKS_PER_SEC) - r_secs_curr) != 0) {
@@ -2070,31 +2147,88 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 				r_secs_curr = r_secs_passed;
 			}
 		}
-		if ((MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] == 1 && (is_hotkey_held_veh_radio_skip() || skip_track_pressed == true)) || (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] > 1 && r_seconds > MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex])) {
-			Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
-			int const stations = AUDIO::_MAX_RADIO_STATION_INDEX();
-			int random_station = (rand() % stations + 0);
-			AUDIO::SET_RADIO_TO_STATION_INDEX(random_station); //AUDIO::SET_VEH_RADIO_STATION(veh, AUDIO::GET_RADIO_STATION_NAME(random_station));
-			r_seconds = 0;
+		if (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] == 1 && (is_hotkey_held_veh_radio_skip() || skip_track_pressed == true)) {
+			// 文案为“下一首电台歌曲”，应当跳过当前电台曲目而非随机切台
+			if (getGameVersion() > 41) SKIP_RADIO_FORWARD_CUSTOM();
+			else AUDIO::SKIP_RADIO_FORWARD();
 			skip_track_pressed = false;
+		} else if (MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex] > 1 && r_seconds > MISC_RADIO_SWITCHING_VALUES[RadioSwitchingIndex]) {
+			// 定时随机切换：随机选择一个电台
+			int const stations = AUDIO::_MAX_RADIO_STATION_INDEX();
+			int random_station = (rand() % stations);
+			AUDIO::SET_RADIO_TO_STATION_INDEX(random_station);
+			r_seconds = 0;
 		}
 	}
 
-	// 警车中的收音机
-	if (featurePoliceRadio) {
-		//Vehicle playerVeh = PED::GET_VEHICLE_PED_IS_IN(playerPed, 1);
-		//Vector3 coords_radio = ENTITY::GET_ENTITY_COORDS(playerVeh, 1);
-		//Vector3 coords_radio_2 = ENTITY::GET_ENTITY_COORDS(playerPed, 1);
-		if (/*(*/PED::IS_PED_IN_ANY_POLICE_VEHICLE(playerPed)/* || (GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(coords_radio.x, coords_radio.y, coords_radio.z, coords_radio_2.x, coords_radio_2.y, coords_radio_2.z, false) < 15 && police_radio_check))*/ 
-			&& VEHICLE::GET_IS_VEHICLE_ENGINE_RUNNING(playerVeh)) {
-			//police_radio_check = true;
-			AUDIO::SET_VEHICLE_RADIO_ENABLED(playerVeh, true);
-			AUDIO::SET_MOBILE_PHONE_RADIO_STATE(true);
-			AUDIO::SET_MOBILE_RADIO_ENABLED_DURING_GAMEPLAY(true);
-			AUDIO::SET_RADIO_AUTO_UNFREEZE(true);
-			AUDIO::SET_USER_RADIO_CONTROL_ENABLED(true);
+		// 警车中的收音机
+		if (featurePoliceRadio)
+		{
+			Ped playerPed = PLAYER::PLAYER_PED_ID();
+	
+		// 玩家是否在警车内
+		if (PED::IS_PED_IN_ANY_POLICE_VEHICLE(playerPed))
+		{
+			Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+	
+			// 检查是否驾驶员
+			if (VEHICLE::GET_PED_IN_VEHICLE_SEAT(veh, -1) == playerPed)
+			{
+				// 检查引擎是否启动
+				if (VEHICLE::GET_IS_VEHICLE_ENGINE_RUNNING(veh))
+				{
+					if (!policeRadioActive)
+					{
+						AUDIO::SET_VEHICLE_RADIO_ENABLED(veh, true);
+						AUDIO::SET_RADIO_AUTO_UNFREEZE(true);
+						AUDIO::SET_USER_RADIO_CONTROL_ENABLED(true);
+	
+						policeRadioActive = true;
+						lastPoliceVeh = veh;
+					}
+				}
+				else
+				{
+					// 引擎没开则关闭
+					if (policeRadioActive && lastPoliceVeh == veh)
+					{
+						AUDIO::SET_VEHICLE_RADIO_ENABLED(veh, false);
+						policeRadioActive = false;
+						lastPoliceVeh = 0;
+					}
+				}
+			}
+			else
+			{
+				// 副驾或后排关闭
+				if (policeRadioActive && lastPoliceVeh == veh)
+				{
+					AUDIO::SET_VEHICLE_RADIO_ENABLED(veh, false);
+					policeRadioActive = false;
+					lastPoliceVeh = 0;
+				}
+			}
 		}
-		//if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 1)) if (!PED::IS_PED_IN_ANY_POLICE_VEHICLE(playerPed)) police_radio_check = false;
+		else
+		{
+			// 离开警车清理
+			if (policeRadioActive && lastPoliceVeh != 0)
+			{
+				AUDIO::SET_VEHICLE_RADIO_ENABLED(lastPoliceVeh, false);
+				policeRadioActive = false;
+				lastPoliceVeh = 0;
+			}
+		}
+	}
+	else
+	{
+		// 功能关闭时强制清理状态
+		if (policeRadioActive && lastPoliceVeh != 0)
+		{
+			AUDIO::SET_VEHICLE_RADIO_ENABLED(lastPoliceVeh, false);
+			policeRadioActive = false;
+			lastPoliceVeh = 0;
+		}
 	}
 	
 	// 冻结收音机频道
@@ -2791,6 +2925,10 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 					for (int i = 0; i < 100; i++)
 					{
 						char* radio_station = AUDIO::GET_RADIO_STATION_NAME(i);
+						// 跳过空白占位电台 Weazel News，不将其解锁显示
+						if (radio_station && std::string(radio_station) == "HIDDEN_RADIO_MPSUM2_NEWS") {
+							continue;
+						}
 						UNK3::_LOCK_RADIO_STATION(radio_station, 0);
 					}
 					WAIT(1000);
@@ -2808,6 +2946,13 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 	{
 		iterated_radio_stations = false;
 		missing_station = 0;
+	}
+
+	// 仅在首次运行时锁定空白占位电台，避免每帧重复调用
+	static bool weazelLockedOnce = false;
+	if (!weazelLockedOnce) {
+		UNK3::_LOCK_RADIO_STATION(const_cast<char*>("HIDDEN_RADIO_MPSUM2_NEWS"), 1);
+		weazelLockedOnce = true;
 	}
 
 	if (sfilter_enabled == false && screenfltr != "DEFAULT" && screenfltr != "") {
