@@ -1044,6 +1044,10 @@ void update_world_features()
 		featurePenitentiaryMapUpdated = false;
 	}
 	if (featureCayoPericoMapUpdated) {
+		// 当开启“佩里科岛显示”时，提示开启“解锁迷雾显示完整地图”以获得更清晰的显示
+		if (featureCayoPericoMap) {
+			set_status_text("~y~提示: ~b~为清晰显示佩里科岛!\n~y~需要: ~p~解锁迷雾显示完整地图!");
+		}
 		featurePenitentiaryMap = false;
 		featureCayoPericoMapUpdated = false;
 	}
