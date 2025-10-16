@@ -200,7 +200,7 @@ const std::vector<std::string> MISC_RADIO_OFF_CAPTIONS{ "默认", "始终", "仅
 int RadioOffIndex = 0;
 
 // 收音机关台切换
-const std::vector<std::string> MISC_RADIO_SWITCHING_CAPTIONS{ "关", "下一首电台歌曲", "每 3 分钟", "每 5 分钟", "每 7 分钟", "每 10 分钟", "每 15 分钟", "每 30 分钟" };
+const std::vector<std::string> MISC_RADIO_SWITCHING_CAPTIONS{ "关", "下一首电台歌曲 (快捷键)", "每 3 分钟", "每 5 分钟", "每 7 分钟", "每 10 分钟", "每 15 分钟", "每 30 分钟" };
 const int MISC_RADIO_SWITCHING_VALUES[] = { 0, 1, 180, 300, 420, 600, 900, 1800 };
 int RadioSwitchingIndex = 0;
 
@@ -1178,7 +1178,7 @@ static void set_radio_freeze_toggle_selected(bool turnOn, std::vector<int> extra
 			if (g_RadioSwitchingSelectItem != NULL) {
 				g_RadioSwitchingSelectItem->value = RadioSwitchingIndex;
 			}
-			set_status_text("电台已冻结, 并关闭随机切换!\n仅允许, 随机切换电台歌曲!");
+			set_status_text("电台已冻结, 并关闭随机切换!\n仅允许, 快捷键切换电台歌曲!");
 		}
 		std::string label = get_radio_station_label_with_fallback_by_index(idx);
 		set_status_text(std::string("已冻结电台, 并固定为:~y~ ") + label);
@@ -1647,7 +1647,7 @@ void process_radio_settings_menu() {
 
 	listItem = new SelectFromListMenuItem(MISC_RADIO_SWITCHING_CAPTIONS, onchange_misc_radio_switching_index);
 	listItem->wrap = false;
-	listItem->caption = "电台随机切换";
+	listItem->caption = "电台随机切换模式";
 	listItem->value = RadioSwitchingIndex;
 	// 记录指针以便在“冻结并固定电台”子菜单中能即时刷新当前选中值
 	g_RadioSwitchingSelectItem = listItem;
@@ -1858,7 +1858,7 @@ void onchange_misc_radio_off_index(int value, SelectFromListMenuItem* source) {
 void onchange_misc_radio_switching_index(int value, SelectFromListMenuItem* source) {
 	// 当电台已被冻结且用户试图开启“定时随机切换”（值>1）时，提示并阻止后续随机切换
 	if (featureRadioFreeze && MISC_RADIO_SWITCHING_VALUES[value] > 1) {
-		set_status_text("电台已冻结, 并禁止随机切换!\n仅允许, 随机切换电台歌曲!");
+		set_status_text("电台已冻结, 并禁止随机切换!\n仅允许, 快捷键切换电台歌曲!");
 		RadioSwitchingIndex = 0; // 恢复为“关”
 		if (source) source->value = RadioSwitchingIndex; // 同步界面显示
 		return;
