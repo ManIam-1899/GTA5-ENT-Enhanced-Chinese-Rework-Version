@@ -3117,7 +3117,7 @@ void process_veh_menu(){
 	menuItems.push_back(listItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "永远不会翻车";
+	toggleItem->caption = "自动扶正车辆";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSticktoground;
 	menuItems.push_back(toggleItem);
