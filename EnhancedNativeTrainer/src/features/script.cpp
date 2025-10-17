@@ -2296,7 +2296,7 @@ bool maxwantedlevel_menu() {
 	menuItems.push_back(listItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "警察无视您";
+	toggleItem->caption = "警察无视玩家";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featurePlayerIgnoredByPolice;
 	menuItems.push_back(toggleItem);
