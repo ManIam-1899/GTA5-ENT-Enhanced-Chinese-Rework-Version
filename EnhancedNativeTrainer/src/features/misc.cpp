@@ -4860,6 +4860,10 @@ void deactivate_freecam(Ped playerPed) {
 	ENTITY::SET_ENTITY_COLLISION(ent, freeCamPlayerHadCollision, true);
 	ENTITY::FREEZE_ENTITY_POSITION(ent, false);
 	
+	// 重新设置当前坐标以触发物理引擎重新计算，解决车辆冻结问题
+	Vector3 currentPos = ENTITY::GET_ENTITY_COORDS(ent, false);
+	ENTITY::SET_ENTITY_COORDS_NO_OFFSET(ent, currentPos.x, currentPos.y, currentPos.z, 1, 1, 1);
+	
 	// 恢复玩家透明度（完全不透明）
 	ENTITY::RESET_ENTITY_ALPHA(playerPed);
 	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
