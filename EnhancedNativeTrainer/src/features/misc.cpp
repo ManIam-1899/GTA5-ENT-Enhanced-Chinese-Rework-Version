@@ -3982,26 +3982,59 @@ std::string get_common_key_display_caption(int keyIndex) {
 	if (keyIndex >= 0 && keyIndex < 7) {
 		caption << keyNames[keyIndex];
 		
-		// 获取对应的按键索引
-		int* keyIndexPtr = nullptr;
+		// 按“快捷键按键设置”的显示逻辑：直接读取 KeyInputConfig 显示实际应用的按键
+		// 这样可确保与内存/XML最新生效的按键一致显示
+		KeyInputConfig* keyConfig = get_config()->get_key_config();
+		std::string keyName;
 		switch(keyIndex) {
-			case 0: keyIndexPtr = &CommonKeyToggleMenuIndex; break;
-			case 1: keyIndexPtr = &CommonKeyMoveUpIndex; break;
-			case 2: keyIndexPtr = &CommonKeyMoveDownIndex; break;
-			case 3: keyIndexPtr = &CommonKeyMoveLeftIndex; break;
-			case 4: keyIndexPtr = &CommonKeyMoveRightIndex; break;
-			case 5: keyIndexPtr = &CommonKeyConfirmSelectIndex; break;
-		case 6: keyIndexPtr = &CommonKeyBackCancelIndex; break;
+			case 0: keyName = KeyConfig::KEY_TOGGLE_MAIN_MENU; break;
+			case 1: keyName = KeyConfig::KEY_MENU_UP; break;
+			case 2: keyName = KeyConfig::KEY_MENU_DOWN; break;
+			case 3: keyName = KeyConfig::KEY_MENU_LEFT; break;
+			case 4: keyName = KeyConfig::KEY_MENU_RIGHT; break;
+			case 5: keyName = KeyConfig::KEY_MENU_SELECT; break;
+			case 6: keyName = KeyConfig::KEY_MENU_BACK; break;
 		}
 		
-		if (keyIndexPtr && *keyIndexPtr > 0 && *keyIndexPtr < MISC_HOTKEY_CAPTIONS.size()) {
-			caption << "  [" << MISC_HOTKEY_CAPTIONS[*keyIndexPtr] << "]";
+		int displayIndex = 0; // 0 表示“未绑定”
+		if (keyConfig != NULL) {
+			KeyConfig* key = keyConfig->get_key(keyName);
+			if (key != NULL && key->keyCode != VK_NOTHING) {
+				for (int j = 0; j < sizeof(MISC_HOTKEY_VALUES)/sizeof(int); j++) {
+					if (MISC_HOTKEY_VALUES[j] == key->keyCode) {
+						displayIndex = j;
+						break;
+					}
+				}
+			}
+		}
+		
+		if (displayIndex > 0 && displayIndex < (int)MISC_HOTKEY_CAPTIONS.size()) {
+			caption << "  [" << MISC_HOTKEY_CAPTIONS[displayIndex] << "]";
 		} else {
 			caption << " [未绑定]";
 		}
 	}
 	
 	return caption.str();
+}
+
+// 根据 Key 名称从 KeyInputConfig 计算展示索引（与“快捷键按键设置”一致）
+// 工具函数：从 Key 名读取按键码并映射到下拉索引（找不到时回退 defaultIndex）
+static int get_key_index_from_config_by_name(const std::string &keyName, int defaultIndex) {
+	// defaultIndex 用于在找不到映射但存在有效按键码时作为后备值
+	KeyInputConfig* keyConfig = get_config()->get_key_config();
+	if (keyConfig == NULL) return defaultIndex;
+	KeyConfig* key = keyConfig->get_key(keyName);
+	if (key == NULL) return defaultIndex;
+	if (key->keyCode == VK_NOTHING) return 0; // 未绑定
+	for (int j = 0; j < sizeof(MISC_HOTKEY_VALUES)/sizeof(int); j++) {
+		if (MISC_HOTKEY_VALUES[j] == key->keyCode) {
+			return j;
+		}
+	}
+	// 找不到对应映射时，退回默认索引
+	return defaultIndex;
 }
 
 // 其他按键显示标题函数
@@ -4021,21 +4054,35 @@ std::string get_other_key_display_caption(int keyIndex) {
 	if (keyIndex >= 0 && keyIndex < 8) {
 		caption << keyNames[keyIndex];
 		
-		// 获取对应的按键索引
-		int* keyIndexPtr = nullptr;
+		// 按“快捷键按键设置”的显示逻辑：直接读取 KeyInputConfig 显示实际应用的按键
+		KeyInputConfig* keyConfig = get_config()->get_key_config();
+		std::string keyName;
 		switch(keyIndex) {
-			case 0: keyIndexPtr = &OtherKeyToggleFreeMoveIndex; break;
-			case 1: keyIndexPtr = &OtherKeyFreeCamToggleIndex; break;
-			case 2: keyIndexPtr = &OtherKeyVehicleBoostIndex; break;
-			case 3: keyIndexPtr = &OtherKeyVehicleStopIndex; break;
-			case 4: keyIndexPtr = &OtherKeyVehicleRocketsIndex; break;
-			case 5: keyIndexPtr = &OtherKeyLeftBlinkIndex; break;
-			case 6: keyIndexPtr = &OtherKeyRightBlinkIndex; break;
-			case 7: keyIndexPtr = &OtherKeyEmergencyBlinkIndex; break;
+			case 0: keyName = KeyConfig::KEY_TOGGLE_AIRBRAKE; break;
+			case 1: keyName = KeyConfig::KEY_FREECAM_TOGGLE; break;
+			case 2: keyName = KeyConfig::KEY_VEH_BOOST; break;
+			case 3: keyName = KeyConfig::KEY_VEH_STOP; break;
+			case 4: keyName = KeyConfig::KEY_VEH_ROCKETS; break;
+			case 5: keyName = KeyConfig::KEY_VEH_LEFTBLINK; break;
+			case 6: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; break;
+			case 7: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; break;
 		}
 		
-		if (keyIndexPtr && *keyIndexPtr > 0 && *keyIndexPtr < MISC_HOTKEY_CAPTIONS.size()) {
-			caption << "  [" << MISC_HOTKEY_CAPTIONS[*keyIndexPtr] << "]";
+		int displayIndex = 0; // 0 表示“未绑定”
+		if (keyConfig != NULL) {
+			KeyConfig* key = keyConfig->get_key(keyName);
+			if (key != NULL && key->keyCode != VK_NOTHING) {
+				for (int j = 0; j < sizeof(MISC_HOTKEY_VALUES)/sizeof(int); j++) {
+					if (MISC_HOTKEY_VALUES[j] == key->keyCode) {
+						displayIndex = j;
+						break;
+					}
+				}
+			}
+		}
+		
+		if (displayIndex > 0 && displayIndex < (int)MISC_HOTKEY_CAPTIONS.size()) {
+			caption << "  [" << MISC_HOTKEY_CAPTIONS[displayIndex] << "]";
 		} else {
 			caption << " [未绑定]";
 		}
@@ -4226,16 +4273,29 @@ void process_misc_common_keys_menu() {
 		listItem->caption = get_common_key_display_caption(i);
 		listItem->extras.push_back(i);
 		
-		// 设置当前值
+		// 初始值改为从 KeyInputConfig 动态读取，保持与“快捷键按键设置”一致
+		// 避免仅显示默认索引，保证与实际生效按键匹配
+		int defaultIndex = 0;
 		switch(i) {
-			case 0: listItem->value = CommonKeyToggleMenuIndex; break;
-			case 1: listItem->value = CommonKeyMoveUpIndex; break;
-			case 2: listItem->value = CommonKeyMoveDownIndex; break;
-			case 3: listItem->value = CommonKeyMoveLeftIndex; break;
-			case 4: listItem->value = CommonKeyMoveRightIndex; break;
-			case 5: listItem->value = CommonKeyConfirmSelectIndex; break;
-		case 6: listItem->value = CommonKeyBackCancelIndex; break;
+			case 0: defaultIndex = CommonKeyToggleMenuIndex; break;
+			case 1: defaultIndex = CommonKeyMoveUpIndex; break;
+			case 2: defaultIndex = CommonKeyMoveDownIndex; break;
+			case 3: defaultIndex = CommonKeyMoveLeftIndex; break;
+			case 4: defaultIndex = CommonKeyMoveRightIndex; break;
+			case 5: defaultIndex = CommonKeyConfirmSelectIndex; break;
+			case 6: defaultIndex = CommonKeyBackCancelIndex; break;
 		}
+		std::string keyName;
+		switch(i) {
+			case 0: keyName = KeyConfig::KEY_TOGGLE_MAIN_MENU; break;
+			case 1: keyName = KeyConfig::KEY_MENU_UP; break;
+			case 2: keyName = KeyConfig::KEY_MENU_DOWN; break;
+			case 3: keyName = KeyConfig::KEY_MENU_LEFT; break;
+			case 4: keyName = KeyConfig::KEY_MENU_RIGHT; break;
+			case 5: keyName = KeyConfig::KEY_MENU_SELECT; break;
+			case 6: keyName = KeyConfig::KEY_MENU_BACK; break;
+		}
+		listItem->value = get_key_index_from_config_by_name(keyName, defaultIndex); // 以配置为准
 		
 		menuItems.push_back(listItem);
 	}
@@ -4255,17 +4315,31 @@ void process_misc_other_keys_menu() {
 		listItem->caption = get_other_key_display_caption(i);
 		listItem->extras.push_back(i);
 		
-		// 设置当前值
+		// 初始值改为从 KeyInputConfig 动态读取，保持与“快捷键按键设置”一致
+		// 避免仅显示默认索引，保证与实际生效按键匹配
+		int defaultIndex = 0;
 		switch(i) {
-			case 0: listItem->value = OtherKeyToggleFreeMoveIndex; break;
-			case 1: listItem->value = OtherKeyFreeCamToggleIndex; break;
-			case 2: listItem->value = OtherKeyVehicleBoostIndex; break;
-			case 3: listItem->value = OtherKeyVehicleStopIndex; break;
-			case 4: listItem->value = OtherKeyVehicleRocketsIndex; break;
-			case 5: listItem->value = OtherKeyLeftBlinkIndex; break;
-			case 6: listItem->value = OtherKeyRightBlinkIndex; break;
-			case 7: listItem->value = OtherKeyEmergencyBlinkIndex; break;
+			case 0: defaultIndex = OtherKeyToggleFreeMoveIndex; break;
+			case 1: defaultIndex = OtherKeyFreeCamToggleIndex; break;
+			case 2: defaultIndex = OtherKeyVehicleBoostIndex; break;
+			case 3: defaultIndex = OtherKeyVehicleStopIndex; break;
+			case 4: defaultIndex = OtherKeyVehicleRocketsIndex; break;
+			case 5: defaultIndex = OtherKeyLeftBlinkIndex; break;
+			case 6: defaultIndex = OtherKeyRightBlinkIndex; break;
+			case 7: defaultIndex = OtherKeyEmergencyBlinkIndex; break;
 		}
+		std::string keyName;
+		switch(i) {
+			case 0: keyName = KeyConfig::KEY_TOGGLE_AIRBRAKE; break;
+			case 1: keyName = KeyConfig::KEY_FREECAM_TOGGLE; break;
+			case 2: keyName = KeyConfig::KEY_VEH_BOOST; break;
+			case 3: keyName = KeyConfig::KEY_VEH_STOP; break;
+			case 4: keyName = KeyConfig::KEY_VEH_ROCKETS; break;
+			case 5: keyName = KeyConfig::KEY_VEH_LEFTBLINK; break;
+			case 6: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; break;
+			case 7: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; break;
+		}
+		listItem->value = get_key_index_from_config_by_name(keyName, defaultIndex); // 以配置为准
 		
 		menuItems.push_back(listItem);
 	}
