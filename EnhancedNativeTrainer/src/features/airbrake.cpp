@@ -6,6 +6,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 
 #include "..\ui_support\menu_functions.h"
 #include "airbrake.h"
+#include "misc.h"
 #include "..\io\keyboard.h"
 #include "..\io\config_io.h"
 #include "..\utils.h"
@@ -38,16 +39,27 @@ bool airbrakeStatusTextGxtEntry;
 
 void exit_airbrake_menu_if_showing()
 {
-	ENTITY::SET_ENTITY_VISIBLE(PLAYER::PLAYER_PED_ID(), true);
-	if (PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0)){
-		ENTITY::SET_ENTITY_COLLISION(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()), 1, 1);
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+
+	// ===================== 改动1：恢复玩家状态 =====================
+	// 恢复玩家可见性
+	ENTITY::SET_ENTITY_VISIBLE(playerPed, true);
+	// 恢复玩家透明度（完全不透明）
+	ENTITY::RESET_ENTITY_ALPHA(playerPed);
+
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)){
+		Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+		ENTITY::SET_ENTITY_VISIBLE(veh, true);
+		ENTITY::SET_ENTITY_COLLISION(veh, 1, 1);
+		ENTITY::FREEZE_ENTITY_POSITION(veh, false);
+		// ===================== 改动2：恢复载具透明度 =====================
+		if (!exitFlag) ENTITY::RESET_ENTITY_ALPHA(veh);
 	}
 	else
 	{
-		ENTITY::SET_ENTITY_COLLISION(PLAYER::PLAYER_PED_ID(), 1, 1);
+		ENTITY::SET_ENTITY_COLLISION(playerPed, 1, 1);
+		ENTITY::FREEZE_ENTITY_POSITION(playerPed, false);
 	}
-	ENTITY::FREEZE_ENTITY_POSITION(PLAYER::PLAYER_PED_ID(), false);
-	ENTITY::FREEZE_ENTITY_POSITION(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()), false);
 	exitFlag = true;
 }
 
@@ -61,6 +73,12 @@ void process_airbrake_menu()
 	const std::string caption = "自由移动模式";
 
 	Ped playerPed = PLAYER::PLAYER_PED_ID();
+
+	// ===================== 改动1：关闭自由相机 =====================
+	if (freeCamActive) {
+		deactivate_freecam(playerPed);
+		WAIT(50); // 等待自由相机模式完全关闭
+	}
 	bool inVehicle = PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0) ? true : false;
 
 	if (!inVehicle)
@@ -95,20 +113,34 @@ void process_airbrake_menu()
 		else if (airbrake_switch_pressed())
 		{
 			menu_beep();
-			ENTITY::SET_ENTITY_VISIBLE(PLAYER::PLAYER_PED_ID(), true);
-			ENTITY::FREEZE_ENTITY_POSITION(PLAYER::PLAYER_PED_ID(), false);
-			ENTITY::FREEZE_ENTITY_POSITION(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()), false);
-			if (PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0)) {
-				ENTITY::SET_ENTITY_COLLISION(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()), 1, 1);
-				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()), curLocation.x, curLocation.y, curLocation.z, 1, 1, 1);
-				if (exitFlag == false) ENTITY::RESET_ENTITY_ALPHA(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()));
-				if (exitFlag == false) ENTITY::RESET_ENTITY_ALPHA(PLAYER::PLAYER_PED_ID());
+
+			// ===================== 改动2：缓存载具 =====================
+			Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+
+			// ===================== 改动3：恢复状态 =====================
+			ENTITY::SET_ENTITY_VISIBLE(playerPed, true);
+			ENTITY::FREEZE_ENTITY_POSITION(playerPed, false);
+
+			if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+				ENTITY::FREEZE_ENTITY_POSITION(veh, false);
+				ENTITY::SET_ENTITY_VISIBLE(veh, true);
+				ENTITY::SET_ENTITY_COLLISION(veh, 1, 1);
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(veh, curLocation.x, curLocation.y, curLocation.z, 1, 1, 1);
+
+				// ===================== 改动4：安全恢复透明度 =====================
+				if (!exitFlag) {
+					ENTITY::RESET_ENTITY_ALPHA(veh);
+					ENTITY::RESET_ENTITY_ALPHA(playerPed);
+				}
 			}
 			else
 			{
-				ENTITY::SET_ENTITY_COLLISION(PLAYER::PLAYER_PED_ID(), 1, 1);
-				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(PLAYER::PLAYER_PED_ID(), curLocation.x, curLocation.y, curLocation.z, 1, 1, 1);
-				if (exitFlag == false) ENTITY::RESET_ENTITY_ALPHA(PLAYER::PLAYER_PED_ID());
+				ENTITY::SET_ENTITY_COLLISION(playerPed, 1, 1);
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, curLocation.x, curLocation.y, curLocation.z, 1, 1, 1);
+
+				if (!exitFlag) {
+					ENTITY::RESET_ENTITY_ALPHA(playerPed);
+				}
 			}
 			break;
 		}

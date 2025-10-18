@@ -4860,14 +4860,24 @@ void deactivate_freecam(Ped playerPed) {
 	ENTITY::SET_ENTITY_COLLISION(ent, freeCamPlayerHadCollision, true);
 	ENTITY::FREEZE_ENTITY_POSITION(ent, false);
 	
-	// 重新启用控制
+	// 恢复玩家透明度（完全不透明）
+	ENTITY::RESET_ENTITY_ALPHA(playerPed);
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		ENTITY::RESET_ENTITY_ALPHA(ent);
+	}
+	
+	// 重新启用所有被禁用的控制
 	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_HORN, TRUE);
 	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_LOOK_BEHIND, TRUE);
 	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_LOOK_BEHIND, TRUE);
 	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_SELECT_WEAPON, TRUE);
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_ACCELERATE, TRUE);
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_BRAKE, TRUE);
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_RADIO_WHEEL, TRUE);
 	
+	// 标记自由相机已关闭（保持速度模式不重置，下次打开继续使用上次的速度）
 	freeCamActive = false;
-	currentSpeedMode = 0;
+	//currentSpeedMode = 0;//保持当前值，不重置为0
 	
 	// 恢复菜单显示
 	set_menu_showing(true);
@@ -4876,6 +4886,12 @@ void deactivate_freecam(Ped playerPed) {
 // 激活自由相机
 void activate_freecam(Ped playerPed) {
 	if (freeCamActive) return;
+	
+	// 如果自由移动模式已激活，先关闭它
+	if (is_in_airbrake_mode()) {
+		exit_airbrake_menu_if_showing();
+		WAIT(50); // 等待自由移动模式完全关闭
+	}
 	
 	Entity ent = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) ? PED::GET_VEHICLE_PED_IS_IN(playerPed, false) : playerPed;
 	
@@ -4901,8 +4917,9 @@ void activate_freecam(Ped playerPed) {
 		ENTITY::SET_ENTITY_COLLISION(ent, false, false);
 		ENTITY::FREEZE_ENTITY_POSITION(ent, true);
 		
+		// 标记自由相机已关闭（保持速度模式不重置，下次打开继续使用上次的速度）
 		freeCamActive = true;
-		currentSpeedMode = 0; // 默认慢速
+		//currentSpeedMode = 0;//保持当前值，不重置为0
 		
 		// 隐藏菜单
 		set_menu_showing(false);
