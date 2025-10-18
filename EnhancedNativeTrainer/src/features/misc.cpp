@@ -267,13 +267,14 @@ int activeLineIndexCommonKeys = 0;
 
 // 其他按键设置变量
 int OtherKeyToggleFreeMoveIndex = 6;   // 开/关自由移动，默认 F6
+int OtherKeyFreeCamToggleIndex = 7;    // 自由相机模式，默认 F7
 int OtherKeyVehicleBoostIndex = 58;    // 车辆加速，默认小键盘 9
 int OtherKeyVehicleStopIndex = 52;     // 停止车辆，默认小键盘 3
 int OtherKeyVehicleRocketsIndex = 59;  // 车辆发射火箭，默认小键盘 +
 int OtherKeyLeftBlinkIndex = 72;       // 左转向灯，默认左箭头
 int OtherKeyRightBlinkIndex = 73;      // 右转向灯，默认右箭头
 int OtherKeyEmergencyBlinkIndex = 63;  // 打开双闪，默认小键盘 .
-bool OtherKeyChanged[7] = {false, false, false, false, false, false, false};
+bool OtherKeyChanged[8] = {false, false, false, false, false, false, false, false};
 int activeLineIndexOtherKeys = 0;
 
 void onchange_hotkey_function(int value, SelectFromListMenuItem* source){
@@ -404,12 +405,12 @@ bool is_common_key_duplicate(int commonKeyNum, int keyIndex) {
 	}
 	
 	// 检查其他按键是否有相同的按键
-	int otherKeys[7] = {
-		OtherKeyToggleFreeMoveIndex, OtherKeyVehicleBoostIndex, OtherKeyVehicleStopIndex,
+	int otherKeys[8] = {
+		OtherKeyToggleFreeMoveIndex, OtherKeyFreeCamToggleIndex, OtherKeyVehicleBoostIndex, OtherKeyVehicleStopIndex,
 		OtherKeyVehicleRocketsIndex, OtherKeyLeftBlinkIndex, OtherKeyRightBlinkIndex, OtherKeyEmergencyBlinkIndex
 	};
 	
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < 8; i++) {
 		if (otherKeys[i] == keyIndex) {
 			return true;
 		}
@@ -433,13 +434,13 @@ bool is_other_key_duplicate(int otherKeyNum, int keyIndex) {
 	}
 	
 	// 获取当前其他按键数组
-	int otherKeys[7] = {
-		OtherKeyToggleFreeMoveIndex, OtherKeyVehicleBoostIndex, OtherKeyVehicleStopIndex,
+	int otherKeys[8] = {
+		OtherKeyToggleFreeMoveIndex, OtherKeyFreeCamToggleIndex, OtherKeyVehicleBoostIndex, OtherKeyVehicleStopIndex,
 		OtherKeyVehicleRocketsIndex, OtherKeyLeftBlinkIndex, OtherKeyRightBlinkIndex, OtherKeyEmergencyBlinkIndex
 	};
 	
 	// 检查其他按键是否有相同的按键
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < 8; i++) {
 		if (i == otherKeyNum) continue; // 跳过自己
 		if (otherKeys[i] == keyIndex) {
 			return true;
@@ -1771,6 +1772,9 @@ bool onconfirm_misc_menu(MenuItem<int> choice){
 		case 15:
 			process_airbrake_global_menu();
 			break;
+		case 16:
+			process_misc_freecam_menu();
+			break;
 		default:
 			// 可切换功能
 			break;
@@ -1779,7 +1783,7 @@ bool onconfirm_misc_menu(MenuItem<int> choice){
 }
 
 void process_misc_menu(){
-	const int lineCount = 16; 
+	const int lineCount = 17; 
 
 	const std::string caption = "其他选项";
 
@@ -1800,6 +1804,7 @@ void process_misc_menu(){
 		{"无特技跳跃", &featureNoStuntJumps, NULL },
 		{"FPS 帧率显示 ", &featureShowFPS, NULL }, 
 		{"自由移动模式", NULL, NULL, false},
+		{"自由相机模式", NULL, NULL, false},
 	};
 	
 	draw_menu_from_struct_def(lines, lineCount, &activeLineIndexMisc, caption, onconfirm_misc_menu);
@@ -1837,7 +1842,7 @@ void initialize() {
 	setupPatches();
 	// 初始化快捷键设置
 	load_hotkey_settings_from_xml();
-	// 初始化常用按键和其他按键设置
+	// 初始化常用按键和其他按键设置（包含自由相机热键）
 	load_common_other_keys_from_xml();
 }
 
@@ -2012,6 +2017,9 @@ void reset_misc_globals(){
 
 	// 重置菜单布局设置
 	reset_menu_layout_to_defaults();
+
+	// 重置自由相机设置
+	reset_freecam_settings_to_defaults();
 
 	//featureControllerIgnoreInTrainer = false;
 	//featureBlockInputInMenu = false;
@@ -2962,6 +2970,9 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 	}
 	if (DLC2::GET_IS_LOADING_SCREEN_ACTIVE()) sfilter_enabled = false;
 
+	// 更新自由相机功能
+	update_freecam_features(playerExists, playerPed);
+
 }
 
 void add_misc_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* results){
@@ -3006,6 +3017,7 @@ void add_misc_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* re
 	results->push_back(FeatureEnabledLocalDefinition{"featureNoStuntJumps", &featureNoStuntJumps});
 	results->push_back(FeatureEnabledLocalDefinition{"featureHidePlayerInfo", &featureHidePlayerInfo});
 	results->push_back(FeatureEnabledLocalDefinition{"featureMiscJellmanScenery", &featureMiscJellmanScenery});
+	results->push_back(FeatureEnabledLocalDefinition{"featureFreeCamEnabled", &featureFreeCamEnabled});
 	//results->push_back(FeatureEnabledLocalDefinition{"featureControllerIgnoreInTrainer", &featureControllerIgnoreInTrainer});
 	//results->push_back(FeatureEnabledLocalDefinition{"featureBlockInputInMenu", &featureBlockInputInMenu});
 }
@@ -3046,6 +3058,15 @@ void add_misc_generic_settings(std::vector<StringPairSettingDBRow>* results){
 	results->push_back(StringPairSettingDBRow{"PedPreviewSpacingIndex", std::to_string(PedPreviewSpacingIndex)});
 	results->push_back(StringPairSettingDBRow{"featureShowPedPreviews", featureShowPedPreviews ? "1" : "0"});
 	results->push_back(StringPairSettingDBRow{"screenfltr", screenfltr});
+	// 添加自由相机设置（热键在其他按键设置中保存）
+	results->push_back(StringPairSettingDBRow{"FreeCamFollowIndex", std::to_string(FreeCamFollowIndex)});
+	results->push_back(StringPairSettingDBRow{"FreeCamFovIndex", std::to_string(FreeCamFovIndex)});
+	results->push_back(StringPairSettingDBRow{"FreeCamSpeedSlowIndex", std::to_string(FreeCamSpeedSlowIndex)});
+	results->push_back(StringPairSettingDBRow{"FreeCamSpeedMediumIndex", std::to_string(FreeCamSpeedMediumIndex)});
+	results->push_back(StringPairSettingDBRow{"FreeCamSpeedFastIndex", std::to_string(FreeCamSpeedFastIndex)});
+	results->push_back(StringPairSettingDBRow{"FreeCamInfoDisplayIndex", std::to_string(FreeCamInfoDisplayIndex)});
+    results->push_back(StringPairSettingDBRow{"FreeCamCrosshairStyleIndex", std::to_string(FreeCamCrosshairStyleIndex)});
+    results->push_back(StringPairSettingDBRow{"FreeCamCrosshairColorIndex", std::to_string(FreeCamCrosshairColorIndex)});
 }
 
 void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings){
@@ -3215,6 +3236,39 @@ void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings)
 		}
 		else if (setting.name.compare("screenfltr") == 0) {
 			screenfltr = setting.value;
+		}
+		// 添加自由相机设置的加载（热键在其他按键设置中加载）
+		else if (setting.name.compare("FreeCamFollowIndex") == 0) {
+			FreeCamFollowIndex = stoi(setting.value);
+			FreeCamFollowChanged = true;
+		}
+		else if (setting.name.compare("FreeCamFovIndex") == 0) {
+			FreeCamFovIndex = stoi(setting.value);
+			FreeCamFovChanged = true;
+		}
+		else if (setting.name.compare("FreeCamSpeedSlowIndex") == 0) {
+			FreeCamSpeedSlowIndex = stoi(setting.value);
+			FreeCamSpeedSlowChanged = true;
+		}
+		else if (setting.name.compare("FreeCamSpeedMediumIndex") == 0) {
+			FreeCamSpeedMediumIndex = stoi(setting.value);
+			FreeCamSpeedMediumChanged = true;
+		}
+		else if (setting.name.compare("FreeCamSpeedFastIndex") == 0) {
+			FreeCamSpeedFastIndex = stoi(setting.value);
+			FreeCamSpeedFastChanged = true;
+		}
+		else if (setting.name.compare("FreeCamInfoDisplayIndex") == 0) {
+			FreeCamInfoDisplayIndex = stoi(setting.value);
+			FreeCamInfoDisplayChanged = true;
+		}
+		else if (setting.name.compare("FreeCamCrosshairStyleIndex") == 0) {
+			FreeCamCrosshairStyleIndex = stoi(setting.value);
+			FreeCamCrosshairStyleChanged = true;
+		}
+		else if (setting.name.compare("FreeCamCrosshairColorIndex") == 0) {
+			FreeCamCrosshairColorIndex = stoi(setting.value);
+			FreeCamCrosshairColorChanged = true;
 		}
 	}
 }
@@ -3401,6 +3455,35 @@ float pedPreviewResolutionScale = MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[PED_P
 int PedPreviewSpacingIndex = PED_PREVIEW_SPACING_DEFAULT_INDEX; // 人物预览图间距
 bool PedPreviewSpacingChanged = false;
 float pedPreviewSpacing = MISC_PED_PREVIEW_SPACING_VALUES[PED_PREVIEW_SPACING_DEFAULT_INDEX];
+
+// 自由相机模式变量定义
+bool featureFreeCamEnabled = true;
+int FreeCamFollowIndex = 0; // 默认跟随（顺序：跟随0，不跟随1）
+bool FreeCamFollowChanged = false;
+int FreeCamFovIndex = 0; // 默认50
+bool FreeCamFovChanged = false;
+int FreeCamSpeedSlowIndex = 0; // 默认0.35
+bool FreeCamSpeedSlowChanged = false;
+int FreeCamSpeedMediumIndex = 10; // 默认1.0
+bool FreeCamSpeedMediumChanged = false;
+int FreeCamSpeedFastIndex = 14; // 默认3.0
+bool FreeCamSpeedFastChanged = false;
+int FreeCamInfoDisplayIndex = 0; // 默认底部显示（顺序：底部0，顶部1，不显示2）
+bool FreeCamInfoDisplayChanged = false;
+
+bool freeCamActive = false;
+Camera freeCamHandle = NULL;
+int currentSpeedMode = 0; // 0=慢速, 1=中速, 2=快速
+bool freeCamPlayerWasVisible = true;
+bool freeCamPlayerHadCollision = true;
+bool lastShiftState = false;
+int activeLineIndexFreeCam = 0;
+
+// 自由相机中心十字变量定义
+int FreeCamCrosshairStyleIndex = 0; // 0=不显示
+bool FreeCamCrosshairStyleChanged = false;
+int FreeCamCrosshairColorIndex = 0; // 0=白色
+bool FreeCamCrosshairColorChanged = false;
 
 
 
@@ -3926,6 +4009,7 @@ std::string get_other_key_display_caption(int keyIndex) {
 	std::ostringstream caption;
 	const char* keyNames[] = {
 		"自由移动",
+		"自由相机",
 		"车辆加速", 
 		"车辆停止",
 		"载具武器",
@@ -3934,19 +4018,20 @@ std::string get_other_key_display_caption(int keyIndex) {
 		"打开双闪"
 	};
 	
-	if (keyIndex >= 0 && keyIndex < 7) {
+	if (keyIndex >= 0 && keyIndex < 8) {
 		caption << keyNames[keyIndex];
 		
 		// 获取对应的按键索引
 		int* keyIndexPtr = nullptr;
 		switch(keyIndex) {
 			case 0: keyIndexPtr = &OtherKeyToggleFreeMoveIndex; break;
-			case 1: keyIndexPtr = &OtherKeyVehicleBoostIndex; break;
-			case 2: keyIndexPtr = &OtherKeyVehicleStopIndex; break;
-			case 3: keyIndexPtr = &OtherKeyVehicleRocketsIndex; break;
-			case 4: keyIndexPtr = &OtherKeyLeftBlinkIndex; break;
-			case 5: keyIndexPtr = &OtherKeyRightBlinkIndex; break;
-			case 6: keyIndexPtr = &OtherKeyEmergencyBlinkIndex; break;
+			case 1: keyIndexPtr = &OtherKeyFreeCamToggleIndex; break;
+			case 2: keyIndexPtr = &OtherKeyVehicleBoostIndex; break;
+			case 3: keyIndexPtr = &OtherKeyVehicleStopIndex; break;
+			case 4: keyIndexPtr = &OtherKeyVehicleRocketsIndex; break;
+			case 5: keyIndexPtr = &OtherKeyLeftBlinkIndex; break;
+			case 6: keyIndexPtr = &OtherKeyRightBlinkIndex; break;
+			case 7: keyIndexPtr = &OtherKeyEmergencyBlinkIndex; break;
 		}
 		
 		if (keyIndexPtr && *keyIndexPtr > 0 && *keyIndexPtr < MISC_HOTKEY_CAPTIONS.size()) {
@@ -4046,7 +4131,7 @@ void onchange_common_key(int value, SelectFromListMenuItem* source) {
 void onchange_other_key(int value, SelectFromListMenuItem* source) {
 	int keyIndex = source->extras.at(0);
 	
-	if (keyIndex >= 0 && keyIndex < 7) {
+	if (keyIndex >= 0 && keyIndex < 8) {
 		// 检查按键重复
 		if (is_other_key_duplicate(keyIndex, value)) {
 			set_status_text("按键重复！\n已恢复默认绑定键位。");
@@ -4055,12 +4140,13 @@ void onchange_other_key(int value, SelectFromListMenuItem* source) {
 			// 恢复默认绑定键位
 			switch(keyIndex) {
 				case 0: OtherKeyToggleFreeMoveIndex = 6; break;   // F6
-				case 1: OtherKeyVehicleBoostIndex = 58; break;    // 小键盘 9
-				case 2: OtherKeyVehicleStopIndex = 52; break;     // 小键盘 3
-				case 3: OtherKeyVehicleRocketsIndex = 59; break;  // 小键盘 +
-				case 4: OtherKeyLeftBlinkIndex = 72; break;       // 左箭头
-				case 5: OtherKeyRightBlinkIndex = 73; break;      // 右箭头
-				case 6: OtherKeyEmergencyBlinkIndex = 63; break;  // 小键盘 .
+				case 1: OtherKeyFreeCamToggleIndex = 7; break;    // F7
+				case 2: OtherKeyVehicleBoostIndex = 58; break;    // 小键盘 9
+				case 3: OtherKeyVehicleStopIndex = 52; break;     // 小键盘 3
+				case 4: OtherKeyVehicleRocketsIndex = 59; break;  // 小键盘 +
+				case 5: OtherKeyLeftBlinkIndex = 72; break;       // 左箭头
+				case 6: OtherKeyRightBlinkIndex = 73; break;      // 右箭头
+				case 7: OtherKeyEmergencyBlinkIndex = 63; break;  // 小键盘 .
 			}
 			OtherKeyChanged[keyIndex] = true;
 			
@@ -4072,12 +4158,13 @@ void onchange_other_key(int value, SelectFromListMenuItem* source) {
 				
 				switch(keyIndex) {
 					case 0: keyName = KeyConfig::KEY_TOGGLE_AIRBRAKE; keyValue = OtherKeyToggleFreeMoveIndex; break;
-					case 1: keyName = KeyConfig::KEY_VEH_BOOST; keyValue = OtherKeyVehicleBoostIndex; break;
-					case 2: keyName = KeyConfig::KEY_VEH_STOP; keyValue = OtherKeyVehicleStopIndex; break;
-					case 3: keyName = KeyConfig::KEY_VEH_ROCKETS; keyValue = OtherKeyVehicleRocketsIndex; break;
-					case 4: keyName = KeyConfig::KEY_VEH_LEFTBLINK; keyValue = OtherKeyLeftBlinkIndex; break;
-					case 5: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; keyValue = OtherKeyRightBlinkIndex; break;
-					case 6: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; keyValue = OtherKeyEmergencyBlinkIndex; break;
+					case 1: keyName = KeyConfig::KEY_FREECAM_TOGGLE; keyValue = OtherKeyFreeCamToggleIndex; break;
+					case 2: keyName = KeyConfig::KEY_VEH_BOOST; keyValue = OtherKeyVehicleBoostIndex; break;
+					case 3: keyName = KeyConfig::KEY_VEH_STOP; keyValue = OtherKeyVehicleStopIndex; break;
+					case 4: keyName = KeyConfig::KEY_VEH_ROCKETS; keyValue = OtherKeyVehicleRocketsIndex; break;
+					case 5: keyName = KeyConfig::KEY_VEH_LEFTBLINK; keyValue = OtherKeyLeftBlinkIndex; break;
+					case 6: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; keyValue = OtherKeyRightBlinkIndex; break;
+					case 7: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; keyValue = OtherKeyEmergencyBlinkIndex; break;
 				}
 				
 				if (keyValue >= 0 && keyValue < sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
@@ -4091,12 +4178,13 @@ void onchange_other_key(int value, SelectFromListMenuItem* source) {
 		
 		switch(keyIndex) {
 			case 0: OtherKeyToggleFreeMoveIndex = value; break;
-			case 1: OtherKeyVehicleBoostIndex = value; break;
-			case 2: OtherKeyVehicleStopIndex = value; break;
-			case 3: OtherKeyVehicleRocketsIndex = value; break;
-			case 4: OtherKeyLeftBlinkIndex = value; break;
-			case 5: OtherKeyRightBlinkIndex = value; break;
-			case 6: OtherKeyEmergencyBlinkIndex = value; break;
+			case 1: OtherKeyFreeCamToggleIndex = value; break;
+			case 2: OtherKeyVehicleBoostIndex = value; break;
+			case 3: OtherKeyVehicleStopIndex = value; break;
+			case 4: OtherKeyVehicleRocketsIndex = value; break;
+			case 5: OtherKeyLeftBlinkIndex = value; break;
+			case 6: OtherKeyRightBlinkIndex = value; break;
+			case 7: OtherKeyEmergencyBlinkIndex = value; break;
 		}
 		OtherKeyChanged[keyIndex] = true;
 		
@@ -4108,12 +4196,13 @@ void onchange_other_key(int value, SelectFromListMenuItem* source) {
 			
 			switch(keyIndex) {
 				case 0: keyName = KeyConfig::KEY_TOGGLE_AIRBRAKE; keyValue = OtherKeyToggleFreeMoveIndex; break;
-				case 1: keyName = KeyConfig::KEY_VEH_BOOST; keyValue = OtherKeyVehicleBoostIndex; break;
-				case 2: keyName = KeyConfig::KEY_VEH_STOP; keyValue = OtherKeyVehicleStopIndex; break;
-				case 3: keyName = KeyConfig::KEY_VEH_ROCKETS; keyValue = OtherKeyVehicleRocketsIndex; break;
-				case 4: keyName = KeyConfig::KEY_VEH_LEFTBLINK; keyValue = OtherKeyLeftBlinkIndex; break;
-				case 5: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; keyValue = OtherKeyRightBlinkIndex; break;
-				case 6: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; keyValue = OtherKeyEmergencyBlinkIndex; break;
+				case 1: keyName = KeyConfig::KEY_FREECAM_TOGGLE; keyValue = OtherKeyFreeCamToggleIndex; break;
+				case 2: keyName = KeyConfig::KEY_VEH_BOOST; keyValue = OtherKeyVehicleBoostIndex; break;
+				case 3: keyName = KeyConfig::KEY_VEH_STOP; keyValue = OtherKeyVehicleStopIndex; break;
+				case 4: keyName = KeyConfig::KEY_VEH_ROCKETS; keyValue = OtherKeyVehicleRocketsIndex; break;
+				case 5: keyName = KeyConfig::KEY_VEH_LEFTBLINK; keyValue = OtherKeyLeftBlinkIndex; break;
+				case 6: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; keyValue = OtherKeyRightBlinkIndex; break;
+				case 7: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; keyValue = OtherKeyEmergencyBlinkIndex; break;
 			}
 			
 			if (keyValue >= 0 && keyValue < sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
@@ -4159,8 +4248,8 @@ void process_misc_other_keys_menu() {
 	const std::string caption = "其他按键设置";
 	std::vector<MenuItem<int>*> menuItems;
 	
-	// 添加7个其他按键设置项
-	for (int i = 0; i < 7; i++) {
+	// 添加8个其他按键设置项
+	for (int i = 0; i < 8; i++) {
 		SelectFromListMenuItem* listItem = new SelectFromListMenuItem(MISC_HOTKEY_CAPTIONS, onchange_other_key);
 		listItem->wrap = false;
 		listItem->caption = get_other_key_display_caption(i);
@@ -4169,12 +4258,13 @@ void process_misc_other_keys_menu() {
 		// 设置当前值
 		switch(i) {
 			case 0: listItem->value = OtherKeyToggleFreeMoveIndex; break;
-			case 1: listItem->value = OtherKeyVehicleBoostIndex; break;
-			case 2: listItem->value = OtherKeyVehicleStopIndex; break;
-			case 3: listItem->value = OtherKeyVehicleRocketsIndex; break;
-			case 4: listItem->value = OtherKeyLeftBlinkIndex; break;
-			case 5: listItem->value = OtherKeyRightBlinkIndex; break;
-			case 6: listItem->value = OtherKeyEmergencyBlinkIndex; break;
+			case 1: listItem->value = OtherKeyFreeCamToggleIndex; break;
+			case 2: listItem->value = OtherKeyVehicleBoostIndex; break;
+			case 3: listItem->value = OtherKeyVehicleStopIndex; break;
+			case 4: listItem->value = OtherKeyVehicleRocketsIndex; break;
+			case 5: listItem->value = OtherKeyLeftBlinkIndex; break;
+			case 6: listItem->value = OtherKeyRightBlinkIndex; break;
+			case 7: listItem->value = OtherKeyEmergencyBlinkIndex; break;
 		}
 		
 		menuItems.push_back(listItem);
@@ -4236,7 +4326,7 @@ void save_common_other_keys_to_xml(){
 	}
 	
 	// 保存其他按键设置
-	for(int i = 0; i < 7; i++){
+	for(int i = 0; i < 8; i++){
 		if(OtherKeyChanged[i]){
 			std::string keyName;
 			int keyValue = 0;
@@ -4247,26 +4337,30 @@ void save_common_other_keys_to_xml(){
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyToggleFreeMoveIndex];
 					break;
 				case 1: 
+					keyName = KeyConfig::KEY_FREECAM_TOGGLE; // 自由相机功能
+					keyValue = MISC_HOTKEY_VALUES[OtherKeyFreeCamToggleIndex];
+					break;
+				case 2: 
 					keyName = KeyConfig::KEY_VEH_BOOST;
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyVehicleBoostIndex];
 					break;
-				case 2: 
+				case 3: 
 					keyName = KeyConfig::KEY_VEH_STOP;
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyVehicleStopIndex];
 					break;
-				case 3: 
+				case 4: 
 					keyName = KeyConfig::KEY_VEH_ROCKETS;
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyVehicleRocketsIndex];
 					break;
-				case 4: 
+				case 5: 
 					keyName = KeyConfig::KEY_VEH_LEFTBLINK;
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyLeftBlinkIndex];
 					break;
-				case 5: 
+				case 6: 
 					keyName = KeyConfig::KEY_VEH_RIGHTBLINK;
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyRightBlinkIndex];
 					break;
-				case 6: 
+				case 7: 
 					keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK;
 					keyValue = MISC_HOTKEY_VALUES[OtherKeyEmergencyBlinkIndex];
 					break;
@@ -4303,6 +4397,7 @@ void reset_common_other_keys_to_defaults(){
 	
 	// 重置其他按键为默认值
 	OtherKeyToggleFreeMoveIndex = 6;   // 默认 F6
+	OtherKeyFreeCamToggleIndex = 7;    // 默认 F7
 	OtherKeyVehicleBoostIndex = 58;    // 默认小键盘 9
 	OtherKeyVehicleStopIndex = 52;     // 默认小键盘 3
 	OtherKeyVehicleRocketsIndex = 59;  // 默认小键盘 +
@@ -4310,7 +4405,7 @@ void reset_common_other_keys_to_defaults(){
 	OtherKeyRightBlinkIndex = 73;      // 默认右箭头
 	OtherKeyEmergencyBlinkIndex = 63;  // 默认小键盘 .
 	
-	for(int i = 0; i < 7; i++){
+	for(int i = 0; i < 8; i++){
 		OtherKeyChanged[i] = true;
 	}
 	
@@ -4328,6 +4423,7 @@ void reset_common_other_keys_to_defaults(){
 		
 		// 重置其他按键为默认值
 		keyConfig->set_key((char*)KeyConfig::KEY_TOGGLE_AIRBRAKE.c_str(), "VK_F6", false, false, false);
+		keyConfig->set_key((char*)KeyConfig::KEY_FREECAM_TOGGLE.c_str(), "VK_F7", false, false, false);
 		keyConfig->set_key((char*)KeyConfig::KEY_VEH_BOOST.c_str(), "VK_NUMPAD9", false, false, false);
 		keyConfig->set_key((char*)KeyConfig::KEY_VEH_STOP.c_str(), "VK_NUMPAD3", false, false, false);
 		keyConfig->set_key((char*)KeyConfig::KEY_VEH_ROCKETS.c_str(), "VK_ADD", false, false, false);
@@ -4346,7 +4442,7 @@ void load_common_other_keys_from_xml(){
 	
 	// 默认值数组
 	int commonKeyDefaults[] = {4, 57, 51, 53, 55, 54, 49}; // F4, 小键盘8, 小键盘2, 小键盘4, 小键盘6, 小键盘5, 小键盘0
-	int otherKeyDefaults[] = {5, 58, 52, 59, 72, 73, 63}; // F6, 小键盘9, 小键盘3, 小键盘+, 左箭头, 右箭头, 小键盘.
+	int otherKeyDefaults[] = {6, 7, 58, 52, 59, 72, 73, 63}; // F6, F7, 小键盘9, 小键盘3, 小键盘+, 左箭头, 右箭头, 小键盘.
 	
 	// 加载常用按键设置
 	std::string commonKeyNames[] = {
@@ -4385,18 +4481,18 @@ void load_common_other_keys_from_xml(){
 	
 	// 加载其他按键设置
 	std::string otherKeyNames[] = {
-		KeyConfig::KEY_TOGGLE_AIRBRAKE, KeyConfig::KEY_VEH_BOOST, KeyConfig::KEY_VEH_STOP,
+		KeyConfig::KEY_TOGGLE_AIRBRAKE, KeyConfig::KEY_FREECAM_TOGGLE, KeyConfig::KEY_VEH_BOOST, KeyConfig::KEY_VEH_STOP,
 		KeyConfig::KEY_VEH_ROCKETS, KeyConfig::KEY_VEH_LEFTBLINK, KeyConfig::KEY_VEH_RIGHTBLINK,
 		KeyConfig::KEY_VEH_EMERGENCYBLINK
 	};
 	
 	int* otherKeyIndices[] = {
-		&OtherKeyToggleFreeMoveIndex, &OtherKeyVehicleBoostIndex, &OtherKeyVehicleStopIndex,
+		&OtherKeyToggleFreeMoveIndex, &OtherKeyFreeCamToggleIndex, &OtherKeyVehicleBoostIndex, &OtherKeyVehicleStopIndex,
 		&OtherKeyVehicleRocketsIndex, &OtherKeyLeftBlinkIndex, &OtherKeyRightBlinkIndex,
 		&OtherKeyEmergencyBlinkIndex
 	};
 	
-	for(int i = 0; i < 7; i++){
+	for(int i = 0; i < 8; i++){
 		KeyConfig* key = keyConfig->get_key(otherKeyNames[i]);
 		if(key != NULL && key->keyCode != VK_NOTHING){
 			// 查找对应的索引
@@ -4503,3 +4599,455 @@ void process_misc_menu_layout_settings_menu() {
 
     draw_generic_menu<int>(menuItems, &activeLineIndexMenuLayout, caption, onconfirm_menu_layout_reset, NULL, NULL);
 }
+
+// ========================================
+// 自由相机模式功能实现
+// ========================================
+
+// 自由相机模式回调函数
+void onchange_freecam_follow_index(int value, SelectFromListMenuItem* source) {
+	FreeCamFollowIndex = value;
+	FreeCamFollowChanged = true;
+}
+
+void onchange_freecam_fov_index(int value, SelectFromListMenuItem* source) {
+	FreeCamFovIndex = value;
+	FreeCamFovChanged = true;
+	
+	// 实时更新相机视野距离
+	if (freeCamActive && CAM::DOES_CAM_EXIST(freeCamHandle)) {
+		CAM::SET_CAM_FOV(freeCamHandle, MISC_FREECAM_FOV_VALUES[value]);
+	}
+}
+
+void onchange_freecam_speed_slow_index(int value, SelectFromListMenuItem* source) {
+	FreeCamSpeedSlowIndex = value;
+	FreeCamSpeedSlowChanged = true;
+}
+
+void onchange_freecam_speed_medium_index(int value, SelectFromListMenuItem* source) {
+	FreeCamSpeedMediumIndex = value;
+	FreeCamSpeedMediumChanged = true;
+}
+
+void onchange_freecam_speed_fast_index(int value, SelectFromListMenuItem* source) {
+	FreeCamSpeedFastIndex = value;
+	FreeCamSpeedFastChanged = true;
+}
+
+void onchange_freecam_info_display_index(int value, SelectFromListMenuItem* source) {
+	FreeCamInfoDisplayIndex = value;
+	FreeCamInfoDisplayChanged = true;
+}
+
+void onchange_freecam_crosshair_style_index(int value, SelectFromListMenuItem* source) {
+	FreeCamCrosshairStyleIndex = value;
+	FreeCamCrosshairStyleChanged = true;
+}
+
+void onchange_freecam_crosshair_color_index(int value, SelectFromListMenuItem* source) {
+	FreeCamCrosshairColorIndex = value;
+	FreeCamCrosshairColorChanged = true;
+}
+
+// 绘制自由相机十字准星
+void draw_freecam_crosshair() {
+	if (MISC_FREECAM_CROSSHAIR_STYLE_VALUES[FreeCamCrosshairStyleIndex] == 0) {
+		return; // 不显示十字准星
+	}
+
+	// 中心点
+	float centerX = 0.5f;
+	float centerY = 0.5f;
+
+	// 尺寸（像素）
+	float lengthPx = 40.0f;//十字准星长度
+	float thickPx = 2.0f;//十字准星厚度
+
+	// 屏幕分辨率
+	int screenW, screenH;
+	GRAPHICS::GET_SCREEN_RESOLUTION(&screenW, &screenH);
+
+	// 换算尺寸
+	float lengthX = lengthPx / (float)screenW;
+	float lengthY = lengthPx / (float)screenH;
+	float thickX = thickPx / (float)screenW;
+	float thickY = thickPx / (float)screenH;
+
+	// 颜色映射
+	int r = 255, g = 255, b = 255, a = 255;
+	switch (FreeCamCrosshairColorIndex) {
+		case 1: r = 255; g = 0;   b = 0;   break; // 红色
+		case 2: r = 255; g = 105; b = 180; break; // 粉红色
+		case 3: r = 0;   g = 255; b = 0;   break; // 绿色
+		case 4: r = 0;   g = 122; b = 255; break; // 蓝色
+		case 5: r = 255; g = 242; b = 0;   break; // 黄色
+		case 6: r = 255; g = 165; b = 0;   break; // 橙色
+		case 7: r = 128; g = 0;   b = 128; break; // 紫色
+		case 8: r = 0;   g = 0;   b = 0;   break; // 黑色
+		case 9: r = 128; g = 128; b = 128; break; // 灰色
+		default: break; // 白色（默认）
+	}
+
+	bool dashed = (MISC_FREECAM_CROSSHAIR_STYLE_VALUES[FreeCamCrosshairStyleIndex] == 2);
+
+	if (!dashed) {
+		// 实线十字准星
+		GRAPHICS::DRAW_RECT(centerX, centerY, lengthX, thickY, r, g, b, a); // 水平线
+		GRAPHICS::DRAW_RECT(centerX, centerY, thickX, lengthY, r, g, b, a); // 垂直线
+	} else {
+		// 虚线十字准星
+		int segments = 6;//虚线十字准星线段数量
+		float gapPx = 4.0f;//虚线十字准星线段间距
+		float totalGapPx = (segments - 1) * gapPx;
+		float segLengthPx = (lengthPx - totalGapPx) / (float)segments;
+		float segLenX = segLengthPx / (float)screenW;
+		float segLenY = segLengthPx / (float)screenH;
+		float gapX = gapPx / (float)screenW;
+		float gapY = gapPx / (float)screenH;
+
+		// 绘制水平虚线段
+		for (int i = 0; i < segments; ++i) {
+			float offsetX = (segLenX + gapX) * (i - (segments - 1) * 0.5f);
+			GRAPHICS::DRAW_RECT(centerX + offsetX, centerY, segLenX, thickY, r, g, b, a);
+		}
+		// 绘制垂直虚线段
+		for (int i = 0; i < segments; ++i) {
+			float offsetY = (segLenY + gapY) * (i - (segments - 1) * 0.5f);
+			GRAPHICS::DRAW_RECT(centerX, centerY + offsetY, thickX, segLenY, r, g, b, a);
+		}
+	}
+}
+
+// 重置自由相机设置为默认值
+void reset_freecam_settings_to_defaults() {
+	featureFreeCamEnabled = true;
+	FreeCamFollowIndex = 0; // 跟随（顺序：跟随0，不跟随1）
+	FreeCamFovIndex = 0; // 50
+	FreeCamSpeedSlowIndex = 0; // 0.35
+	FreeCamSpeedMediumIndex = 10; // 1.0
+	FreeCamSpeedFastIndex = 14; // 3.0
+	FreeCamInfoDisplayIndex = 0; // 底部显示（顺序：底部0，顶部1，不显示2）
+	FreeCamCrosshairStyleIndex = 0; // 不显示（0=不显示,1=实线,2=虚线）
+	FreeCamCrosshairColorIndex = 0; // 白色（0=白色,1=红色,2=粉红色,3=绿色,4=蓝色,5=黄色,6=橙色,7=紫色,8=黑色,9=灰色）
+	
+	FreeCamFollowChanged = true;
+	FreeCamFovChanged = true;
+	FreeCamSpeedSlowChanged = true;
+	FreeCamSpeedMediumChanged = true;
+	FreeCamSpeedFastChanged = true;
+	FreeCamInfoDisplayChanged = true;
+	FreeCamCrosshairStyleChanged = true;
+	FreeCamCrosshairColorChanged = true;
+}
+
+// 自由相机设置菜单确认处理
+bool onconfirm_freecam_menu(MenuItem<int> choice) {
+	if (choice.value == -1) { // 触发开关自由相机模式
+		// 只有当总开关启用时，才能触发自由相机
+		if (!featureFreeCamEnabled) {
+			return false; // 总开关未启用，不执行任何操作，静默返回
+		}
+		
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		if (freeCamActive) {
+			deactivate_freecam(playerPed);
+		} else {
+			activate_freecam(playerPed);
+		}
+		return false; // 不退出菜单
+	}
+	return false;
+}
+
+// 自由相机设置菜单
+void process_misc_freecam_menu() {
+	const std::string caption = "自由相机模式";
+	
+	std::vector<MenuItem<int>*> menuItems;
+	SelectFromListMenuItem *listItem;
+	MenuItem<int>* item;
+	
+	// 启用自由相机
+	ToggleMenuItem<int>* toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "启用";
+	toggleItem->toggleValue = &featureFreeCamEnabled;
+	menuItems.push_back(toggleItem);
+	
+	// 触发开关自由相机模式
+	item = new MenuItem<int>();
+	item->caption = "自由相机模式 [默认 F7 开/关 ]";
+	item->value = -1;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 玩家跟随相机（顺序改为：跟随，不跟随）
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_FOLLOW_CAPTIONS, onchange_freecam_follow_index);
+	listItem->wrap = false;
+	listItem->caption = "玩家跟随相机";
+	listItem->value = FreeCamFollowIndex;
+	menuItems.push_back(listItem);
+	
+	// 相机视野距离（FOV - 控制远近镜头）
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_FOV_CAPTIONS, onchange_freecam_fov_index);
+	listItem->wrap = false;
+	listItem->caption = "相机视野范围";
+	listItem->value = FreeCamFovIndex;
+	menuItems.push_back(listItem);
+	
+	// 相机移动速度-慢速
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_SPEED_CAPTIONS, onchange_freecam_speed_slow_index);
+	listItem->wrap = false;
+	listItem->caption = "相机移动速度-慢速";
+	listItem->value = FreeCamSpeedSlowIndex;
+	menuItems.push_back(listItem);
+	
+	// 相机移动速度-中速
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_SPEED_CAPTIONS, onchange_freecam_speed_medium_index);
+	listItem->wrap = false;
+	listItem->caption = "相机移动速度-中速";
+	listItem->value = FreeCamSpeedMediumIndex;
+	menuItems.push_back(listItem);
+	
+	// 相机移动速度-快速
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_SPEED_CAPTIONS, onchange_freecam_speed_fast_index);
+	listItem->wrap = false;
+	listItem->caption = "相机移动速度-快速";
+	listItem->value = FreeCamSpeedFastIndex;
+	menuItems.push_back(listItem);
+	
+	// 自由相机信息显示（顺序改为：底部显示，顶部显示，不显示）
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_INFO_DISPLAY_CAPTIONS, onchange_freecam_info_display_index);
+	listItem->wrap = false;
+	listItem->caption = "自由相机信息显示";
+	listItem->value = FreeCamInfoDisplayIndex;
+	menuItems.push_back(listItem);
+
+	// 中心十字显示（顺序改为：不显示,实线,虚线）
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_CROSSHAIR_STYLE_CAPTIONS, onchange_freecam_crosshair_style_index);
+	listItem->wrap = false;
+	listItem->caption = "中心十字显示";
+	listItem->value = FreeCamCrosshairStyleIndex;
+	menuItems.push_back(listItem);
+
+	// 中心十字颜色
+	listItem = new SelectFromListMenuItem(MISC_FREECAM_CROSSHAIR_COLOR_CAPTIONS, onchange_freecam_crosshair_color_index);
+	listItem->wrap = false;
+	listItem->caption = "中心十字颜色";
+	listItem->value = FreeCamCrosshairColorIndex;
+	menuItems.push_back(listItem);
+	
+	draw_generic_menu<int>(menuItems, &activeLineIndexFreeCam, caption, onconfirm_freecam_menu, NULL, NULL);
+}
+
+// 停用自由相机
+void deactivate_freecam(Ped playerPed) {
+	if (!freeCamActive) return;
+	
+	// 销毁相机
+	if (CAM::DOES_CAM_EXIST(freeCamHandle)) {
+		CAM::RENDER_SCRIPT_CAMS(false, false, 0, false, false);
+		CAM::SET_CAM_ACTIVE(freeCamHandle, false);
+		CAM::DESTROY_CAM(freeCamHandle, true);
+		freeCamHandle = NULL;
+	}
+	
+	// 恢复玩家状态
+	Entity ent = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) ? PED::GET_VEHICLE_PED_IS_IN(playerPed, false) : playerPed;
+	
+	ENTITY::SET_ENTITY_VISIBLE(ent, freeCamPlayerWasVisible);
+	ENTITY::SET_ENTITY_VISIBLE(playerPed, freeCamPlayerWasVisible);
+	ENTITY::SET_ENTITY_COLLISION(ent, freeCamPlayerHadCollision, true);
+	ENTITY::FREEZE_ENTITY_POSITION(ent, false);
+	
+	// 重新启用控制
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_HORN, TRUE);
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_LOOK_BEHIND, TRUE);
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_LOOK_BEHIND, TRUE);
+	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_SELECT_WEAPON, TRUE);
+	
+	freeCamActive = false;
+	currentSpeedMode = 0;
+	
+	// 恢复菜单显示
+	set_menu_showing(true);
+}
+
+// 激活自由相机
+void activate_freecam(Ped playerPed) {
+	if (freeCamActive) return;
+	
+	Entity ent = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) ? PED::GET_VEHICLE_PED_IS_IN(playerPed, false) : playerPed;
+	
+	// 记录玩家当前状态
+	freeCamPlayerWasVisible = ENTITY::IS_ENTITY_VISIBLE(ent);
+	freeCamPlayerHadCollision = true; // 默认有碰撞
+	
+	// 创建相机
+	Vector3 camPos = CAM::GET_GAMEPLAY_CAM_COORD();
+	Vector3 camRot = CAM::GET_GAMEPLAY_CAM_ROT(2);
+	float fov = MISC_FREECAM_FOV_VALUES[FreeCamFovIndex];
+	
+	freeCamHandle = CAM::CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", camPos.x, camPos.y, camPos.z, 
+												  camRot.x, camRot.y, camRot.z, fov, true, 2);
+	
+	if (CAM::DOES_CAM_EXIST(freeCamHandle)) {
+		CAM::SET_CAM_ACTIVE(freeCamHandle, true);
+		CAM::RENDER_SCRIPT_CAMS(true, false, 0, true, false);
+		
+		// 设置玩家状态 - 隐藏并禁用碰撞
+		ENTITY::SET_ENTITY_VISIBLE(ent, false);
+		ENTITY::SET_ENTITY_VISIBLE(playerPed, false);
+		ENTITY::SET_ENTITY_COLLISION(ent, false, false);
+		ENTITY::FREEZE_ENTITY_POSITION(ent, true);
+		
+		freeCamActive = true;
+		currentSpeedMode = 0; // 默认慢速
+		
+		// 隐藏菜单
+		set_menu_showing(false);
+		
+		set_status_text("自由相机模式已激活!\n按 ~y~Shift ~s~切换移动速度!");
+	}
+}
+
+// 更新自由相机
+void update_freecam_features(BOOL playerExists, Ped playerPed) {
+	if (!featureFreeCamEnabled) {
+		if (freeCamActive) {
+			deactivate_freecam(playerPed);
+		}
+		return;
+	}
+	
+	// 检查热键（从其他按键设置中获取）
+	if (OtherKeyFreeCamToggleIndex > 0 && OtherKeyFreeCamToggleIndex < sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
+		int keyValue = MISC_HOTKEY_VALUES[OtherKeyFreeCamToggleIndex];
+		if (IsKeyJustUp(keyValue)) {
+			if (freeCamActive) {
+				deactivate_freecam(playerPed);
+			} else {
+				activate_freecam(playerPed);
+			}
+		}
+	}
+	
+	if (!freeCamActive || !CAM::DOES_CAM_EXIST(freeCamHandle)) return;
+	
+	// 禁用某些控制
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_VEH_HORN, TRUE);
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_LOOK_BEHIND, TRUE);
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_VEH_LOOK_BEHIND, TRUE);
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_SELECT_WEAPON, TRUE);
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_VEH_ACCELERATE, TRUE);
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_VEH_BRAKE, TRUE);
+	CONTROLS::DISABLE_CONTROL_ACTION(2, INPUT_VEH_RADIO_WHEEL, TRUE);
+	
+	// 检查Shift键切换速度模式
+	bool currentShiftState = IsKeyDown(VK_SHIFT);
+	if (currentShiftState && !lastShiftState) {
+		currentSpeedMode = (currentSpeedMode + 1) % 3;
+		const char* speedNames[] = { "~y~慢速", "~y~中速", "~y~快速" };
+		set_status_text(std::string("速度模式: ") + speedNames[currentSpeedMode]);
+	}
+	lastShiftState = currentShiftState;
+	
+	// 获取当前速度
+	float speed;
+	switch(currentSpeedMode) {
+		case 1: speed = MISC_FREECAM_SPEED_VALUES[FreeCamSpeedMediumIndex]; break;
+		case 2: speed = MISC_FREECAM_SPEED_VALUES[FreeCamSpeedFastIndex]; break;
+		default: speed = MISC_FREECAM_SPEED_VALUES[FreeCamSpeedSlowIndex]; break;
+	}
+	
+	// 【鼠标控制】更新相机旋转 - 鼠标移动改变视角
+	Vector3 currentRot = CAM::GET_CAM_ROT(freeCamHandle, 2);
+	float mouseDeltaX = CONTROLS::GET_DISABLED_CONTROL_NORMAL(0, INPUT_LOOK_LR);  // 鼠标左右
+	float mouseDeltaY = CONTROLS::GET_DISABLED_CONTROL_NORMAL(0, INPUT_LOOK_UD);  // 鼠标上下
+	
+	// 根据鼠标移动更新相机旋转角度
+	Vector3 nextRot;
+	nextRot.x = currentRot.x - mouseDeltaY * 11.0f;
+	nextRot.y = 0.0f; // 不允许翻滚
+	nextRot.z = currentRot.z - mouseDeltaX * 11.0f;
+	CAM::SET_CAM_ROT(freeCamHandle, nextRot.x, nextRot.y, nextRot.z, 2);
+	
+	// 【键盘控制】相对于相机视角方向移动
+	// WASD控制前后左右（相对于相机朝向）
+	// Q/空格 上升，E/Ctrl 下降
+	float offsetX = CONTROLS::GET_CONTROL_NORMAL(0, INPUT_MOVE_LR) * speed;      // A/D 左右
+	float offsetY = -CONTROLS::GET_CONTROL_NORMAL(0, INPUT_MOVE_UD) * speed;     // W/S 前后
+	
+	// Q/E 或 空格/Ctrl 控制上下
+	float offsetZ = 0.0f;
+	if (IsKeyDown(VK_KEY_Q) || IsKeyDown(VK_SPACE)) offsetZ = speed;
+	if (IsKeyDown(VK_KEY_E) || IsKeyDown(VK_CONTROL)) offsetZ = -speed;
+	
+	if (offsetX != 0.0f || offsetY != 0.0f || offsetZ != 0.0f) {
+		// 获取相机当前位置
+		Vector3 currentPos = CAM::GET_CAM_COORD(freeCamHandle);
+		
+		// 计算相对于相机朝向的世界坐标偏移
+		// 参考MenyooSP: cam.GetOffsetInWorldCoords(offset)
+		float rotZ = nextRot.z * 0.0174532925f; // 转为弧度
+		float rotX = nextRot.x * 0.0174532925f;
+		
+		// 前进方向（相机朝向）
+		float forwardX = -sin(rotZ) * cos(rotX);
+		float forwardY = cos(rotZ) * cos(rotX);
+		float forwardZ = sin(rotX);
+		
+		// 右方向（相机右侧）
+		float rightX = cos(rotZ);
+		float rightY = sin(rotZ);
+		
+		// 计算新位置：当前位置 + 前进方向*前后偏移 + 右方向*左右偏移 + 垂直偏移
+		float newPosX = currentPos.x + forwardX * offsetY + rightX * offsetX;
+		float newPosY = currentPos.y + forwardY * offsetY + rightY * offsetX;
+		float newPosZ = currentPos.z + forwardZ * offsetY + offsetZ;
+		
+		// 更新相机位置
+		CAM::SET_CAM_COORD(freeCamHandle, newPosX, newPosY, newPosZ);
+		
+		// 如果启用"玩家跟随相机"，同步更新玩家位置
+		if (MISC_FREECAM_FOLLOW_VALUES[FreeCamFollowIndex] == 0) {
+			Entity ent = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) ? PED::GET_VEHICLE_PED_IS_IN(playerPed, false) : playerPed;
+			ENTITY::SET_ENTITY_COORDS(ent, newPosX, newPosY, newPosZ, false, false, false, true);
+		}
+	}
+
+	// 绘制自由相机十字准星
+	draw_freecam_crosshair();
+
+	// 显示屏幕信息（居中+黑色半透明背景）
+	int displayValue = MISC_FREECAM_INFO_DISPLAY_VALUES[FreeCamInfoDisplayIndex];
+	if (displayValue != 2) { // 0=底部, 1=顶部, 2=不显示, 
+		const char* followText = MISC_FREECAM_FOLLOW_VALUES[FreeCamFollowIndex] == 0 ? "跟随" : "不跟随";
+		const char* speedNames[] = { "慢速", "中速", "快速" };
+		const char* hotkeyName = OtherKeyFreeCamToggleIndex < MISC_HOTKEY_CAPTIONS.size() ? MISC_HOTKEY_CAPTIONS[OtherKeyFreeCamToggleIndex].c_str() : "未绑定";
+		
+		char infoText[256];
+		sprintf_s(infoText, "自由相机模式  |  热键: %s  |  速度: %s  |  视野: %.0f  |  %s", 
+				  hotkeyName, speedNames[currentSpeedMode], MISC_FREECAM_FOV_VALUES[FreeCamFovIndex], followText);
+		
+		// displayValue: 0=底部, 1=顶部
+		float yPos = (displayValue == 0) ? 0.95f : 0.025f;// 屏幕底部 - 顶部位置
+		
+		// 绘制黑色半透明背景（居中）
+		GRAPHICS::DRAW_RECT(0.5f, yPos + 0.012f, 0.40f, 0.046f, 0, 0, 0, 180);
+		
+		// 绘制文本（居中显示）
+		UI::SET_TEXT_FONT(fontStatus);
+		UI::SET_TEXT_SCALE(0.0, 0.38);
+		UI::SET_TEXT_PROPORTIONAL(1);
+		UI::SET_TEXT_COLOUR(255, 242, 0, 255);
+		UI::SET_TEXT_DROPSHADOW(10, 10, 10, 10, 255);
+		UI::SET_TEXT_EDGE(3, 0, 0, 0, 255);
+		UI::SET_TEXT_OUTLINE();
+		UI::SET_TEXT_CENTRE(1); // 居中对齐
+		UI::_SET_TEXT_ENTRY("STRING");
+		UI::_ADD_TEXT_COMPONENT_STRING(infoText);
+		UI::_DRAW_TEXT(0.5f, yPos);
+	}
+}
+

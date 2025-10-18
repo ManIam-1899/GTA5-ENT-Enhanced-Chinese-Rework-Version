@@ -88,6 +88,8 @@ void write_default_config_xml_file() {
 		xmlFile << "	<key function=\"toggle_airbrake\" value=\"VK_F6\"/>" << std::endl;
 		xmlFile << "	<!-- 开启/关闭，自由移动功能，按键为 F6 -->" << std::endl;
 		xmlFile << "" << std::endl;
+		xmlFile << "	<key function=\"freecam_toggle\" value=\"VK_F7\"/>" << std::endl;
+		xmlFile << "	<!-- 开启/关闭，自由相机模式，按键为 F7 -->" << std::endl;
 		xmlFile << "" << std::endl;
 		xmlFile << "	<key function=\"airbrake_up\" value=\"VK_KEY_Q\"/>" << std::endl;
 		xmlFile << "	<!-- 自由移动，上升，按键为 Q -->" << std::endl;
@@ -937,6 +939,7 @@ KeyInputConfig::KeyInputConfig(){
 	this->keyConfigs[KeyConfig::KEY_VEH_CANREFUELING] = new KeyConfig(VK_LBUTTON);
 	
 	this->keyConfigs[KeyConfig::KEY_TOGGLE_AIRBRAKE] = new KeyConfig(VK_F6);
+	this->keyConfigs[KeyConfig::KEY_FREECAM_TOGGLE] = new KeyConfig(VK_F7);
 
 	this->keyConfigs[KeyConfig::KEY_AIRBRAKE_UP] = new KeyConfig(VK_KEY_Q);
 	this->keyConfigs[KeyConfig::KEY_AIRBRAKE_DOWN] = new KeyConfig(VK_KEY_Z);
@@ -992,6 +995,7 @@ KeyConfig* KeyInputConfig::get_key(std::string function){
 
 const std::string KeyConfig::KEY_TOGGLE_MAIN_MENU = std::string("toggle_main_menu");
 const std::string KeyConfig::KEY_TOGGLE_AIRBRAKE = std::string("toggle_airbrake");
+const std::string KeyConfig::KEY_FREECAM_TOGGLE = std::string("freecam_toggle");
 
 const std::string KeyConfig::KEY_MENU_UP = std::string("menu_up");
 const std::string KeyConfig::KEY_MENU_DOWN = std::string("menu_down");

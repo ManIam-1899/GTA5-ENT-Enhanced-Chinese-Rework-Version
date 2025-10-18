@@ -222,6 +222,69 @@ extern float pedPreviewSpacing;
 // 显示人物预览图开关(复选框方式显示)
 extern bool featureShowPedPreviews;
 
+// 自由相机模式相关常量和变量
+const std::vector<std::string> MISC_FREECAM_FOLLOW_CAPTIONS{ "跟随", "不跟随" };
+const int MISC_FREECAM_FOLLOW_VALUES[] = { 0, 1 }; // 跟随=0, 不跟随=1
+
+const std::vector<std::string> MISC_FREECAM_INFO_DISPLAY_CAPTIONS{ "底部显示", "顶部显示", "不显示" };
+const int MISC_FREECAM_INFO_DISPLAY_VALUES[] = { 0, 1, 2 }; // 底部=0, 顶部=1, 不显示=2
+
+// 相机视野距离（FOV - 控制远近镜头，值越小越远，越大越近）
+const std::vector<std::string> MISC_FREECAM_FOV_CAPTIONS{ "默认 (50)", "55", "60", "65", "70", "75", "80", "85", "90", "95", "100", "105", "110", "115", "120", "125", "130" };
+const float MISC_FREECAM_FOV_VALUES[] = { 50.0f, 55.0f, 60.0f, 65.0f, 70.0f, 75.0f, 80.0f, 85.0f, 90.0f, 95.0f, 100.0f, 105.0f, 110.0f, 115.0f, 120.0f, 125.0f, 130.0f };
+
+const std::vector<std::string> MISC_FREECAM_SPEED_CAPTIONS{ "默认 (0.35)", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0" };
+const float MISC_FREECAM_SPEED_VALUES[] = { 0.35f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 4.5f, 5.0f };
+
+// 自由相机中心十字选项
+const std::vector<std::string> MISC_FREECAM_CROSSHAIR_STYLE_CAPTIONS{ "不显示(默认)", "实线", "虚线" };
+const int MISC_FREECAM_CROSSHAIR_STYLE_VALUES[] = { 0, 1, 2 }; // 0=不显示,1=实线,2=虚线
+
+const std::vector<std::string> MISC_FREECAM_CROSSHAIR_COLOR_CAPTIONS{ "白色(默认)", "红色", "粉红色", "绿色", "蓝色", "黄色", "橙色", "紫色", "黑色", "灰色" };
+const int MISC_FREECAM_CROSSHAIR_COLOR_COUNT = 10; // 颜色数量
+
+extern bool featureFreeCamEnabled;
+extern int FreeCamFollowIndex;
+extern bool FreeCamFollowChanged;
+extern int FreeCamFovIndex;
+extern bool FreeCamFovChanged;
+extern int FreeCamSpeedSlowIndex;
+extern bool FreeCamSpeedSlowChanged;
+extern int FreeCamSpeedMediumIndex;
+extern bool FreeCamSpeedMediumChanged;
+extern int FreeCamSpeedFastIndex;
+extern bool FreeCamSpeedFastChanged;
+extern int FreeCamInfoDisplayIndex;
+extern bool FreeCamInfoDisplayChanged;
+
+// 中心十字配置索引
+extern int FreeCamCrosshairStyleIndex; // 默认0 不显示
+extern bool FreeCamCrosshairStyleChanged;
+extern int FreeCamCrosshairColorIndex; // 默认0 白色
+extern bool FreeCamCrosshairColorChanged;
+
+extern bool freeCamActive;
+extern Camera freeCamHandle;
+extern int currentSpeedMode; // 0=慢速, 1=中速, 2=快速
+
+// 自由相机模式函数声明
+void process_misc_freecam_menu();
+void update_freecam_features(BOOL playerExists, Ped playerPed);
+void reset_freecam_settings_to_defaults();
+void activate_freecam(Ped playerPed);
+void deactivate_freecam(Ped playerPed);
+void draw_freecam_crosshair();
+
+// 自由相机模式回调函数声明
+void onchange_freecam_follow_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_fov_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_speed_slow_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_speed_medium_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_speed_fast_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_info_display_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_crosshair_style_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_crosshair_color_index(int value, SelectFromListMenuItem* source);
+
 void process_misc_menu();
 
 void reset_misc_globals();
@@ -426,15 +489,16 @@ extern int CommonKeyConfirmSelectIndex;     // 确认/选择 - 默认小键盘 5
 extern int CommonKeyBackCancelIndex;       // 返回/取消 - 默认小键盘 0
 extern bool CommonKeyChanged[7];
 
-// 其他按键设置变量 (7个功能)
+// 其他按键设置变量 (8个功能)
 extern int OtherKeyToggleFreeMoveIndex;     // 开/关自由移动 - 默认 F6
+extern int OtherKeyFreeCamToggleIndex;      // 自由相机模式 - 默认 F7
 extern int OtherKeyVehicleBoostIndex;       // 车辆加速 - 默认小键盘 9
 extern int OtherKeyVehicleStopIndex;        // 停止车辆 - 默认小键盘 3
 extern int OtherKeyVehicleRocketsIndex;     // 车辆发射火箭 - 默认小键盘 +
 extern int OtherKeyLeftBlinkIndex;          // 左转向灯 - 默认左箭头
 extern int OtherKeyRightBlinkIndex;         // 右转向灯 - 默认右箭头
 extern int OtherKeyEmergencyBlinkIndex;     // 打开双闪 - 默认小键盘 .
-extern bool OtherKeyChanged[7];
+extern bool OtherKeyChanged[8];
 
 // 常用按键和其他按键菜单常量
 const int TRAINERCONFIG_COMMON_KEYS = 70;   // 常用按键菜单
