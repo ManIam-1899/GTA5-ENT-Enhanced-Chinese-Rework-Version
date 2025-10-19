@@ -67,6 +67,13 @@ Hash temp_weapon = -1;
 int WeapStrobeIndexN = 0;
 bool WeapStrobeChanged = true;
 bool f_strobe = false;
+
+// 全局屏幕准星相关变量
+bool featureWeaponsCrosshair = false; // 屏幕准星开关，默认关闭
+int WeaponsCrosshairStyleIndex = 0; // 默认0 对应值1（实线）
+bool WeaponsCrosshairStyleChanged = false;
+int WeaponsCrosshairColorIndex = 0; // 默认0 白色
+bool WeaponsCrosshairColorChanged = false;
 int strb_c = 0;
 float strobe_tick = 0.0;
 
@@ -1351,6 +1358,9 @@ bool onconfirm_weapon_menu(MenuItem<int> choice){
 		case 28:
 			process_pedagainstweapons_menu();
 			break;
+		case 39: // 屏幕准星显示
+			process_weapons_crosshair_menu();
+			break;
 		//case 36:
 		//	if (AIMBOT_INCLUDED) process_aimbot_esp_menu();
 		//	break;
@@ -1617,6 +1627,12 @@ bool process_weapon_menu(){
 	toggleItem->toggleValue = &featureDropWeaponOutAmmo;
 	menuItems.push_back(toggleItem);
 
+	item = new MenuItem<int>();
+	item->caption = "屏幕显示准星";
+	item->value = i++;
+	item->isLeaf = false;
+	menuItems.push_back(item);
+
 	listItem = new SelectFromListMenuItem(FUEL_COLOURS_R_CAPTIONS, onchange_weap_strobe_index);
 	listItem->wrap = false;
 	listItem->caption = "手电筒闪烁";
@@ -1660,6 +1676,10 @@ void reset_weapon_globals(){
 	RapidFireIndex = 8;
 	WeapStrobeIndexN = 0;
 	WeapFlashDistIndex = 0;
+	
+	featureWeaponsCrosshair = false; // 屏幕准星默认关闭
+	WeaponsCrosshairStyleIndex = 0; // 默认0 对应实线（1）
+	WeaponsCrosshairColorIndex = 0; // 默认0 对应白色
 
 	activeLineIndexCopArmed = 0;
 	activeLineIndexPedAgainstWeapons = 0;
@@ -2574,6 +2594,11 @@ void update_weapon_features(BOOL bPlayerExists, Player player){
 	} else {// 添加else分支
 		shown_gravitygun_message = false;  // 重置标记
 	}
+	
+	// 全局屏幕准星显示（不包括自由相机模式）
+	if (bPlayerExists && !freeCamActive) {
+		draw_weapons_crosshair();
+	}
 }
 
 void save_player_weapons(Ped playerPed){
@@ -2929,6 +2954,7 @@ void add_weapon_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featureSwitchWeaponIfDanger", &featureSwitchWeaponIfDanger});
 	results->push_back(FeatureEnabledLocalDefinition{"featureArmyMelee", &featureArmyMelee});
 	results->push_back(FeatureEnabledLocalDefinition{"featureDetainedIfNotMove", &featureDetainedIfNotMove});
+	results->push_back(FeatureEnabledLocalDefinition{"featureWeaponsCrosshair", &featureWeaponsCrosshair});
 }
 
 void add_weapon_feature_enablements2(std::vector<StringPairSettingDBRow>* results)
@@ -2946,6 +2972,8 @@ void add_weapon_feature_enablements2(std::vector<StringPairSettingDBRow>* result
 	results->push_back(StringPairSettingDBRow{ "RapidFireIndex", std::to_string(RapidFireIndex) });
 	results->push_back(StringPairSettingDBRow{ "WeapStrobeIndexN", std::to_string(WeapStrobeIndexN) });
 	results->push_back(StringPairSettingDBRow{ "WeapFlashDistIndex", std::to_string(WeapFlashDistIndex) });
+	results->push_back(StringPairSettingDBRow{ "WeaponsCrosshairStyleIndex", std::to_string(WeaponsCrosshairStyleIndex) });
+	results->push_back(StringPairSettingDBRow{ "WeaponsCrosshairColorIndex", std::to_string(WeaponsCrosshairColorIndex) });
 }
 
 void onchange_weap_dmg_modifier(int value, SelectFromListMenuItem* source){
@@ -3009,5 +3037,158 @@ void handle_generic_settings_weapons(std::vector<StringPairSettingDBRow>* settin
 		else if (setting.name.compare("lastPowerWeapon") == 0) {
 			lastPowerWeapon = setting.value;
 		}
+		else if (setting.name.compare("WeaponsCrosshairStyleIndex") == 0) {
+			WeaponsCrosshairStyleIndex = stoi(setting.value);
+			WeaponsCrosshairStyleChanged = true;
+		}
+		else if (setting.name.compare("WeaponsCrosshairColorIndex") == 0) {
+			WeaponsCrosshairColorIndex = stoi(setting.value);
+			WeaponsCrosshairColorChanged = true;
+		}
 	}
+}
+
+// 绘制全局屏幕准星
+void draw_weapons_crosshair() {
+	if (!featureWeaponsCrosshair) {
+		return; // 屏幕准星功能未启用
+	}
+
+	// 中心点
+	float centerX = 0.5f;
+	float centerY = 0.5f;
+
+	// 尺寸（像素）
+	float lengthPx = 20.0f;//屏幕准星长度
+	float thickPx = 2.0f;//屏幕准星厚度
+
+	// 屏幕分辨率
+	int screenW, screenH;
+	GRAPHICS::GET_SCREEN_RESOLUTION(&screenW, &screenH);
+
+	// 换算尺寸
+	float lengthX = lengthPx / (float)screenW;
+	float lengthY = lengthPx / (float)screenH;
+	float thickX = thickPx / (float)screenW;
+	float thickY = thickPx / (float)screenH;
+
+	// 颜色映射
+	int r = 255, g = 255, b = 255, a = 255;
+	switch (WeaponsCrosshairColorIndex) {
+		case 1: r = 255; g = 0;   b = 0;   break; // 红色
+		case 2: r = 255; g = 105; b = 180; break; // 粉红色
+		case 3: r = 0;   g = 255; b = 0;   break; // 绿色
+		case 4: r = 0;   g = 122; b = 255; break; // 蓝色
+		case 5: r = 255; g = 242; b = 0;   break; // 黄色
+		case 6: r = 255; g = 165; b = 0;   break; // 橙色
+		case 7: r = 128; g = 0;   b = 128; break; // 紫色
+		case 8: r = 0;   g = 0;   b = 0;   break; // 黑色
+		case 9: r = 128; g = 128; b = 128; break; // 灰色
+		default: break; // 白色（默认）
+	}
+
+	int styleValue = WEAPONS_CROSSHAIR_STYLE_VALUES[WeaponsCrosshairStyleIndex];
+
+	if (styleValue == 1) {
+		// 实线屏幕准星
+		GRAPHICS::DRAW_RECT(centerX, centerY, lengthX, thickY, r, g, b, a); // 水平线
+		GRAPHICS::DRAW_RECT(centerX, centerY, thickX, lengthY, r, g, b, a); // 垂直线
+	} else if (styleValue == 2) {
+		// 虚线屏幕准星
+		int segments = 2;//虚线屏幕准星线段数量
+		float gapPx = 8.0f;//虚线屏幕准星线段间距
+		float totalGapPx = (segments - 1) * gapPx;
+		float segLengthPx = (lengthPx - totalGapPx) / (float)segments;
+		float segLenX = segLengthPx / (float)screenW;
+		float segLenY = segLengthPx / (float)screenH;
+		float gapX = gapPx / (float)screenW;
+		float gapY = gapPx / (float)screenH;
+
+		// 绘制水平虚线段
+		for (int i = 0; i < segments; ++i) {
+			float offsetX = (segLenX + gapX) * (i - (segments - 1) * 0.5f);
+			GRAPHICS::DRAW_RECT(centerX + offsetX, centerY, segLenX, thickY, r, g, b, a);
+		}
+		// 绘制垂直虚线段
+		for (int i = 0; i < segments; ++i) {
+			float offsetY = (segLenY + gapY) * (i - (segments - 1) * 0.5f);
+			GRAPHICS::DRAW_RECT(centerX, centerY + offsetY, thickX, segLenY, r, g, b, a);
+		}
+	} else if (styleValue == 3) {
+		// 空心方块准星
+		float boxSizePx = 10.0f; // 方块半边长（像素）- 可修改此值调整方块大小
+		float boxThicknessPx = 2.0f; // 方块边框粗细（像素）- 可修改此值调整边框粗细
+		
+		// 计算方块尺寸
+		float boxSizeX = boxSizePx / (float)screenW;
+		float boxSizeY = boxSizePx / (float)screenH;
+		float boxThickX = boxThicknessPx / (float)screenW;
+		float boxThickY = boxThicknessPx / (float)screenH;
+		
+		// 绘制四条边框线（确保四个角重叠连接）
+		// 上边（包含完整宽度加边框厚度，确保角落重叠）
+		GRAPHICS::DRAW_RECT(centerX, centerY - boxSizeY, boxSizeX * 2.0f + boxThickX, boxThickY, r, g, b, a);
+		// 下边（包含完整宽度加边框厚度，确保角落重叠）
+		GRAPHICS::DRAW_RECT(centerX, centerY + boxSizeY, boxSizeX * 2.0f + boxThickX, boxThickY, r, g, b, a);
+		// 左边（包含完整高度，与上下边重叠）
+		GRAPHICS::DRAW_RECT(centerX - boxSizeX, centerY, boxThickX, boxSizeY * 2.0f, r, g, b, a);
+		// 右边（包含完整高度，与上下边重叠）
+		GRAPHICS::DRAW_RECT(centerX + boxSizeX, centerY, boxThickX, boxSizeY * 2.0f, r, g, b, a);
+	} else if (styleValue == 4) {
+		// 实心方块准星
+		float boxSizePx = 1.5f; // 方块半边长（像素）- 可修改此值调整方块大小
+		
+		// 计算方块尺寸
+		float boxSizeX = boxSizePx / (float)screenW;
+		float boxSizeY = boxSizePx / (float)screenH;
+		
+		// 绘制实心方块（一个矩形）
+		GRAPHICS::DRAW_RECT(centerX, centerY, boxSizeX * 2.0f, boxSizeY * 2.0f, r, g, b, a);
+	}
+}
+
+// 屏幕准星样式回调函数
+void onchange_weapons_crosshair_style_index(int value, SelectFromListMenuItem* source) {
+	WeaponsCrosshairStyleIndex = value;
+	WeaponsCrosshairStyleChanged = true;
+}
+
+// 屏幕准星颜色回调函数
+void onchange_weapons_crosshair_color_index(int value, SelectFromListMenuItem* source) {
+	WeaponsCrosshairColorIndex = value;
+	WeaponsCrosshairColorChanged = true;
+}
+
+// 屏幕准星子菜单处理函数
+bool process_weapons_crosshair_menu() {
+	const std::string caption = "屏幕准星设置";
+	
+	std::vector<MenuItem<int>*> menuItems;
+	SelectFromListMenuItem* listItem;
+	ToggleMenuItem<int>* toggleItem;
+	
+	int i = 0;
+	
+	// 启用/关闭屏幕准星
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "启用屏幕准星";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureWeaponsCrosshair;
+	menuItems.push_back(toggleItem);
+	
+	// 屏幕准星样式选择
+	listItem = new SelectFromListMenuItem(WEAPONS_CROSSHAIR_STYLE_CAPTIONS, onchange_weapons_crosshair_style_index);
+	listItem->wrap = false;
+	listItem->caption = "屏幕准星样式";
+	listItem->value = WeaponsCrosshairStyleIndex;
+	menuItems.push_back(listItem);
+	
+	// 屏幕准星颜色选择
+	listItem = new SelectFromListMenuItem(WEAPONS_CROSSHAIR_COLOR_CAPTIONS, onchange_weapons_crosshair_color_index);
+	listItem->wrap = false;
+	listItem->caption = "屏幕准星颜色";
+	listItem->value = WeaponsCrosshairColorIndex;
+	menuItems.push_back(listItem);
+	
+	return draw_generic_menu<int>(menuItems, &activeLineIndexWeapon, caption, NULL, NULL, NULL);
 }

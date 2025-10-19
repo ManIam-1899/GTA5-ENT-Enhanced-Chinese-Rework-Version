@@ -464,3 +464,23 @@ void fire_mode_hotkey();
 void add_all_weapons_attachments(Ped choice);
 
 extern Ped equip_ped;
+
+// 全局屏幕准星相关常量和变量
+extern bool featureWeaponsCrosshair; // 屏幕准星开关
+
+const std::vector<std::string> WEAPONS_CROSSHAIR_STYLE_CAPTIONS{"实线十字", "虚线十字", "空心方形", "实心方形"};
+const int WEAPONS_CROSSHAIR_STYLE_VALUES[] = { 1, 2, 3, 4 }; // 1=实线,2=虚线,3=空心方块,4=实心方块
+
+const std::vector<std::string> WEAPONS_CROSSHAIR_COLOR_CAPTIONS{ "白色", "红色", "粉红色", "绿色", "蓝色", "黄色", "橙色", "紫色", "黑色", "灰色" };
+const int WEAPONS_CROSSHAIR_COLOR_COUNT = 10; // 颜色数量
+
+extern int WeaponsCrosshairStyleIndex; // 默认1 实线
+extern bool WeaponsCrosshairStyleChanged;
+extern int WeaponsCrosshairColorIndex; // 默认0 白色
+extern bool WeaponsCrosshairColorChanged;
+
+// 屏幕准星相关函数声明
+void draw_weapons_crosshair();
+void onchange_weapons_crosshair_style_index(int value, SelectFromListMenuItem* source);
+void onchange_weapons_crosshair_color_index(int value, SelectFromListMenuItem* source);
+bool process_weapons_crosshair_menu();
