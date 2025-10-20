@@ -5000,6 +5000,12 @@ void activate_freecam(Ped playerPed) {
 		ENTITY::SET_ENTITY_COLLISION(ent, false, false);
 		ENTITY::FREEZE_ENTITY_POSITION(ent, true);
 		
+		// 使用透明度增强隐藏效果（防止在某些情况下玩家可见）
+		ENTITY::SET_ENTITY_ALPHA(playerPed, 0, false);
+		if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+			ENTITY::SET_ENTITY_ALPHA(ent, 0, false);
+		}
+		
 		// 标记自由相机已关闭（保持速度模式不重置，下次打开继续使用上次的速度）
 		freeCamActive = true;
 		//currentSpeedMode = 0;//保持当前值，不重置为0
