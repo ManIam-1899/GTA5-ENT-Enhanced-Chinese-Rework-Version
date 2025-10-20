@@ -1251,8 +1251,9 @@ bool draw_generic_menu(MenuParameters<T> params){
 				float currentPreviewSpacing;
 				float currentPreviewPositionThreshold;
 				
-				if (image->dict && strcmp(image->dict, "ENT_ped_previews") == 0) {
-					// 人物预览图设置
+				if (image->dict && strncmp(image->dict, "ENT_ped_previews", 16) == 0) {
+					// 人物预览图（dict 以 "ENT_ped_previews" 开头）
+					// 支持多个人物 ytd 文件：ENT_ped_previews, ENT_ped_previews_1, ENT_ped_previews_2, ENT_ped_previews_3
 					extern float pedPreviewResolutionScale;
 					extern float pedPreviewSpacing;
 					extern float pedPreviewPositionThreshold;
@@ -1288,8 +1289,9 @@ bool draw_generic_menu(MenuParameters<T> params){
 				// 车辆预览图：宽度256，高度128
 				// 人物预览图：宽度128，高度256
 				int imageWidth, imageHeight;
-				if (image->dict && strcmp(image->dict, "ENT_ped_previews") == 0) {
-					// 人物预览图
+				if (image->dict && strncmp(image->dict, "ENT_ped_previews", 16) == 0) {
+					// 人物预览图（dict 以 "ENT_ped_previews" 开头）
+					// 支持多个人物 ytd 文件：ENT_ped_previews, ENT_ped_previews_1, ENT_ped_previews_2, ENT_ped_previews_3
 					imageWidth = 128;
 					imageHeight = 256;
 				} else {

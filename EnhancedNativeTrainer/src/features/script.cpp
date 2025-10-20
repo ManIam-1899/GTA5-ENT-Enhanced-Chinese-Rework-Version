@@ -3286,35 +3286,67 @@ void ScriptMain(){
 		//查找无线电跳跃和文件寄存器模式
 		SInit();
 
-		// 注册车辆预览图纹理文件
-		const std::string name = "ENT_vehicle_previews.ytd"; 
-		std::string fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + name;
-		int textureID = 0;
-
-		if (does_file_exist(fullPath.c_str()))
+		// 注册车辆预览图纹理文件（支持多个 ytd 文件）
+		const std::vector<std::string> vehYtdNames = { 
+			"ENT_vehicle_previews.ytd", 
+			"ENT_vehicle_previews_1.ytd", 
+			"ENT_vehicle_previews_2.ytd", 
+			"ENT_vehicle_previews_3.ytd" 
+		};
+		
+		int registeredVehYtdCount = 0;
+		for (const auto& vehName : vehYtdNames)
 		{
-			if (textureID = RegisterFile(fullPath, name))
-				write_text_to_log_file("注册的车辆预览图纹理文件： " + fullPath + " 纹理标识符 ID " + std::to_string(textureID));
+			std::string fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + vehName;
+			int textureID = 0;
+
+			if (does_file_exist(fullPath.c_str()))
+			{
+				if (textureID = RegisterFile(fullPath, vehName))
+				{
+					write_text_to_log_file("注册的车辆预览图纹理文件： " + fullPath + " 纹理标识符 ID " + std::to_string(textureID));
+					registeredVehYtdCount++;
+				}
+				else
+					write_text_to_log_file("无法注册车辆预览图纹理文件: " + fullPath);
+			}
 			else
-				write_text_to_log_file("无法注册车辆预览图纹理文件: " + fullPath);
+				write_text_to_log_file("无法注册车辆预览图纹理文件: " + fullPath + " 注册文件不存在!");
 		}
-		else
-			write_text_to_log_file("无法注册车辆预览图纹理文件: " + fullPath + " 注册文件不存在!");
+		
+		if (registeredVehYtdCount > 0)
+			write_text_to_log_file("成功注册 " + std::to_string(registeredVehYtdCount) + " 个车辆预览图纹理文件");
 
-		// 注册人物预览图纹理文件
-		const std::string pedName = "ENT_ped_previews.ytd"; 
-		std::string pedFullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Peds\\" + pedName;
-		int pedTextureID = 0;
-
-		if (does_file_exist(pedFullPath.c_str()))
+		// 注册人物预览图纹理文件（支持多个 ytd 文件）
+		const std::vector<std::string> pedYtdNames = { 
+			"ENT_ped_previews.ytd", 
+			"ENT_ped_previews_1.ytd", 
+			"ENT_ped_previews_2.ytd", 
+			"ENT_ped_previews_3.ytd" 
+		};
+		
+		int registeredPedYtdCount = 0;
+		for (const auto& pedName : pedYtdNames)
 		{
-			if (pedTextureID = RegisterFile(pedFullPath, pedName))
-				write_text_to_log_file("注册的人物预览图纹理文件： " + pedFullPath + " 纹理标识符 ID " + std::to_string(pedTextureID));
+			std::string pedFullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Peds\\" + pedName;
+			int pedTextureID = 0;
+
+			if (does_file_exist(pedFullPath.c_str()))
+			{
+				if (pedTextureID = RegisterFile(pedFullPath, pedName))
+				{
+					write_text_to_log_file("注册的人物预览图纹理文件： " + pedFullPath + " 纹理标识符 ID " + std::to_string(pedTextureID));
+					registeredPedYtdCount++;
+				}
+				else
+					write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath);
+			}
 			else
-				write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath);
+				write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath + " 注册文件不存在!");
 		}
-		else
-			write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath + " 注册文件不存在!");
+		
+		if (registeredPedYtdCount > 0)
+			write_text_to_log_file("成功注册 " + std::to_string(registeredPedYtdCount) + " 个人物预览图纹理文件");
 
 		// 注册修改器通用纹理文件
 		const std::string entTexName = "ENT_textures.ytd";

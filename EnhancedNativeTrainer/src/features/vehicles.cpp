@@ -524,14 +524,16 @@ bool create_sample_vehicle_previews_xml(const char* xmlPath)
 	file << "  <!-- model: 车辆模型名称（大写或小写都行） -->\n";
 	file << "  <!-- dict: 预览图存放位置，默认 ENT_vehicle_previews.ytd 里-->\n";
 	file << "  <!-- dict: 这项不能修改，默认 ENT_vehicle_previews -->\n";
-	file << "  <!-- image: 图片名称 （随你喜欢修改）-->\n";
+	file << "  <!-- dict: 预览图存放位置，支持多个 ytd 文件 -->\n";
+	file << "  <!-- ENT_vehicle_previews_1.ytd 对应 ENT_vehicle_previews_1 -->\n";
+	file << "  <!-- ENT_vehicle_previews_2.ytd 对应 ENT_vehicle_previews_2 -->\n";
+	file << "  <!-- ENT_vehicle_previews_3.ytd 对应 ENT_vehicle_previews_3 -->\n";
+	file << "  <!-- image: 图片名称（随你喜欢修改） -->\n";
 	file << "  <!-- 原先存在的预览图，你可以在这里再次添加，会自动覆盖游戏内置的预览图 -->\n";
 	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
+	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews_1\" image=\"图片名称\" />\n";
+	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews_2\" image=\"图片名称\" />\n";
+	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews_3\" image=\"图片名称\" />\n";
 	file << "</vehicle_previews>\n";
 
 	file.close();

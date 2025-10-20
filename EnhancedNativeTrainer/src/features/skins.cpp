@@ -2142,15 +2142,16 @@ bool create_sample_ped_previews_xml(const char* xmlPath) {
 	file << "  <!-- model: 人物模型名称（大写或小写都行） -->\n";
 	file << "  <!-- dict: 预览图存放位置，默认 ENT_ped_previews.ytd 里-->\n";
 	file << "  <!-- dict: 这项不能修改，默认 ENT_ped_previews -->\n";
-	file << "  <!-- image: 图片名称 （随你喜欢修改）-->\n";
-	file << "  <ped model=\"player_zero\" dict=\"ENT_ped_previews\" image=\"PP_MICHAEL\" />\n";
-	file << "  <ped model=\"player_one\" dict=\"ENT_ped_previews\" image=\"PP_FRANKLIN\" />\n";
-	file << "  <ped model=\"p_franklin_02\" dict=\"ENT_ped_previews\" image=\"PP_FRANKLIN_02\" />\n";
-	file << "  <ped model=\"player_two\" dict=\"ENT_ped_previews\" image=\"PP_TREVOR\" />\n";
-	file << "  <ped model=\"mp_f_freemode_01\" dict=\"ENT_ped_previews\" image=\"PP_FREEMODE_01\" />\n";
-	file << "  <ped model=\"mp_m_freemode_01\" dict=\"ENT_ped_previews\" image=\"PP_FREEMODE_02\" />\n";
-	file << "  <ped model=\"a_c_boar\" dict=\"ENT_ped_previews\" image=\"PP_BOAR_01\" />\n";
-	file << "  <ped model=\"a_c_boar_02\" dict=\"ENT_ped_previews\" image=\"PP_BOAR_02\" />\n";
+	file << "  <!-- dict: 预览图存放位置，支持多个 ytd 文件 -->\n";
+	file << "  <!-- ENT_ped_previews.ytd 对应 ENT_ped_previews -->\n";
+	file << "  <!-- ENT_ped_previews_1.ytd 对应 ENT_ped_previews_1 -->\n";
+	file << "  <!-- ENT_ped_previews_2.ytd 对应 ENT_ped_previews_2 -->\n";
+	file << "  <!-- ENT_ped_previews_3.ytd 对应 ENT_ped_previews_3 -->\n";
+	file << "  <!-- image: 图片名称（随你喜欢修改） -->\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews\" image=\"图片名称\" />\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews_1\" image=\"图片名称\" />\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews_2\" image=\"图片名称\" />\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews_3\" image=\"图片名称\" />\n";
 	file << "</ped_previews>\n";
 
 	file.close();
