@@ -4965,6 +4965,11 @@ void deactivate_freecam(Ped playerPed) {
 void activate_freecam(Ped playerPed) {
 	if (freeCamActive) return;
 	
+	// 如果物体摆放模式已激活，则无效化自由相机激活（防止功能冲突）
+	if (is_in_prop_placement_mode()) {
+		return; // 静默返回，不显示提示
+	}
+	
 	// 如果自由移动模式已激活，先关闭它
 	if (is_in_airbrake_mode()) {
 		exit_airbrake_menu_if_showing();
