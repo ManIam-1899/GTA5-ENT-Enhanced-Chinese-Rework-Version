@@ -12,6 +12,8 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "drive_to_marker.h"
 #include "misc.h"
 #include "vehicles.h"
+#include "airbrake.h"
+#include "propplacement.h"
 #include "..\ui_support\menu_functions.h"
 #include "..\debug\debuglog.h"
 #include "..\ent-enums.h"
@@ -841,6 +843,20 @@ void teleport_to_coords(Vector3 coords){
 }
 
 void teleport_to_marker(){
+	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放）
+	if (is_in_airbrake_mode()) {
+		set_status_text("~r~自由移动模式下无法传送！\n~y~请先关闭自由移动模式。");
+		return;
+	}
+	if (freeCamActive) {
+		set_status_text("~r~自由相机模式下无法传送！\n~y~请先关闭自由相机模式。");
+		return;
+	}
+	if (is_in_prop_placement_mode()) {
+		set_status_text("~r~物体摆放模式下无法传送！\n~y~请先退出物体摆放模式。");
+		return;
+	}
+
 	Vector3 coords = get_blip_marker();
 
 	// 如果没有设置导航点，get_blip_marker() 已经显示了提示，直接返回
@@ -1788,9 +1804,13 @@ void update_teleport_features(){
 	}
 
 	// 自动传送到标记点（优化版，参考 YimMenu）
+	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放），如果是则跳过自动传送
 	if (featureTeleportAutomatically && UI::IS_WAYPOINT_ACTIVE()) {
-		// 直接调用传送到导航点功能
-		teleport_to_marker();
+		// 检查是否处于特殊模式，如果是则不自动传送
+		if (!is_in_airbrake_mode() && !freeCamActive && !is_in_prop_placement_mode()) {
+			// 直接调用传送到导航点功能
+			teleport_to_marker();
+		}
 	}
 
 	if (GAMEPLAY::GET_MISSION_FLAG() == 0 && !MARATHON_BLIPS.empty()) { // is_marathon == true
