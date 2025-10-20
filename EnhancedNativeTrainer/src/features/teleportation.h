@@ -53,3 +53,9 @@ void onchange_tel_3dmarker_martype_index(int value, SelectFromListMenuItem *sour
 Vector3 get_blip_marker();
 
 void update_teleport_features();
+
+// 加载指定坐标的地面高度（优化版）
+bool load_ground_at_3dcoord(Vector3& location);
+
+// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE 的传送函数
+void teleport_to_coords(Vector3 coords);

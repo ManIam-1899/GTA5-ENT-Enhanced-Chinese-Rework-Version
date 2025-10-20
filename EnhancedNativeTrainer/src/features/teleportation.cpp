@@ -763,8 +763,79 @@ const std::vector<std::string> TEL_3DMARKER_MARTYPE_CAPTIONS{ "箭头", "圆柱"
 int Tel3dmarker_martype_Index = 0;
 bool Tel3dmarker_martype_Changed = true;
 
-void teleport_to_coords(Entity e, Vector3 coords){
-	ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords.x, coords.y, coords.z, 0, 0, 1);
+// 根据当前高度智能返回合适的步进值（9档动态调整）
+// 用于加快不同海拔地区的地面检测速度
+float get_dynamic_height_step(float current_height){
+	// 9档步进系统：根据海拔高度动态调整
+	if (current_height < 50.f)  return 10.f;   // 海平面/平地
+	else if (current_height < 100.f) return 20.f;   // 低海拔城市/建筑
+	else if (current_height < 200.f) return 30.f;   // 中层城市建筑
+	else if (current_height < 300.f) return 40.f;   // 小丘陵/低山
+	else if (current_height < 400.f) return 50.f;   // 低等山峰
+	else if (current_height < 500.f) return 70.f;   // 中等山峰
+	else if (current_height < 600.f) return 80.f;   // 高等山峰
+	else if (current_height < 700.f) return 90.f;   // 极高山峰
+	else return 100.f;                                          // 极高海拔（山顶）
+}
+
+// 加载指定坐标的地面高度（优化海洋传送速度）
+bool load_ground_at_3dcoord(Vector3& location){
+	const float max_ground_check = 1500.f;
+	const int max_attempts = 150;  // 减少最大尝试次数，提升速度
+	float ground_z = location.z;
+	int current_attempts = 0;
+	bool found_ground = false;
+	float water_height = 0.0f;
+	bool found_water = false;
+
+	// 优先快速检测水面（海洋区域优化）
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	if (found_water){
+		location.z = water_height;
+		return true;
+	}
+
+	// 没有水面，尝试寻找地面
+	do {
+		// 尝试获取地面高度并请求碰撞数据
+		found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+		
+		// 每 10 次尝试检测一次水面（海洋数据可能延迟加载）
+		if (current_attempts % 10 == 0){
+			found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+			if (found_water){
+				location.z = water_height;
+				return true;
+			}
+			// 使用智能步进：根据当前高度动态调整提升幅度
+			float height_step = get_dynamic_height_step(location.z);
+			location.z += height_step;
+		}
+
+		++current_attempts;
+		WAIT(0);
+	} while (!found_ground && current_attempts < max_attempts);
+
+	// 循环结束后再次检测水面（最后一次机会）
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	if (found_water){
+		location.z = water_height;
+		return true;
+	}
+	else if (found_ground){
+		location.z = ground_z;
+		return true;
+	}
+	
+	// 既没有水面也没有地面，返回失败（由调用者决定如何处理）
+	return false;
+}
+
+// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE 自动处理载具（参考 YimMenu）
+void teleport_to_coords(Vector3 coords){
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.5f);
 	WAIT(0);
 	set_status_text("传送完成！");
 }
@@ -772,38 +843,30 @@ void teleport_to_coords(Entity e, Vector3 coords){
 void teleport_to_marker(){
 	Vector3 coords = get_blip_marker();
 
-	if (coords.x + coords.y == 0) return;
+	// 如果没有设置导航点，get_blip_marker() 已经显示了提示，直接返回
+	if (coords.x == 0 && coords.y == 0) return;
 
-	// 获取要传送的实体
-	Entity e = PLAYER::PLAYER_PED_ID();
-	if (PED::IS_PED_IN_ANY_VEHICLE(e, 0)){
-		e = PED::GET_VEHICLE_PED_IS_USING(e);
+	// 优先级1优化：无需手动检查和获取载具，SET_PED_COORDS_KEEP_VEHICLE 会自动处理
+
+	// 使用优化的地面高度加载函数（返回 true 表示找到了地面或水面并已设置 coords.z）
+	bool found_ground_or_water = load_ground_at_3dcoord(coords);
+
+	if (!found_ground_or_water){
+		// 如果找不到地面/水面，传送到目标上空1000米并发放降落伞作为备用方案
+		coords.z = 1000.0f;
+		WEAPON::GIVE_DELAYED_WEAPON_TO_PED(PLAYER::PLAYER_PED_ID(), 0xFBAB5776, 1, 0);
+		WAIT(0); // 给引擎一帧时间处理武器发放（可选）
+
+		// 执行传送并给出明确提示（统一使用 +0.5f 偏移以保持一致）
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.5f);
+		WAIT(0);
+		set_status_text("~y~未找到地面或水面！\n~y~已传送至目标上空1千米！");
+		return;
 	}
 
-	// 加载所需地图区域并检查高度层级以确认地面存在
-	bool groundFound = false;
-	static float groundCheckHeight[] =
-	{ 100.0, 150.0, 50.0, 0.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0 };
-	for (int i = 0; i < sizeof(groundCheckHeight) / sizeof(float); i++){
-		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords.x, coords.y, groundCheckHeight[i], 0, 0, 1);
-		WAIT(100);
-		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z)){
-			groundFound = true;
-			coords.z += 1.0;
-			break;
-		}
-	}
-	// 标记位于水域中
-	float height = -1.0;
-	WATER::GET_WATER_HEIGHT(coords.x, coords.y, coords.z, &height);
-	if (coords.z < height) coords.z = height;
-	// if ground not found then set Z in air and give player a parachute
-	//if (!groundFound){
-	//	coords.z = 1000.0;
-	//	WEAPON::GIVE_DELAYED_WEAPON_TO_PED(PLAYER::PLAYER_PED_ID(), 0xFBAB5776, 1, 0);
-	//}
-	// do it
-	teleport_to_coords(e, coords);
+	// 找到地面/水面，正常传送（teleport_to_coords 内会做 coords.z + 0.5f/1.0f 的统一偏移）
+	teleport_to_coords(coords);
 }
 
 /////////////////////// 前往任务标记点 ///////////////////////////////
@@ -968,8 +1031,8 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 		std::string result = show_keyboard("手动输入名称", (char*)lastJumpSpawn.c_str());
 		if (!result.empty())
 		{
-			Entity e = PLAYER::PLAYER_PED_ID();
-			if (PED::IS_PED_IN_ANY_VEHICLE(e, 0)) e = PED::GET_VEHICLE_PED_IS_USING(e);
+			// 优先级1优化：无需手动检查和获取载具
+			Ped playerPed = PLAYER::PLAYER_PED_ID();
 			
 			result = trim(result);
 			lastJumpSpawn = result;
@@ -1004,28 +1067,63 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 				float y = std::stof(tmp_str_y, &sz);
 				float z = std::stof(tmp_str_z, &sz);
 
-				ENTITY::SET_ENTITY_COORDS(e, x, y, z, 1, 0, 0, 1);
+				// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
+				PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, x, y, z + 0.5f);
 			}
 
 			if (lastJumpSpawn == "random" || lastJumpSpawn == "Random" || lastJumpSpawn == "RANDOM" || lastJumpSpawn == "随机" || lastJumpSpawn == "SJ" || lastJumpSpawn == "sj")
 			{
-				int x_coord = -3168 + rand() % 6934; // (rand() % 3934 + -3294); // 上边距 + 下边距
-				int y_coord = -3330 + rand() % 10391; // (rand() % 6576 + -3330); 
-				Vector3 me_coords = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), 0);
-
-				bool groundFound = false;
-				static float groundCheckHeight[] =
-				{ 100.0, 150.0, 50.0, 0.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0 };
-				for (int i = 0; i < sizeof(groundCheckHeight) / sizeof(float); i++) {
-					ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, x_coord, y_coord, groundCheckHeight[i], 0, 0, 1);
-					WAIT(100);
-					if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(x_coord, y_coord, groundCheckHeight[i], &me_coords.z)) {
-						groundFound = true;
-						me_coords.z += 1.0;
-						break;
+				// 随机从已保存的坐标点中选择（排除水下、在线模式、额外场景、需要加载场景的位置）
+				// 可用的类别索引：0=主角的家, 1=地标点, 2=屋顶/高处, 4=故事模式室内, 7=特殊演员, 8=收藏品, 9=特技地点
+				// 排除：3=水下, 5=额外外部场景, 6=在线模式室内, 以及所有需要加载场景的位置
+				std::vector<int> available_categories = { 0, 1, 2, 4, 7, 8, 9 };
+				
+				// 尝试最多 50 次找到一个不需要加载场景的位置
+				tele_location* random_location = nullptr;
+				int max_attempts = 50;
+				int attempt = 0;
+				
+				while (attempt < max_attempts) {
+					// 随机选择一个类别
+					int random_category_index = rand() % available_categories.size();
+					int selected_category = available_categories[random_category_index];
+					
+					// 从该类别中随机选择一个位置
+					int location_count = VOV_LOCATIONS[selected_category].size();
+					if (location_count > 0) {
+						int random_location_index = rand() % location_count;
+						tele_location* candidate = &VOV_LOCATIONS[selected_category][random_location_index];
+						
+						// 检查是否需要加载场景（如果不需要，则选择此位置）
+						if (candidate->scenery_required.size() == 0) {
+							random_location = candidate;
+							break;
+						}
 					}
+					
+					attempt++;
 				}
-				ENTITY::SET_ENTITY_COORDS(e, x_coord, y_coord, me_coords.z, 1, 0, 0, 1);
+				
+				if (random_location != nullptr) {
+					Vector3 random_coords;
+					random_coords.x = random_location->x;
+					random_coords.y = random_location->y;
+					random_coords.z = random_location->z;
+					
+					// 显示传送到的位置名称
+					std::string status_msg = "随机传送到: " + random_location->text;
+					
+					// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
+					PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, random_coords.x, random_coords.y, random_coords.z + 0.5f);
+					
+					WAIT(0);
+					set_status_text(status_msg);
+					return false;
+				}
+				else {
+					set_status_text("随机传送失败: 未找到可用位置!");
+					return false;
+				}
 			}
 
 			WAIT(0);
@@ -1232,11 +1330,7 @@ bool onconfirm_teleport_location(MenuItem<int> choice){
 
 	tele_location* value = &VOV_LOCATIONS[lastChosenCategory][choice.value];
 
-	// 获取要传送的实体
-	Entity e = PLAYER::PLAYER_PED_ID();
-	if (PED::IS_PED_IN_ANY_VEHICLE(e, 0)){
-		e = PED::GET_VEHICLE_PED_IS_USING(e);
-	}
+	// 优先级1优化：无需手动检查和获取载具，SET_PED_COORDS_KEEP_VEHICLE 会自动处理
 
 	Vector3 coords;
 	std::vector<char*> emptyVec;
@@ -1362,7 +1456,7 @@ bool onconfirm_teleport_location(MenuItem<int> choice){
 		}
 	}
 	
-	teleport_to_coords(e, coords);
+	teleport_to_coords(coords);
 
 	teleported_i = true;
 
@@ -1693,22 +1787,10 @@ void update_teleport_features(){
 		AI::TASK_SMART_FLEE_PED(driver_to_marker_pilot, PLAYER::PLAYER_PED_ID(), 1000, -1, true, true);
 	}
 
-	// 自动传送到标记点
-	if (featureTeleportAutomatically) {
-		Vector3 coords;
-		bool blipFound_m = false;
-		int blipIterator = UI::_GET_BLIP_INFO_ID_ITERATOR();
-		for (Blip i = UI::GET_FIRST_BLIP_INFO_ID(blipIterator); UI::DOES_BLIP_EXIST(i) != 0; i = UI::GET_NEXT_BLIP_INFO_ID(blipIterator)) {
-			if (UI::GET_BLIP_INFO_ID_TYPE(i) == 4) {
-				coords = UI::GET_BLIP_INFO_ID_COORD(i);
-				blipFound_m = true;
-				break;
-			}
-		}
-		if (blipFound_m == true) {
-			teleport_to_marker();
-			blipFound_m = false;
-		}
+	// 自动传送到标记点（优化版，参考 YimMenu）
+	if (featureTeleportAutomatically && UI::IS_WAYPOINT_ACTIVE()) {
+		// 直接调用传送到导航点功能
+		teleport_to_marker();
 	}
 
 	if (GAMEPLAY::GET_MISSION_FLAG() == 0 && !MARATHON_BLIPS.empty()) { // is_marathon == true
