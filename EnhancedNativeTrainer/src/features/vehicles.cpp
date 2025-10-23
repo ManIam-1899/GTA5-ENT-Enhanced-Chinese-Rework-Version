@@ -2740,34 +2740,34 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 		case 8: // 模组
 			if(process_vehmod_menu()) return false;
 			break;
-		case 21: // 速度和高度菜单
+		case 22: // 速度和高度菜单
 			process_speed_menu();
 			break;
-		case 22: // 速度限制
+		case 23: // 速度限制
 			process_speedlimit_menu();
 			break;
-		case 23: // 车门菜单
+		case 24: // 车门菜单
 			if(process_veh_door_menu()) return false;
 			break;
-		case 24: // 座位菜单
+		case 25: // 座位菜单
 			if(process_veh_seat_menu()) return false;// 始终调用座位菜单，让其内部负责显示“玩家不在载具中！”提示并阻止菜单
 			break;
-		case 25: // 车辆转向灯菜单
+		case 26: // 车辆转向灯菜单
 			process_visualize_menu();
 			break;
-		case 28: // 燃油菜单
+		case 29: // 燃油菜单
 			process_fuel_menu();
 			break;
-		case 29: // 保存车辆菜单
+		case 30: // 车辆跟踪菜单
 			process_remember_vehicles_menu();
 			break;
-		case 30: // 交通法规菜单
+		case 31: // 交通法规菜单
 			process_road_laws_menu();
 			break;
-		case 31: // 引擎可能会损耗
+		case 32: // 引擎可能会损耗
 			process_engine_degrade_menu();
 			break;
-		case 48: // 飞机炸弹
+		case 49: // 飞机炸弹
 		{
 			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
 				set_status_text("~r~玩家不在载具中！");
@@ -2782,16 +2782,16 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 			}
 		}
 			break;
-		case 52: // 车辆盗窃
+		case 53: // 车辆盗窃
 			process_routine_of_ringer_menu();
 			break;
-		case 53: // 冻结车辆
+		case 54: // 冻结车辆
 			vehicle_freeze_toggle();
 			break;
-		case 54: // 删除车辆
+		case 55: // 删除车辆
 		{
 			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
-				set_status_text("~r~玩家不在载具中，无法删除车辆！");
+				set_status_text("~r~玩家不在载具中, 无法删除车辆!");
 				break;
 			}
 
@@ -2971,6 +2971,12 @@ void process_veh_menu(){
 	listItem->wrap = false;
 	listItem->caption = "无限火箭助推";
 	listItem->value = InfiniteBoostIndex;
+	menuItems.push_back(listItem);
+
+	listItem = new SelectFromListMenuItem(FUEL_COLOURS_R_CAPTIONS, onchange_veh_invisibility_index);
+	listItem->wrap = false;
+	listItem->caption = "车辆隐形";
+	listItem->value = VehInvisIndexN;
 	menuItems.push_back(listItem);
 
 	listItem = new SelectFromListMenuItem(LIMP_IF_INJURED_CAPTIONS, onchange_veh_nitrous_index);
@@ -3160,14 +3166,15 @@ void process_veh_menu(){
 	toggleItem->toggleValue = &featureReverseWhenBraking;
 	menuItems.push_back(toggleItem);
 
-	listItem = new SelectFromListMenuItem(FUEL_COLOURS_R_CAPTIONS, onchange_veh_invisibility_index);
-	listItem->wrap = false;
-	listItem->caption = "车辆隐形";
-	listItem->value = VehInvisIndexN;
-	menuItems.push_back(listItem);
+	// 瞬间刹停（类似 YimMenu Instant Brake）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "瞬间刹停";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureInstantBrake;
+	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "禁用车辆点火";
+	toggleItem->caption = "禁用上车点火";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureDisableIgnition;
 	menuItems.push_back(toggleItem);
@@ -3196,13 +3203,6 @@ void process_veh_menu(){
 	toggleItem->toggleValue = &featureVehDriveOnWater;
 	menuItems.push_back(toggleItem);
 
-	// 瞬间刹停（类似 YimMenu Instant Brake）
-	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "瞬间刹停";
-	toggleItem->value = i++;
-	toggleItem->toggleValue = &featureInstantBrake;
-	menuItems.push_back(toggleItem);
-
 	draw_generic_menu<int>(menuItems, &activeLineIndexVeh, caption, onconfirm_veh_menu, NULL, NULL);
 }
 
@@ -3217,7 +3217,7 @@ void speedlimiter_switching(){
 void vehicle_freeze_toggle(){
     Ped playerPed = PLAYER::PLAYER_PED_ID();
     if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
-        set_status_text("~r~玩家不在载具中，无法冻结车辆！");
+        set_status_text("~r~玩家不在载具中, 无法冻结车辆!");
         return;
     }
     Vehicle vcur = PED::GET_VEHICLE_PED_IS_USING(playerPed);
