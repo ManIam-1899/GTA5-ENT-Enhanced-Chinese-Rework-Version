@@ -1423,6 +1423,13 @@ bool process_player_skins_menu(){
 	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
 	params.onConfirmation = onconfirm_bodyguards_skins_players;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//主角
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -1445,6 +1452,13 @@ bool process_npc_skins_menu(){
 	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
 	params.onConfirmation = onconfirm_bodyguards_skins_npcs;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//普通 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -1467,6 +1481,13 @@ bool process_online_skins_menu() {
 	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
 	params.onConfirmation = onconfirm_bodyguards_skins_online;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//在线 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -1489,6 +1510,13 @@ bool process_animal_skins_menu(){
 	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
 	params.onConfirmation = onconfirm_bodyguards_skins_animals;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//动物
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -3218,6 +3246,13 @@ bool onconfirm_bodyguards_custom_peds_category(MenuItem<std::string> choice) {
 	params.menuSelectionPtr = &selectedPed;
 	params.onConfirmation = onconfirm;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if (!item.value.empty()) {//新增角色模型 1
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -3298,6 +3333,13 @@ bool onconfirm_bodyguards_custom_peds2_category(MenuItem<std::string> choice) {
 	params.menuSelectionPtr = &selectedPed2;
 	params.onConfirmation = onconfirm;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//新增角色模型 2
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 

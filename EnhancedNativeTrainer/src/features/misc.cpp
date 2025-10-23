@@ -137,6 +137,7 @@ bool featureFirstPersonStuntJumpCamera = false;
 bool featureNoStuntJumps = false;
 bool featureHidePlayerInfo = false;
 bool featureShowFPS = false;
+bool featureShowModelName = false; // 模型名称显示变量，默认值定义，默认关闭
 bool featurenowheelblurslow = false;
 bool featureShowVehiclePreviews = true;
 bool featureShowPedPreviews = true;
@@ -1769,10 +1770,10 @@ bool onconfirm_misc_menu(MenuItem<int> choice){
 		case 7:
 			process_misc_filters_menu();
 			break;
-		case 15:
+		case 16:
 			process_airbrake_global_menu();
 			break;
-		case 16:
+		case 17:
 			process_misc_freecam_menu();
 			break;
 		default:
@@ -1783,7 +1784,7 @@ bool onconfirm_misc_menu(MenuItem<int> choice){
 }
 
 void process_misc_menu(){
-	const int lineCount = 17; 
+	const int lineCount = 18; 
 
 	const std::string caption = "其他选项";
 
@@ -1803,6 +1804,7 @@ void process_misc_menu(){
 		{"第一人称特技跳跃视角", &featureFirstPersonStuntJumpCamera, NULL },
 		{"无特技跳跃", &featureNoStuntJumps, NULL },
 		{"FPS 帧率显示 ", &featureShowFPS, NULL }, 
+		{"模型名称显示", &featureShowModelName, NULL }, 
 		{"自由移动模式", NULL, NULL, false},
 		{"自由相机模式", NULL, NULL, false},
 	};
@@ -2045,6 +2047,7 @@ void reset_misc_globals(){
 	featurenowheelblurslow = false;
 	featureNoAutoRespawn = false;
 	featureRealisticRadioVolume = false;
+	featureShowModelName = false;// 模型名称显示变量，重置/覆盖当前值，默认关闭
 
 	featureRadioFreezeUpdated =
 	featureMiscHideHudUpdated =
@@ -3010,6 +3013,7 @@ void add_misc_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* re
 	results->push_back(FeatureEnabledLocalDefinition{"featureShowStatusMessage", &featureShowStatusMessage});
 	results->push_back(FeatureEnabledLocalDefinition{"featureNoAutoRespawn", &featureNoAutoRespawn});
 	results->push_back(FeatureEnabledLocalDefinition{"featureShowFPS", &featureShowFPS});
+	results->push_back(FeatureEnabledLocalDefinition{"featureShowModelName", &featureShowModelName});// 模型名称显示，保存和加载功能状态的机制
 	results->push_back(FeatureEnabledLocalDefinition{"featurenowheelblurslow", &featurenowheelblurslow});
 	results->push_back(FeatureEnabledLocalDefinition{"featureHiddenRadioStation", &featureEnableMissingRadioStation});
 	results->push_back(FeatureEnabledLocalDefinition{"featureFirstPersonDeathCamera", &featureFirstPersonDeathCamera});

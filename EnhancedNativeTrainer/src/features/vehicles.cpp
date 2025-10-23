@@ -5821,6 +5821,14 @@ bool onconfirm_spawn_menu_cars(MenuItem<int> choice){
 	params.menuSelectionPtr = 0;
 	params.onConfirmation = onconfirm_vehlist_menu;
 	params.lineImageProvider = vehicle_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<int> item) -> std::string {
+		// 获取车辆的原模型名称，如果找不到则显示未知
+		char* modelName = GetVehicleModelName(item.value);
+		if(modelName && strlen(modelName) > 0) {//生成车辆
+			return std::string("模型: ") + std::string(modelName);
+		}
+		return "模型: 未知";
+	};
 
 	if (choice.value == tmp_menuindex) params.menuSelectionPtr = &curr_c_pos;
 	if (choice.value != tmp_menuindex) {
@@ -5893,6 +5901,14 @@ bool onconfirm_custom_spawn_menu_cars(MenuItem<int> choice)
     params.menuSelectionPtr = 0;
     params.onConfirmation = onconfirm_custom_vehlist_menu;
     params.lineImageProvider = vehicle_image_preview_finder;
+    params.cornerInfoProvider = [](MenuItem<int> item) -> std::string {
+        // 获取车辆的原模型名称，如果找不到则显示未知
+        char* modelName = GetVehicleModelName(item.value);
+        if(modelName && strlen(modelName) > 0) {//生成新增车辆
+            return std::string("模型: ") + std::string(modelName);
+        }
+        return "模型: 未知";
+    };
     return draw_generic_menu<int>(params);
 }
 

@@ -222,6 +222,9 @@ extern float pedPreviewSpacing;
 // 显示人物预览图开关(复选框方式显示)
 extern bool featureShowPedPreviews;
 
+// 显示车辆和人物原模型名称开关
+extern bool featureShowModelName;
+
 // 自由相机模式相关常量和变量
 const std::vector<std::string> MISC_FREECAM_FOLLOW_CAPTIONS{ "跟随", "不跟随" };
 const int MISC_FREECAM_FOLLOW_VALUES[] = { 0, 1 }; // 跟随=0, 不跟随=1

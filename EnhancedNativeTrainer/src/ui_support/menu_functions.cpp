@@ -192,6 +192,40 @@ void menu_beep(){
 	AUDIO::PLAY_SOUND_FRONTEND(-1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", 0);
 }
 
+// 在菜单右下角显示额外信息（如模型名称）
+void draw_menu_corner_info(std::string infoText) {
+	if (infoText.empty()) return;
+
+	// 检查是否启用了模型名称显示功能
+	extern bool featureShowModelName;
+	if (!featureShowModelName) return;
+
+	int screen_w, screen_h;
+	GRAPHICS::GET_SCREEN_RESOLUTION(&screen_w, &screen_h);
+
+	// 显示位置
+	float xPos = 0.50f; // 横向位置（范围 0.0~1.0，越大越靠右）
+	float yPos = 0.97f; // 纵向位置（范围 0.0~1.0，越大越靠下）
+
+	// 设置文本样式
+	UI::SET_TEXT_FONT(fontStatus);
+	UI::SET_TEXT_SCALE(0.0, 0.30);        // 字体大小
+	UI::SET_TEXT_PROPORTIONAL(1);
+	UI::SET_TEXT_COLOUR(255, 255, 255, 255);
+	UI::SET_TEXT_WRAP(0.0f, 1.0f);      // 文本绘制范围
+
+	UI::SET_TEXT_CENTRE(1);             // 0不居中，1居中
+	UI::SET_TEXT_RIGHT_JUSTIFY(0);      // 0关闭右对齐，1开启右对齐
+	UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+	UI::SET_TEXT_EDGE(1, 0, 0, 0, 255);
+	UI::SET_TEXT_OUTLINE();
+
+	// 绘制文本
+	UI::_SET_TEXT_ENTRY("STRING");
+	UI::_ADD_TEXT_COMPONENT_STRING((char*)infoText.c_str());
+	UI::_DRAW_TEXT(xPos, yPos);
+}
+
 void draw_menu_from_struct_def(StandardOrToggleMenuDef defs[], int lineCount, int* selectionRef, std::string caption, bool(*onConfirmation)(MenuItem<int> value)){
 	std::vector<MenuItem<int>*> menuItems;
 	for(int i = 0; i < lineCount; i++){

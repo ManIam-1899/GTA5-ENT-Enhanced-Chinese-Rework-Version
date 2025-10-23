@@ -639,6 +639,13 @@ static bool process_custom_peds_category_menu(const std::string& category){
     params.menuSelectionPtr = &selectedPed;
     params.onConfirmation = onconfirm;
     params.lineImageProvider = ped_image_preview_finder;
+    params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+        // 显示角色模型的原模型名称
+        if(!item.value.empty()) {//新增角色模型 1
+            return std::string("模型: ") + item.value;
+        }
+		return "模型: 未知";
+    };
     return draw_generic_menu<std::string>(params);
 }
 
@@ -700,6 +707,13 @@ static bool process_custom_peds2_category_menu(const std::string& category){
     params.menuSelectionPtr = &selectedPed2;
     params.onConfirmation = onconfirm;
     params.lineImageProvider = ped_image_preview_finder;
+    params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+        // 显示角色模型的原模型名称
+        if(!item.value.empty()) {//新增角色模型 2
+            return std::string("模型: ") + item.value;
+        }
+		return "模型: 未知";
+    };
     return draw_generic_menu<std::string>(params);
 }
 
@@ -1250,6 +1264,13 @@ bool process_skinchanger_choices_players()
 	params.menuSelectionPtr = &skinTypesMenuPositionMemory[0];
 	params.onConfirmation = onconfirm_skinchanger_choices_players;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//主角
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -1286,6 +1307,13 @@ bool process_skinchanger_choices_online_npc()
 	params.menuSelectionPtr = &skinTypesMenuPositionMemory[0];
 	params.onConfirmation = onconfirm_skinchanger_choices_online_npc;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//在线 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -1344,6 +1372,13 @@ bool process_skinchanger_choices_animals()
 	params.menuSelectionPtr = &skinTypesMenuPositionMemory[1];
 	params.onConfirmation = onconfirm_skinchanger_choices_animals;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//动物
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 
@@ -1380,6 +1415,13 @@ bool process_skinchanger_choices_misc()
 	params.menuSelectionPtr = &skinTypesMenuPositionMemory[2];
 	params.onConfirmation = onconfirm_skinchanger_choices_misc;
 	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//普通 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
 	return draw_generic_menu<std::string>(params);
 }
 

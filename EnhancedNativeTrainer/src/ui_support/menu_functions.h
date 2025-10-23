@@ -520,6 +520,7 @@ class MenuParameters{
 	void(*onExit)(bool returnValue) = NULL;
 	bool(*interruptCheck)(void) = NULL;
 	MenuItemImage*(*lineImageProvider)(MenuItem<T> value) = NULL;
+	std::string(*cornerInfoProvider)(MenuItem<T> value) = NULL; // 右下角信息提供者
 
 	int get_menu_selection_index(){
 		return *menuSelectionPtr;
@@ -1307,6 +1308,15 @@ bool draw_generic_menu(MenuParameters<T> params){
 				periodic_feature_call();
 			}
 
+			// 在菜单右下角显示额外信息（如果有的话）
+			if(params.cornerInfoProvider != NULL){
+				std::string cornerInfo = params.cornerInfoProvider(*params.items[currentSelectionIndex]);
+				// 如果返回的字符串不为空，就在屏幕右下角绘制该信息
+				if(!cornerInfo.empty()){
+					draw_menu_corner_info(cornerInfo);
+				}
+			}
+
 			WAIT(0); // 等待 0 毫秒（让出 CPU 时间片，避免忙等待）
 		}
 		while(GetTickCount() < maxTickCount); // 检查是否达到等待结束时间
@@ -1505,6 +1515,9 @@ void set_status_text_centre_screen(std::string str, DWORD time = 2500, bool isGx
 // 要显示的文本内容，文本显示的持续时间（默认值为 2500 毫秒）是否为 GXT 条目（默认值为 false）
 
 void update_centre_screen_status_text();
+
+// 在菜单右下角显示额外信息（如模型名称）
+void draw_menu_corner_info(std::string infoText);
 
 void menu_beep();
 
