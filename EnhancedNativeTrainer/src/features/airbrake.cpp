@@ -50,14 +50,14 @@ void exit_airbrake_menu_if_showing()
 	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)){
 		Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
 		ENTITY::SET_ENTITY_VISIBLE(veh, true);
-		ENTITY::SET_ENTITY_COLLISION(veh, 1, 1);
+		ENTITY::SET_ENTITY_COLLISION(veh, 1, 0); // 第二个参数改为0，避免碰撞声音
 		ENTITY::FREEZE_ENTITY_POSITION(veh, false);
 		// ===================== 改动2：恢复载具透明度 =====================
 		if (!exitFlag) ENTITY::RESET_ENTITY_ALPHA(veh);
 	}
 	else
 	{
-		ENTITY::SET_ENTITY_COLLISION(playerPed, 1, 1);
+		ENTITY::SET_ENTITY_COLLISION(playerPed, 1, 0); // 第二个参数改为0
 		ENTITY::FREEZE_ENTITY_POSITION(playerPed, false);
 	}
 	exitFlag = true;
@@ -124,7 +124,7 @@ void process_airbrake_menu()
 			if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
 				ENTITY::FREEZE_ENTITY_POSITION(veh, false);
 				ENTITY::SET_ENTITY_VISIBLE(veh, true);
-				ENTITY::SET_ENTITY_COLLISION(veh, 1, 1);
+				ENTITY::SET_ENTITY_COLLISION(veh, 1, 0); // 第二个参数改为0，避免碰撞声音
 				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(veh, curLocation.x, curLocation.y, curLocation.z, 1, 1, 1);
 
 				// ===================== 改动4：安全恢复透明度 =====================
@@ -135,7 +135,7 @@ void process_airbrake_menu()
 			}
 			else
 			{
-				ENTITY::SET_ENTITY_COLLISION(playerPed, 1, 1);
+				ENTITY::SET_ENTITY_COLLISION(playerPed, 1, 0); // 第二个参数改为0
 				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, curLocation.x, curLocation.y, curLocation.z, 1, 1, 1);
 
 				if (!exitFlag) {
@@ -320,6 +320,8 @@ void airbrake(bool inVehicle)
 		target = PED::GET_VEHICLE_PED_IS_USING(playerPed);
 	}
 	
+	// ===================== 优化：立即禁用碰撞，避免声音 =====================
+	ENTITY::SET_ENTITY_COLLISION(target, 0, 0); // 第二个参数必须为0
 	ENTITY::SET_ENTITY_VELOCITY(target, 0.0f, 0.0f, 0.0f);
 	
 	if (!inVehicle)
@@ -406,7 +408,7 @@ void airbrake(bool inVehicle)
 		float v_y = (cos(rad) * p_force * 10);
 		float v_z = p_force * (CamRot.x * 0.2);
 
-		ENTITY::SET_ENTITY_COLLISION(target, 0, 1);
+		// 碰撞已在函数开头禁用，无需重复设置
 		if (show_transparency) {
 			ENTITY::SET_ENTITY_ALPHA(PLAYER::PLAYER_PED_ID(), 120, 0);
 			if (PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0)) ENTITY::SET_ENTITY_ALPHA(PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID()), 120, 0);
@@ -417,13 +419,15 @@ void airbrake(bool inVehicle)
 
 		if (moveForwardKey) { // 仅向上移动
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, v_x, v_y, 0, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, v_x, v_y, 0);
 			curLocation = ENTITY::GET_ENTITY_COORDS(target, 0);
 			curHeading = ENTITY::GET_ENTITY_HEADING(target);
 		}
 		if (moveBackKey) { // 仅向下移动
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, -v_x, -v_y, 0, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, -v_x, -v_y, 0);
 			curLocation = ENTITY::GET_ENTITY_COORDS(target, 0);
 			curHeading = ENTITY::GET_ENTITY_HEADING(target);
 		}
@@ -455,7 +459,8 @@ void airbrake(bool inVehicle)
 			if (travelSpeed == 2) p_force = forwardPush * 24;
 			if (ENTITY::IS_ENTITY_IN_WATER(playerPed) && !PED::IS_PED_SWIMMING_UNDER_WATER(playerPed)) p_force = forwardPush * 124;
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, 0, 0, p_force, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, 0, 0, p_force);
 			curLocation = ENTITY::GET_ENTITY_COORDS(target, 0);
 			curHeading = ENTITY::GET_ENTITY_HEADING(target);
 		}
@@ -465,7 +470,8 @@ void airbrake(bool inVehicle)
 			if (travelSpeed == 2) p_force = forwardPush * 24;
 			if (ENTITY::IS_ENTITY_IN_WATER(playerPed) && !PED::IS_PED_SWIMMING_UNDER_WATER(playerPed)) p_force = forwardPush * 124;
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, 0, 0, -p_force, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, 0, 0, -p_force);
 			curLocation = ENTITY::GET_ENTITY_COORDS(target, 0);
 			curHeading = ENTITY::GET_ENTITY_HEADING(target);
 		}
@@ -480,7 +486,7 @@ void airbrake(bool inVehicle)
 		float v_y = (cos(rad) * p_force * 10);
 		float v_z = p_force * (CamRot.x * 0.2);
 		
-		ENTITY::SET_ENTITY_COLLISION(target, 0, 1);
+		// 碰撞已在函数开头禁用，无需重复设置
 		ENTITY::SET_ENTITY_ROTATION(target, CamRot.x, CamRot.y, CamRot.z, 1, true);
 
 		if (!moveForwardKey && !moveBackKey && !rotateLeftKey && !rotateRightKey && !moveUpKey && !moveDownKey) ENTITY::FREEZE_ENTITY_POSITION(target, true);
@@ -492,13 +498,15 @@ void airbrake(bool inVehicle)
 
 		if (moveForwardKey && !(rotateLeftKey) && !(rotateRightKey)) {
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, v_x, v_y, v_z, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, v_x, v_y, v_z);
 			curLocation = CAM::GET_GAMEPLAY_CAM_COORD();
 			curHeading = CAM::GET_GAMEPLAY_CAM_RELATIVE_HEADING();
 		}
 		if (moveBackKey && !(rotateLeftKey) && !(rotateRightKey)) {
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, -v_x, -v_y, -v_z, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, -v_x, -v_y, -v_z);
 			curLocation = CAM::GET_GAMEPLAY_CAM_COORD();
 			curHeading = CAM::GET_GAMEPLAY_CAM_RELATIVE_HEADING();
 		}
@@ -518,7 +526,8 @@ void airbrake(bool inVehicle)
 			if (travelSpeed == 2) p_force = forwardPush * 24;
 			if (ENTITY::IS_ENTITY_IN_WATER(playerPed) && !PED::IS_PED_SWIMMING_UNDER_WATER(playerPed)) p_force = forwardPush * 124;
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, 0, 0, p_force, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, 0, 0, p_force);
 			curLocation = CAM::GET_GAMEPLAY_CAM_COORD();
 			curHeading = CAM::GET_GAMEPLAY_CAM_RELATIVE_HEADING();
 		}
@@ -528,7 +537,8 @@ void airbrake(bool inVehicle)
 			if (travelSpeed == 2) p_force = forwardPush * 24;
 			if (ENTITY::IS_ENTITY_IN_WATER(playerPed) && !PED::IS_PED_SWIMMING_UNDER_WATER(playerPed)) p_force = forwardPush * 124;
 			ENTITY::FREEZE_ENTITY_POSITION(target, false);
-			ENTITY::APPLY_FORCE_TO_ENTITY(target, 1, 0, 0, -p_force, 0, 0, 0, true, false, true, true, true, true);
+			// ===================== 优化：使用 SET_ENTITY_VELOCITY 替代 APPLY_FORCE =====================
+			ENTITY::SET_ENTITY_VELOCITY(target, 0, 0, -p_force);
 			curLocation = CAM::GET_GAMEPLAY_CAM_COORD();
 			curHeading = CAM::GET_GAMEPLAY_CAM_RELATIVE_HEADING();
 		}
