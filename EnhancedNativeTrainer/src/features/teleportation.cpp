@@ -21,6 +21,9 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "script.h"
 #include <iostream>   // std::cout
 #include <string>     // std::string, std::stof
+#include <sstream>    // std::ostringstream
+#include <iomanip>    // std::fixed, std::setprecision
+#include <cmath>    // std::fabs
 
 bool featureEnableMpMaps = false;
 bool feature3dmarker = false;
@@ -734,7 +737,7 @@ const std::vector<tele_location> LOCATIONS_STUNTS = {
 	{ "特技跳跃 36", 96.4723f, -2190.96f, 6.000154f },
 	{ "特技跳跃 37", 1.19046f, -1039.322f, 38.152f },
 	{ "特技跳跃 38", 392.563f, -1664.45f, 48.3087f },
-	{ "特技跳跃 39", 1488.1f, -2210.3f, 77.6151f, },
+	{ "特技跳跃 39", 1488.1f, -2210.3f, 77.6151f },
 	{ "特技跳跃 40", 442.29f, -1369.53f, 43.5537f },
 	{ "特技跳跃 41", 381.501f, -1155.12f, 29.2918f },
 	{ "特技跳跃 42", 42.701f, -778.82f, 44.1609f },
@@ -841,6 +844,236 @@ void teleport_to_coords(Vector3 coords){
 	WAIT(0);
 	set_status_text("传送完成！");
 }
+
+////////////////////////////////////////////////// ↓↓↓【向前传送】↓↓↓ //////////////////////////////////////////////////
+
+// 室内地面高度检测函数（快速、小范围，优先实现穿墙效果）
+bool load_ground_for_interior(Vector3& location, float currentZ){
+	const int max_attempts = 25;  // 室内专用：减少尝试次数
+	float ground_z = location.z;
+	int current_attempts = 0;
+	bool found_ground = false;
+	
+	// 室内检测策略：优先检测同一高度和向下，避免传送到上层
+	// 这样可以实现穿墙/穿门效果，而不是每次都上楼
+	float check_heights[] = {
+		currentZ,           // 当前高度（同一楼层）- 最高优先级
+		currentZ - 0.5f,    // 向下0.5米（小台阶）
+		currentZ - 1.0f,    // 向下1米（台阶）
+		currentZ - 1.5f,    // 向下1.5米
+		currentZ - 2.0f,    // 向下2米（小楼梯）
+		currentZ - 2.5f,    // 向下2.5米
+		currentZ - 3.0f,    // 向下3米（中等楼梯）
+		currentZ + 0.5f,    // 向上0.5米（小台阶）- 低优先级
+		currentZ + 1.0f,    // 向上1米（仅小台阶）
+	};
+	
+	// 快速检测常见高度（室内环境）
+	for (float checkZ : check_heights) {
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, checkZ);
+		
+		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, checkZ + 2.0f, &ground_z)) {
+			// 更严格的高度差检查：避免检测到上层楼梯
+			float height_diff = ground_z - currentZ;
+			
+			// 优先接受向下的地面或同一高度
+			if (height_diff <= 0.0f && height_diff >= -3.5f) {
+				// 向下的地面（包括同一高度），范围3.5米以内 - 优先使用
+				location.z = ground_z;
+				return true;
+			}
+			else if (height_diff > 0.0f && height_diff <= 0.8f) {
+				// 向上的地面，但只接受0.8米以内的极小台阶（避免上楼）
+				location.z = ground_z;
+				return true;
+			}
+		}
+		
+		++current_attempts;
+		if (current_attempts >= max_attempts) break;
+		WAIT(0);
+	}
+	
+	// 如果没找到合理的地面，返回失败（保持当前高度，实现穿墙/穿门效果）
+	return false;
+}
+
+// 向前传送专用的快速地面检测（最多80次循环，智能水面/地面判断）
+bool load_ground_for_forward_teleport(Vector3& location, float currentZ){
+	const float max_ground_check = 1000.f;
+	const int max_attempts = 80;  // 向前传送专用：只尝试80次
+	float ground_z = location.z;
+	int current_attempts = 0;
+	bool found_ground = false;
+	float water_height = 0.0f;
+	bool found_water = false;
+
+	// 先同时检测水面和地面
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+	
+	// 智能判断：避免传送到山底下的水里
+	if (found_water && found_ground) {
+		// 同时找到水面和地面
+		// 如果地面高于水面（山体），且地面高度接近当前高度，优先使用地面
+		if (ground_z > water_height) {
+			// 地面在水面上方（山、陆地）
+			float ground_height_diff = std::fabs(ground_z - currentZ);
+			float water_height_diff = std::fabs(water_height - currentZ);
+			
+			// 如果地面更接近当前高度，或者水面明显低于当前位置（山底下的水），使用地面
+			if (ground_height_diff < water_height_diff + 5.0f || water_height < currentZ - 10.0f) {
+				location.z = ground_z;
+				return true;
+			}
+		}
+		// 否则使用水面（正常水面传送）
+		location.z = water_height;
+		return true;
+	}
+	else if (found_water) {
+		// 只找到水面，检查是否是山底下的水（水面比当前位置低很多）
+		if (water_height < currentZ - 10.0f) {
+			// 水面太低，可能是山底下的水，继续检测地面
+			// 不立即返回，继续下面的循环
+		}
+		else {
+			// 正常水面，使用水面高度
+			location.z = water_height;
+			return true;
+		}
+	}
+	else if (found_ground) {
+		// 只找到地面，直接使用
+		location.z = ground_z;
+		return true;
+	}
+
+	// 如果初次检测失败或水面太低，尝试循环检测地面（最多80次）
+	do {
+		// 尝试获取地面高度并请求碰撞数据
+		found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+		
+		if (found_ground) {
+			location.z = ground_z;
+			return true;
+		}
+		
+		// 每 5 次尝试检测一次水面（但要避免山底下的水）
+		if (current_attempts % 5 == 0){
+			found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+			if (found_water && water_height >= currentZ - 10.0f){
+				// 水面高度合理，使用水面
+				location.z = water_height;
+				return true;
+			}
+			// 使用智能步进：根据当前高度动态调整提升幅度
+			float height_step = get_dynamic_height_step(location.z);
+			location.z += height_step;
+		}
+
+		++current_attempts;
+		WAIT(0);
+	} while (!found_ground && current_attempts < max_attempts);
+
+	// 循环结束后再次检测水面（但要检查高度是否合理）
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	if (found_water && water_height >= currentZ - 10.0f){
+		location.z = water_height;
+		return true;
+	}
+	
+	// 既没有找到合理的水面也没有地面，返回失败
+	return false;
+}
+
+// 向前传送功能（智能水面/地面判断，室内1米，室外3米，支持从门外传送到门内）
+void teleport_forward(){
+	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放）
+	if (is_in_airbrake_mode()) {
+		set_status_text("~r~自由移动模式, 无法向前传送!\n~y~请先关闭自由移动模式。");
+		return;
+	}
+	if (freeCamActive) {
+		set_status_text("~r~自由相机模式, 无法向前传送!\n~y~请先关闭自由相机模式。");
+		return;
+	}
+	if (is_in_prop_placement_mode()) {
+		set_status_text("~r~物体摆放模式, 无法向前传送!\n~y~请先退出物体摆放模式。");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 currentPos = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+	
+	// 检查玩家当前是否在室内
+	int currentInterior = INTERIOR::GET_INTERIOR_FROM_ENTITY(playerPed);
+	bool isInInterior = (currentInterior != 0);
+	
+	// 根据室内/室外环境自动调整传送距离
+	float actualDistance = isInInterior ? 1.0f : 3.0f;  // 室内1米，室外3米
+	
+	// 获取玩家当前朝向前方的偏移坐标
+	Vector3 forwardCoords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(playerPed, 0.0f, actualDistance, 0.0f);
+	
+	// 🔧 新增：检查前方目标位置是否在室内（用于从门外传送到门内）
+	int targetInterior = INTERIOR::GET_INTERIOR_AT_COORDS(forwardCoords.x, forwardCoords.y, forwardCoords.z);
+	bool targetIsInInterior = (targetInterior != 0);
+	
+	// 智能判断：如果当前在户外，但前方目标在室内，则使用室内传送逻辑
+	bool useInteriorLogic = isInInterior || (!isInInterior && targetIsInInterior);
+	
+	if (useInteriorLogic) {
+		// 在室内 或 从户外传送到室内：使用室内专用地面检测（快速、小范围、适应楼梯）
+		bool found_interior_ground = load_ground_for_interior(forwardCoords, currentPos.z);
+		
+		if (!found_interior_ground) {
+			// 如果找不到合理的室内地面
+			if (!isInInterior && targetIsInInterior) {
+				// 🔒 安全检查：从户外传送到室内时，如果找不到地面，说明可能是空的室内
+				// 为了防止无限掉落，使用户外逻辑作为后备方案
+				bool found_ground_or_water = load_ground_for_forward_teleport(forwardCoords, currentPos.z);
+				if (!found_ground_or_water) {
+					// 如果户外逻辑也找不到地面，保持当前高度（但会有掉落风险）
+					forwardCoords.z = currentPos.z;
+					set_status_text("~y~警告: 前方室内可能没有地板！");
+				}
+			}
+			else {
+				// 在室内穿墙/穿门：保持当前高度（实现穿墙效果）
+				forwardCoords.z = currentPos.z;
+			}
+		}
+	}
+	else {
+		// 在户外 且 前方也是户外：使用户外地面检测函数（最多80次循环）
+		// 智能判断水面/地面，避免传送到山底下的水里
+		bool found_ground_or_water = load_ground_for_forward_teleport(forwardCoords, currentPos.z);
+		
+		if (!found_ground_or_water){
+			// 如果找不到地面/水面，使用当前高度
+			forwardCoords.z = currentPos.z;
+		}
+	}
+	
+	// 传送到前方坐标（使用 SET_PED_COORDS_KEEP_VEHICLE 自动处理载具）
+	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, forwardCoords.x, forwardCoords.y, forwardCoords.z);
+	WAIT(0);
+	
+	// 显示传送信息（根据室内/室外显示不同距离和模式）
+	std::ostringstream ss;
+	ss << "向前传送 " << std::fixed << std::setprecision(1) << actualDistance << " 米！";
+	if (isInInterior) {
+		ss << " (室内模式)";
+	}
+	else if (targetIsInInterior) {
+		ss << " (进入室内)";
+	}
+	set_status_text(ss.str());
+}
+
+////////////////////////////////////////////////// ↑↑↑【向前传送】↑↑↑ //////////////////////////////////////////////////
 
 void teleport_to_marker(){
 	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放）
@@ -1304,7 +1537,12 @@ void getTelChauffeurIndex(){
 
 bool onconfirm_teleport_category(MenuItem<int> choice){
 	
-	if (choice.value == -1){
+	if (choice.value == -8){
+		// 向前传送功能（触发式，室内1米/户外3米自动切换）
+		teleport_forward();
+		return false;
+	}
+	else if (choice.value == -1){
 		teleport_to_marker();
 		return false;
 	}
@@ -1484,6 +1722,12 @@ bool process_teleport_menu(int categoryIndex){
 		std::vector<MenuItem<int>*> menuItems;
 		
 		int i = 0;
+
+		MenuItem<int> *forwardItem = new MenuItem<int>();
+		forwardItem->caption = "向前传送 (穿墙)";
+		forwardItem->value = -8;
+		forwardItem->isLeaf = true;
+		menuItems.push_back(forwardItem);
 
 		MenuItem<int> *markerItem = new MenuItem<int>();
 		markerItem->caption = "传送到导航点";

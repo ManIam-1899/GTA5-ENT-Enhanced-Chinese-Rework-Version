@@ -99,6 +99,7 @@ static const int HKEY_WANTEDLEVEL_FROZEN_TOGGLE = 163;
 static const int HKEY_HUD_TOGGLE = 164;
 static const int HKEY_TRAFFIC_TOGGLE = 165;
 static const int HKEY_VEHICLE_FREEZE_TOGGLE = 166;
+static const int HKEY_TELEPORT_FORWARD = 167;
 
 const std::vector<HOTKEY_DEF> HOTKEY_AVAILABLE_FUNCS{
 	{ "无功能", 0 },
@@ -109,6 +110,7 @@ const std::vector<HOTKEY_DEF> HOTKEY_AVAILABLE_FUNCS{
 	{ "重复之前的动作", HKEY_REPLAY_ANIM },
 	{ "传送到导航点", HKEY_TELEPORT_TO_MARKER },
 	{ "传送到任务点", HKEY_TELEPORT_TO_MISSION_MARKER },
+	{ "向前传送", HKEY_TELEPORT_FORWARD },
 	{ "冻结/解冻 载具", HKEY_VEHICLE_FREEZE_TOGGLE },
 	{ "以乘客传送到附近车辆", HKEY_TELEPORT_TO_VEHICLE_AS_PASSENGER },
 	{ "传送到最后驾驶的车辆", HKEY_TELEPORT_TO_VEHICLE },

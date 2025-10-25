@@ -34,6 +34,8 @@ void teleport_to_vehicle_as_passenger();
 
 void teleport_to_last_vehicle();
 
+void teleport_forward();
+
 void handle_generic_settings_teleportation(std::vector<StringPairSettingDBRow>* settings);
 
 void add_coords_generic_settings(std::vector<StringPairSettingDBRow>* results);
