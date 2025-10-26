@@ -62,6 +62,10 @@ int last_player_slot_seen = 0;
 int game_frame_num = 0;
 
 int jumpfly_secs_passed, jumpfly_secs_curr, jumpfly_tick = 0;
+DWORD jumpfly_start_time = 0;		// 空格键开始按下的时间戳（毫秒）
+bool jumpfly_activated = false;		// 是否已激活空中飞行（防止刚启动就结束）
+DWORD jumpfly_roll_start_time = 0;	// 翻滚动作开始时间（毫秒）- 用于兜底强制结束
+DWORD jumpfly_activate_time = 0;	// 飞行激活时间（毫秒）- 用于起飞保护期
 
 int fuelLevelOffset = -1;
 int fuelTankOffset = -1;
@@ -362,8 +366,17 @@ void onchange_player_walkspeed_mode(int value, SelectFromListMenuItem* source) {
 }
 
 void onchange_player_jumpfly_mode(int value, SelectFromListMenuItem* source) {
+	// 中文注释：当从“正常”(索引0)切换到任意倍数(>0)时，显示一次按键提示
+	// 仅在切换发生瞬间触发，避免每帧或重复提示
+	int prev_value = current_player_jumpfly;
 	current_player_jumpfly = value;
 	current_player_jumpfly_Changed = true;
+	if (prev_value == 0 && value > 0) {
+		// 中文提示：长按空格启动/增高，WSAD 控方向，Ctrl 结束飞行
+		set_status_text("长按 ~q~空格 ~s~开启飞行模式！");
+		set_status_text("按 ~q~WSAD ~s~可以控制方向！");
+		set_status_text("按 ~q~Ctrl ~s~立即结束飞行！");
+	}
 }
 
 void onchange_player_superjump_mode(int value, SelectFromListMenuItem* source) {
@@ -1267,21 +1280,34 @@ void update_features() {
 		float v_z = p_force * (CamRot.x * 0.2);
 		Vector3 curLocation = ENTITY::GET_ENTITY_COORDS(playerPed, 0);
 		if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) ENTITY::SET_ENTITY_ROTATION(PLAYER::PLAYER_PED_ID(), CamRot.x, CamRot.y, CamRot.z, 1, true);
+		
+		// 启动飞行逻辑：长按空格500毫秒
 		if (CONTROLS::IS_CONTROL_PRESSED(2, 22)) {
-			jumpfly_secs_passed = clock() / CLOCKS_PER_SEC;
-			if (((clock() / (CLOCKS_PER_SEC / 1000)) - jumpfly_secs_curr) != 0) {
-				jumpfly_tick = jumpfly_tick + 1;
-				jumpfly_secs_curr = jumpfly_secs_passed;
+			// 记录开始按下的时间
+			if (jumpfly_start_time == 0) {
+				jumpfly_start_time = GetTickCount();
 			}
-			if (jumpfly_tick > 5) {
+			
+			DWORD press_duration = GetTickCount() - jumpfly_start_time;
+			
+			// 长按超过500毫秒，启动空中飞行
+			if (press_duration >= 500) {
 				if (!ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) {
 					AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
 					AI::TASK_PLAY_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 8.0, 0.0, -1, 9, 0, 0, 0, 0); // free_idle 自由待机
+					jumpfly_activated = true;  // 标记已激活
+					jumpfly_activate_time = GetTickCount();  // 记录激活时间，用于起飞保护
 				}
 				ENTITY::APPLY_FORCE_TO_ENTITY(PLAYER::PLAYER_PED_ID(), 1, 0, 0, p_force, 0, 0, 0, true, false, true, true, true, true);
 			}
+			
 			if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) skydiving = true;
+		} else {
+			// 松开空格，重置计时器
+			jumpfly_start_time = 0;
 		}
+		
+		// 方向控制
 		if (CONTROLS::IS_CONTROL_PRESSED(2, 32) && skydiving == true) { // 仅向上移动
 			if (!ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) {
 				AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
@@ -1321,21 +1347,124 @@ void update_features() {
 			ENTITY::FREEZE_ENTITY_POSITION(PLAYER::PLAYER_PED_ID(), false);
 			jumpfly_tick = 0; 
 		}
-		if (ENTITY::HAS_ENTITY_COLLIDED_WITH_ANYTHING(PLAYER::PLAYER_PED_ID())) { 
-			AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
-			if (skydiving == true) {
-				AI::TASK_PLAY_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 8.0, 0.0, -1, 9, 0, 0, 0, 0);
-				WAIT(400);
-			}
-			skydiving = false;
+		
+		// 检查各种结束飞行的条件
+		bool should_end_flight = false;
+		bool is_ctrl_triggered = false;  // 标记是否由Ctrl触发
+		
+		// 获取当前离地高度（用于多处判断）
+		float ground_z;
+		GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(curLocation.x, curLocation.y, curLocation.z, &ground_z);
+		float height_above_ground = curLocation.z - ground_z;
+		
+		// 1. 碰撞检测（墙面或地面）
+		// 起飞保护期：激活后1.5秒内忽略碰撞，避免起飞时频繁被障碍物打断
+		DWORD time_since_activate = (jumpfly_activate_time > 0) ? (GetTickCount() - jumpfly_activate_time) : 9999;
+		bool in_takeoff_protection = (time_since_activate < 1500);  // 1.5秒保护期
+		
+		if (ENTITY::HAS_ENTITY_COLLIDED_WITH_ANYTHING(PLAYER::PLAYER_PED_ID()) && !in_takeoff_protection) {
+			should_end_flight = true;
 		}
+		
+		// 2. 贴地面1.0米时结束（但需要已经激活飞行，避免刚启动就结束）
+		// 同样需要保护期，否则地面起飞时会被立即触发
+		if (jumpfly_activated && skydiving && !in_takeoff_protection) {
+			if (height_above_ground <= 1.0f && height_above_ground >= 0.0f) {
+				should_end_flight = true;
+			}
+		}
+		
+		// 3. 按Ctrl键结束飞行（Control 36是Ctrl）
+		if (skydiving && CONTROLS::IS_CONTROL_PRESSED(2, 36)) {
+			should_end_flight = true;
+			is_ctrl_triggered = true;
+		}
+		
+		// 统一的结束飞行逻辑
+		if (should_end_flight) {
+			if (skydiving == true) {
+				// 判断是否播放翻滚动作
+				// 高空中（离地超过10米）按Ctrl结束，不播放翻滚动画，直接清除任务让物理系统接管
+				bool should_play_roll = true;
+				if (is_ctrl_triggered && height_above_ground > 10.0f) {
+					should_play_roll = false;
+				}
+				
+				if (should_play_roll) {
+					// 近地情况：停止飞行动画，减速，播放翻滚
+					AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
+					
+					// 获取当前速度
+					Vector3 current_velocity = ENTITY::GET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID());
+					
+					// 保留30%的水平速度，使停止更平滑
+					float velocity_factor = 0.3f;
+					ENTITY::SET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID(), 
+						current_velocity.x * velocity_factor, 
+						current_velocity.y * velocity_factor, 
+						current_velocity.z * velocity_factor);
+					
+					// 播放翻滚动作
+					AI::TASK_PLAY_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 8.0, 0.0, -1, 9, 0, 0, 0, 0);
+					jumpfly_roll_start_time = GetTickCount();  // 记录翻滚开始时间
+					WAIT(400);
+				} else {
+					// 高空情况：直接清除所有任务，让物理系统接管，避免站立闪烁
+					AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
+					
+					// 获取当前速度并进行衰减
+					Vector3 current_velocity = ENTITY::GET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID());
+					
+					// 保留较少的水平速度(30%)，完全清除向上速度，允许向下速度
+					float horizontal_factor = 0.3f;
+					float vertical_velocity = (current_velocity.z > 0) ? 0.0f : current_velocity.z;  // 清除向上速度，保留向下速度
+					
+					ENTITY::SET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID(), 
+						current_velocity.x * horizontal_factor, 
+						current_velocity.y * horizontal_factor, 
+						vertical_velocity);
+				}
+			} else {
+				// 非飞行状态，只停止动画
+				AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
+			}
+			
+			skydiving = false;
+			jumpfly_activated = false;  // 重置激活标志
+			jumpfly_start_time = 0;		// 重置计时器
+			jumpfly_activate_time = 0;	// 重置激活时间
+		}
+		
+		// 兜底逻辑：强制结束超时的翻滚动画（防止卡住）
+		if (jumpfly_roll_start_time > 0) {
+			DWORD roll_duration = GetTickCount() - jumpfly_roll_start_time;
+			// 翻滚动画超过3秒仍在播放，强制清除
+			if (roll_duration > 3000) {
+				AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
+				jumpfly_roll_start_time = 0;
+			}
+			// 翻滚动画已经结束，重置计时器
+			else if (!ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 3)) {
+				jumpfly_roll_start_time = 0;
+			}
+		}
+		
+		// 清理动画
 		if (skydiving == false) {
 			AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
 			AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 3); 
 		}
+		
+		// 状态同步
 		if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) skydiving = true;
 		else skydiving = false;
 		if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 3)) skydiving = false;
+	} else {
+		// 不在空中飞行模式时，重置所有状态
+		jumpfly_start_time = 0;
+		jumpfly_activated = false;
+		jumpfly_roll_start_time = 0;
+		jumpfly_activate_time = 0;
 	}
 
 	// 玩家可以被爆头
