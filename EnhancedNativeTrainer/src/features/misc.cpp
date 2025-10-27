@@ -3464,7 +3464,7 @@ float pedPreviewSpacing = MISC_PED_PREVIEW_SPACING_VALUES[PED_PREVIEW_SPACING_DE
 bool featureFreeCamEnabled = true;
 int FreeCamFollowIndex = 0; // 默认跟随（顺序：跟随0，不跟随1）
 bool FreeCamFollowChanged = false;
-int FreeCamFovIndex = 0; // 默认50
+int FreeCamFovIndex = 9; // 默认50
 bool FreeCamFovChanged = false;
 int FreeCamSpeedSlowIndex = 0; // 默认0.35
 bool FreeCamSpeedSlowChanged = false;
@@ -4801,7 +4801,7 @@ void draw_freecam_crosshair() {
 void reset_freecam_settings_to_defaults() {
 	featureFreeCamEnabled = true;
 	FreeCamFollowIndex = 0; // 跟随（顺序：跟随0，不跟随1）
-	FreeCamFovIndex = 0; // 50
+	FreeCamFovIndex = 9; // 50
 	FreeCamSpeedSlowIndex = 0; // 0.35
 	FreeCamSpeedMediumIndex = 10; // 1.0
 	FreeCamSpeedFastIndex = 14; // 3.0

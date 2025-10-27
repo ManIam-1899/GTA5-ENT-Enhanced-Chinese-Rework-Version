@@ -233,8 +233,8 @@ const std::vector<std::string> MISC_FREECAM_INFO_DISPLAY_CAPTIONS{ "底部显示
 const int MISC_FREECAM_INFO_DISPLAY_VALUES[] = { 0, 1, 2 }; // 底部=0, 顶部=1, 不显示=2
 
 // 相机视野距离（FOV - 控制远近镜头，值越小越远，越大越近）
-const std::vector<std::string> MISC_FREECAM_FOV_CAPTIONS{ "默认 (50)", "55", "60", "65", "70", "75", "80", "85", "90", "95", "100", "105", "110", "115", "120", "125", "130" };
-const float MISC_FREECAM_FOV_VALUES[] = { 50.0f, 55.0f, 60.0f, 65.0f, 70.0f, 75.0f, 80.0f, 85.0f, 90.0f, 95.0f, 100.0f, 105.0f, 110.0f, 115.0f, 120.0f, 125.0f, 130.0f };
+const std::vector<std::string> MISC_FREECAM_FOV_CAPTIONS{ "5", "10", "15", "20", "25", "30", "35", "40", "45", "默认 (50)", "55", "60", "65", "70", "75", "80", "85", "90", "95", "100", "105", "110", "115", "120", "125", "130" };
+const float MISC_FREECAM_FOV_VALUES[] = { 5.0f, 10.0f, 15.0f, 20.0f, 25.0f, 30.0f, 35.0f, 40.0f, 45.0f, 50.0f, 55.0f, 60.0f, 65.0f, 70.0f, 75.0f, 80.0f, 85.0f, 90.0f, 95.0f, 100.0f, 105.0f, 110.0f, 115.0f, 120.0f, 125.0f, 130.0f };
 
 const std::vector<std::string> MISC_FREECAM_SPEED_CAPTIONS{ "默认 (0.35)", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0" };
 const float MISC_FREECAM_SPEED_VALUES[] = { 0.35f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 4.5f, 5.0f };
