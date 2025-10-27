@@ -3278,6 +3278,7 @@ void main(){
 	load_settings();
 
 	init_vehicle_feature();
+	init_ped_feature();
 
 	// 遍历车辆池并创建车辆数组
 	PopulateVehicleModelsArray();

@@ -2370,3 +2370,12 @@ MenuItemImage* ped_image_preview_finder(MenuItem<std::string> choice) {
 	write_text_to_log_file(ss.str());
 	return NULL;
 }
+
+// 初始化人物预览图功能
+void init_ped_feature() {
+	// 复制所有游戏内置人物预览图到全局数组
+	ALL_PED_IMAGES.insert(ALL_PED_IMAGES.end(), INGAME_PED_IMAGES.begin(), INGAME_PED_IMAGES.end());
+	
+	// 加载外部XML文件中的自定义人物预览图（如果有）
+	ensure_custom_ped_previews_loaded();
+}
