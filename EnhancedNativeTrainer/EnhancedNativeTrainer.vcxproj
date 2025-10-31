@@ -30,6 +30,7 @@
     <ClCompile Include="src\features\neonlightsmenu.cpp" />
     <ClCompile Include="src\features\propplacement.cpp" />
     <ClCompile Include="src\features\props.cpp" />
+    <ClCompile Include="src\features\screenshot.cpp" />
     <ClCompile Include="src\features\time.cpp" />
     <ClCompile Include="src\features\tyresmokemenu.cpp" />
     <ClCompile Include="src\features\xenonColourMenu.cpp" />
@@ -82,6 +83,7 @@
     <ClInclude Include="src\io\config_io.h" />
     <ClInclude Include="src\io\controller.h" />
     <ClInclude Include="src\features\misc.h" />
+    <ClInclude Include="src\features\screenshot.h" />
     <ClInclude Include="src\joaat.hpp" />
     <ClInclude Include="src\rage_thread\rage_thread.h" />
     <ClInclude Include="src\storage\database.h" />

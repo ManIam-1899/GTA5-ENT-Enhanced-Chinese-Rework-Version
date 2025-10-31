@@ -32,6 +32,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "vehicles.h"
 #include "weapons.h"
 #include "speed_altitude.h"
+#include "screenshot.h"
 #include "../version.h"
 #include "../utils.h"
 #include "../ui_support/file_dialog.h"
@@ -3527,20 +3528,23 @@ void ScriptTidyUp(){
 		setAirbrakeRelatedInputToBlocked(false, true);
 		write_text_to_log_file("已重置输入");
 
-		cleanup_script();
-		write_text_to_log_file("已清理脚本");
-		WAIT(0);
-		cleanup_props();
-		write_text_to_log_file("已清理道具");
-		WAIT(0);
-		cleanup_anims();
-		write_text_to_log_file("已清理动画");
+	cleanup_script();
+	write_text_to_log_file("已清理脚本");
+	WAIT(0);
+	cleanup_props();
+	write_text_to_log_file("已清理道具");
+	WAIT(0);
+	cleanup_anims();
+	write_text_to_log_file("已清理动画");
+	WAIT(0);
+	cleanup_gdi_screenshot_system();
+	write_text_to_log_file("已清理截图系统");
 
-		if(database != NULL){
-			database->close();
-			delete database;
-			write_text_to_log_file("数据库已终止");
-		}
+	if(database != NULL){
+		database->close();
+		delete database;
+		write_text_to_log_file("数据库已终止");
+	}
 
 		write_text_to_log_file("脚本整理-完成");
 		#ifdef _DEBUG

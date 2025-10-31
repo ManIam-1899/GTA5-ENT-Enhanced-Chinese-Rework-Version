@@ -15,6 +15,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "vehicles.h"
 #include "airbrake.h"
 #include "propplacement.h"
+#include "screenshot.h"
 #include <Psapi.h>
 #include "../utils.h"
 #include <iterator>
@@ -1776,6 +1777,9 @@ bool onconfirm_misc_menu(MenuItem<int> choice){
 		case 17:
 			process_misc_freecam_menu();
 			break;
+		case 18:
+			process_misc_screenshot_menu();
+			break;
 		default:
 			// 可切换功能
 			break;
@@ -1784,7 +1788,7 @@ bool onconfirm_misc_menu(MenuItem<int> choice){
 }
 
 void process_misc_menu(){
-	const int lineCount = 18; 
+	const int lineCount = 19; 
 
 	const std::string caption = "其他选项";
 
@@ -1807,6 +1811,7 @@ void process_misc_menu(){
 		{"模型名称显示", &featureShowModelName, NULL }, 
 		{"自由移动模式", NULL, NULL, false},
 		{"自由相机模式", NULL, NULL, false},
+		{"游戏全屏截图", NULL, NULL, false},
 	};
 	
 	draw_menu_from_struct_def(lines, lineCount, &activeLineIndexMisc, caption, onconfirm_misc_menu);
@@ -1846,6 +1851,8 @@ void initialize() {
 	load_hotkey_settings_from_xml();
 	// 初始化常用按键和其他按键设置（包含自由相机热键）
 	load_common_other_keys_from_xml();
+	// 初始化GDI截图系统
+	init_gdi_screenshot_system();
 }
 
 void onchange_misc_phone_bill_index(int value, SelectFromListMenuItem* source){
@@ -2052,6 +2059,9 @@ void reset_misc_globals(){
 	featureRadioFreezeUpdated =
 	featureMiscHideHudUpdated =
 	featureBoostRadio = true;
+
+	// 重置截图功能（调用screenshot.cpp中的重置函数）
+	reset_screenshot_settings();
 
 	ENTColor::reset_colors();
 }
@@ -2976,6 +2986,24 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 	// 更新自由相机功能
 	update_freecam_features(playerExists, playerPed);
 
+	// 游戏截图消息更新（需要在主循环中每帧调用）
+	update_screenshot_message();
+	
+	// 游戏截图功能
+	if (featureScreenshotEnabled) {
+		// 检测截图按键
+		int screenshotKey = MISC_SCREENSHOT_KEY_VALUES[ScreenshotKeyIndex];
+		bool shouldTakeScreenshot = false;
+		
+		// 检测所有支持的截图按键
+		if (screenshotKey != VK_NOTHING && IsKeyJustUp(KeyConfig::KEY_SCREENSHOT)) {
+			shouldTakeScreenshot = true;
+		}
+		
+		if (shouldTakeScreenshot) {
+			take_screenshot();
+		}
+	}
 }
 
 void add_misc_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* results){
@@ -3022,6 +3050,8 @@ void add_misc_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* re
 	results->push_back(FeatureEnabledLocalDefinition{"featureHidePlayerInfo", &featureHidePlayerInfo});
 	results->push_back(FeatureEnabledLocalDefinition{"featureMiscJellmanScenery", &featureMiscJellmanScenery});
 	results->push_back(FeatureEnabledLocalDefinition{"featureFreeCamEnabled", &featureFreeCamEnabled});
+	// 截图选项加载和保存
+	results->push_back(FeatureEnabledLocalDefinition{"featureScreenshotEnabled", &featureScreenshotEnabled});  // 从screenshot.cpp引用
 	//results->push_back(FeatureEnabledLocalDefinition{"featureControllerIgnoreInTrainer", &featureControllerIgnoreInTrainer});
 	//results->push_back(FeatureEnabledLocalDefinition{"featureBlockInputInMenu", &featureBlockInputInMenu});
 }
@@ -3071,6 +3101,8 @@ void add_misc_generic_settings(std::vector<StringPairSettingDBRow>* results){
 	results->push_back(StringPairSettingDBRow{"FreeCamInfoDisplayIndex", std::to_string(FreeCamInfoDisplayIndex)});
     results->push_back(StringPairSettingDBRow{"FreeCamCrosshairStyleIndex", std::to_string(FreeCamCrosshairStyleIndex)});
     results->push_back(StringPairSettingDBRow{"FreeCamCrosshairColorIndex", std::to_string(FreeCamCrosshairColorIndex)});
+	// 添加截图设置
+	results->push_back(StringPairSettingDBRow{"ScreenshotKeyIndex", std::to_string(ScreenshotKeyIndex)});  // 从screenshot.cpp引用
 }
 
 void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings){
@@ -3273,6 +3305,13 @@ void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings)
 		else if (setting.name.compare("FreeCamCrosshairColorIndex") == 0) {
 			FreeCamCrosshairColorIndex = stoi(setting.value);
 			FreeCamCrosshairColorChanged = true;
+		}
+		// 添加截图设置的加载
+		else if (setting.name.compare("ScreenshotKeyIndex") == 0) {
+			ScreenshotKeyIndex = stoi(setting.value);
+			if (ScreenshotKeyIndex < 0) ScreenshotKeyIndex = 0;
+			if (ScreenshotKeyIndex >= (int)MISC_SCREENSHOT_KEY_CAPTIONS.size()) ScreenshotKeyIndex = (int)MISC_SCREENSHOT_KEY_CAPTIONS.size() - 1;
+			ScreenshotKeyChanged = true;
 		}
 	}
 }
