@@ -783,7 +783,7 @@ float get_dynamic_height_step(float current_height){
 	else return 100.f;                                          // 极高海拔（山顶）
 }
 
-// 加载指定坐标的地面高度（优化海洋传送速度）
+// 加载指定坐标的地面高度（强制等待地形加载，避免传送到岸上时掉进水里）
 bool load_ground_at_3dcoord(Vector3& location){
 	const float max_ground_check = 1500.f;
 	const int max_attempts = 150;  // 减少最大尝试次数，提升速度
@@ -793,43 +793,114 @@ bool load_ground_at_3dcoord(Vector3& location){
 	float water_height = 0.0f;
 	bool found_water = false;
 
-	// 优先快速检测水面（海洋区域优化）
-	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
-	if (found_water){
-		location.z = water_height;
-		return true;
+	// 🔧 关键修复：先请求碰撞数据，等待地形加载后再判断（避免掉进水里）
+	STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+	
+	// 等待至少5帧让地形数据加载（小岛等地形需要时间）
+	for (int preload = 0; preload < 5; preload++) {
+		WAIT(0);
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
 	}
 
-	// 没有水面，尝试寻找地面
+	// 【高山专项预热】首次到达高海拔（600-900m）区域时，可能因远距离未完成流式加载而找不到地面。
+	// 下面在目标坐标上空（约750m）短暂设置流式聚焦，并在600-900m间分层请求碰撞，
+	// 以加速加载奇力耶德山等高山地形，避免首次传送被判定为“无地面”而传至高空。
+	// 注意：不改变其他流程，仅作为一次性预热，最高不超过900m。
+	{
+		const float mountainMinZ = 600.0f;   // 高山下限
+		const float mountainMaxZ = 900.0f;   // 高山上限（不超过900m）
+		const float focusZ       = (mountainMinZ + mountainMaxZ) * 0.5f; // 750m 中心高度
+		const float sphereRadius = 160.0f;   // 适中半径，覆盖山顶周边
+
+		// 将流式焦点置于目标点上空，提示引擎优先加载该区域的碰撞与几何
+		STREAMING::_SET_FOCUS_AREA(location.x, location.y, focusZ, 0.0f, 0.0f, 0.0f);
+		STREAMING::NEW_LOAD_SCENE_START_SPHERE(location.x, location.y, focusZ, sphereRadius, 0);
+
+		// 分层请求 600→900m 的碰撞数据，快速唤起高山带的地形
+		for (int i = 0; i < 12; ++i) {
+			float zHint = mountainMinZ + i * 25.0f; // 600, 625, ..., 875
+			if (zHint > mountainMaxZ) zHint = mountainMaxZ; // 严格上限900m
+			STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, zHint);
+			WAIT(0);
+			if (STREAMING::IS_NEW_LOAD_SCENE_LOADED()) break;
+		}
+
+		// 结束临时加载会话并清除焦点，避免对后续流式造成影响
+		if (STREAMING::IS_NEW_LOAD_SCENE_ACTIVE()) {
+			STREAMING::NEW_LOAD_SCENE_STOP();
+		}
+		STREAMING::CLEAR_FOCUS();
+	}
+
+	// 预加载完成后，开始检测地面和水面
 	do {
-		// 尝试获取地面高度并请求碰撞数据
 		found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
-		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+		found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
 		
-		// 每 10 次尝试检测一次水面（海洋数据可能延迟加载）
-		if (current_attempts % 10 == 0){
-			found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
-			if (found_water){
+		// 🎯 智能判断：同时找到地面和水面时，比较高度
+		if (found_water && found_ground) {
+			// 地面高于水面（岸上/陆地） → 使用地面
+			if (ground_z > water_height) {
+				location.z = ground_z;
+				return true;
+			}
+			// 地面低于水面（真正的水域） → 使用水面
+			else {
 				location.z = water_height;
 				return true;
 			}
-			// 使用智能步进：根据当前高度动态调整提升幅度
-			float height_step = get_dynamic_height_step(location.z);
-			location.z += height_step;
+		}
+		// 只找到地面（没有水） → 使用地面
+		else if (found_ground) {
+			location.z = ground_z;
+			return true;
+		}
+		// 只找到水面（但可能地形数据还没加载完） → 继续等待，不要立即返回
+		else if (found_water && current_attempts < 20) {
+			// 前20次尝试中，即使找到水面也继续等待地形加载（避免岸上被误判为水域）
+			STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+			
+			// 每5次尝试提升高度，帮助地形加载
+			if (current_attempts % 5 == 0) {
+				float height_step = get_dynamic_height_step(location.z);
+				location.z += height_step;
+			}
+		}
+		// 尝试超过20次仍只有水面 → 确实是水域，使用水面高度
+		else if (found_water) {
+			location.z = water_height;
+			return true;
+		}
+		// 什么都没找到 → 继续循环
+		else {
+			STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+			
+			// 每10次尝试提升高度，帮助地形加载
+			if (current_attempts % 10 == 0) {
+				float height_step = get_dynamic_height_step(location.z);
+				location.z += height_step;
+			}
 		}
 
 		++current_attempts;
 		WAIT(0);
-	} while (!found_ground && current_attempts < max_attempts);
+	} while (current_attempts < max_attempts);
 
-	// 循环结束后再次检测水面（最后一次机会）
+	// 循环结束，最后一次尝试
+	found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
 	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
-	if (found_water){
-		location.z = water_height;
+	
+	if (found_water && found_ground) {
+		// 地面高于水面 → 使用地面，否则使用水面
+		location.z = (ground_z > water_height) ? ground_z : water_height;
 		return true;
 	}
-	else if (found_ground){
+	else if (found_ground) {
 		location.z = ground_z;
+		return true;
+	}
+	else if (found_water) {
+		location.z = water_height;
 		return true;
 	}
 	
