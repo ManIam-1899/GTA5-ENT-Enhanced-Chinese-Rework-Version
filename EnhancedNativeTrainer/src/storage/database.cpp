@@ -18,7 +18,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 /**每当更改架构并发布新版本时，应增加此值。
 然而，你还必须在 ENTDatabase::handle_version 中添加代码以支持从旧版本升级，
 因为这些旧版本已经在实际环境中部署*/
-const int DATABASE_VERSION = 17;// 数据库版本号
+const int DATABASE_VERSION = 19;// 数据库版本号
 
 static int singleIntResultCallback(void *data, int count, char **rows, char **azColName)
 {
@@ -710,6 +710,43 @@ void ENTDatabase::handle_version(int oldVersion)
 		if (custTrEnginePow != SQLITE_OK)
 		{
 			write_text_to_log_file("无法添加引擎功率倍数列");
+			sqlite3_free(zErrMsg);
+		}
+	}
+
+	if (oldVersion < 18)
+	{
+		write_text_to_log_file("未找到自定义坐标位置表，正在创建它");
+
+		char* CREATE_LOCATION_TABLE_QUERY = "CREATE TABLE ENT_SAVED_LOCATIONS ( \
+			id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \
+			saveName TEXT NOT NULL, \
+			posX REAL NOT NULL, \
+			posY REAL NOT NULL, \
+			posZ REAL NOT NULL \
+			)";
+
+		int rcLoc = sqlite3_exec(db, CREATE_LOCATION_TABLE_QUERY, NULL, 0, &zErrMsg);
+		if (rcLoc != SQLITE_OK)
+		{
+			write_text_to_log_file("自定义坐标位置表，创建问题");
+			sqlite3_free(zErrMsg);
+		}
+		else
+		{
+			write_text_to_log_file("自定义坐标位置表，已创建");
+		}
+	}
+
+	// v19: 为自定义坐标表增加朝向/航向角 yaw 列
+	if (oldVersion < 19)
+	{
+		char* ADD_LOCATION_YAW_COL = "ALTER TABLE ENT_SAVED_LOCATIONS ADD yaw REAL DEFAULT 0";
+
+		int addYaw = sqlite3_exec(db, ADD_LOCATION_YAW_COL, NULL, 0, &zErrMsg);
+		if (addYaw != SQLITE_OK)
+		{
+			write_text_to_log_file("无法为坐标位置表，添加 yaw 列");
 			sqlite3_free(zErrMsg);
 		}
 	}
@@ -2197,6 +2234,181 @@ void ENTDatabase::delete_saved_veh_colour(sqlite3_int64 slot)
 
 	mutex_unlock();
 }
+
+// 保存/加载自定义坐标位置 - 数据库操作
+std::vector<SavedLocationDBRow*> ENTDatabase::get_saved_locations(int index)
+{
+	write_text_to_log_file("请求加载已保存的坐标位置");
+
+	mutex_lock();
+
+	sqlite3_stmt *stmt;
+	const char *pzTest;
+
+	std::stringstream ss;
+	ss << "select * from ENT_SAVED_LOCATIONS";
+	if (index != -1)
+	{
+		ss << " WHERE id = ?";
+	}
+	auto qStr = ss.str();
+	int rc = sqlite3_prepare_v2(db, qStr.c_str(), qStr.length(), &stmt, &pzTest);
+
+	std::vector<SavedLocationDBRow*> results;
+
+	if (rc == SQLITE_OK)
+	{
+		// 绑定值
+		if (index != -1)
+		{
+			sqlite3_bind_int(stmt, 1, index);
+		}
+
+		int r = sqlite3_step(stmt);
+		while (r == SQLITE_ROW)
+		{
+			write_text_to_log_file("找到坐标位置行");
+
+			SavedLocationDBRow *location = new SavedLocationDBRow();
+
+			int idx = 0;
+			location->rowID = sqlite3_column_int(stmt, idx++);
+			location->saveName = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, idx++)));
+			location->posX = (float)sqlite3_column_double(stmt, idx++);
+			location->posY = (float)sqlite3_column_double(stmt, idx++);
+			location->posZ = (float)sqlite3_column_double(stmt, idx++);
+			// 若存在第6列，则读取 yaw；否则默认 0
+			if (sqlite3_column_count(stmt) > idx)
+			{
+				location->yaw = (float)sqlite3_column_double(stmt, idx++);
+			}
+			else
+			{
+				location->yaw = 0.0f;
+			}
+
+			results.push_back(location);
+
+			r = sqlite3_step(stmt);
+		}
+		sqlite3_finalize(stmt);
+	}
+	else
+	{
+		write_text_to_log_file("未能获取保存的坐标位置");
+		write_text_to_log_file(sqlite3_errmsg(db));
+	}
+
+	mutex_unlock();
+
+	return results;
+}
+
+bool ENTDatabase::save_location(float x, float y, float z, std::string saveName, sqlite3_int64 slot, float yaw)
+{
+	mutex_lock();
+
+	std::stringstream ss;
+	ss << "INSERT OR REPLACE INTO ENT_SAVED_LOCATIONS (id, saveName, posX, posY, posZ, yaw) VALUES (?, ?, ?, ?, ?, ?);";
+
+	sqlite3_stmt *stmt;
+	const char *pzTest;
+	auto ssStr = ss.str();
+	int rc = sqlite3_prepare_v2(db, ssStr.c_str(), ssStr.length(), &stmt, &pzTest);
+	bool result = true;
+
+	if (rc != SQLITE_OK)
+	{
+		write_text_to_log_file("坐标位置保存失败");
+		write_text_to_log_file(sqlite3_errmsg(db));
+		result = false;
+	}
+
+	int index = 1;
+	if (slot == -1)
+	{
+		sqlite3_bind_null(stmt, index++);
+	}
+	else
+	{
+		sqlite3_bind_int64(stmt, index++, slot);
+	}
+	
+	sqlite3_bind_text(stmt, index++, saveName.c_str(), saveName.length(), 0); // 保存名称
+	sqlite3_bind_double(stmt, index++, x); // X 坐标
+	sqlite3_bind_double(stmt, index++, y); // Y 坐标
+	sqlite3_bind_double(stmt, index++, z); // Z 坐标
+	sqlite3_bind_double(stmt, index++, yaw); // 朝向/航向角
+
+	// 提交
+	sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+
+	mutex_unlock();
+
+	if (result)
+	{
+		write_text_to_log_file("坐标位置已保存");
+	}
+
+	return result;
+}
+
+void ENTDatabase::delete_saved_location(sqlite3_int64 slot)
+{
+	mutex_lock();
+
+	sqlite3_stmt *stmt;
+	const char *pzTest;
+	auto qStr = "DELETE FROM ENT_SAVED_LOCATIONS WHERE id=?";
+	int rc = sqlite3_prepare_v2(db, qStr, strlen(qStr), &stmt, &pzTest);
+
+	if (rc == SQLITE_OK)
+	{
+		// 绑定值
+		sqlite3_bind_int64(stmt, 1, slot);
+
+		// 提交
+		sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+	}
+	else
+	{
+		write_text_to_log_file("未能删除保存的坐标位置");
+		write_text_to_log_file(sqlite3_errmsg(db));
+	}
+
+	mutex_unlock();
+}
+
+void ENTDatabase::rename_saved_location(std::string name, sqlite3_int64 slot)
+{
+	mutex_lock();
+
+	sqlite3_stmt *stmt;
+	const char *pzTest;
+	auto qStr = "UPDATE ENT_SAVED_LOCATIONS SET saveName=? WHERE id=?";
+	int rc = sqlite3_prepare_v2(db, qStr, strlen(qStr), &stmt, &pzTest);
+
+	if (rc == SQLITE_OK)
+	{
+		// 绑定值
+		sqlite3_bind_text(stmt, 1, name.c_str(), name.length(), 0);
+		sqlite3_bind_int64(stmt, 2, slot);
+
+		// 提交
+		sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+	}
+	else
+	{
+		write_text_to_log_file("未能重命名保存的坐标位置");
+		write_text_to_log_file(sqlite3_errmsg(db));
+	}
+
+	mutex_unlock();
+}
+// 保存/加载自定义坐标位置 - 数据库操作结束
 
 std::vector<SavedVehColourDBRow*> ENTDatabase::get_saved_veh_colours(int index)
 {

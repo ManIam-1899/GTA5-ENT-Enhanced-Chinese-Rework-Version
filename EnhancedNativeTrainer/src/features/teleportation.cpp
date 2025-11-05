@@ -19,6 +19,8 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\ent-enums.h"
 #include "interior_props.h"
 #include "script.h"
+#include "..\storage\database.h"
+#include "..\io\io.h"
 #include <iostream>   // std::cout
 #include <string>     // std::string, std::stof
 #include <sstream>    // std::ostringstream
@@ -64,6 +66,23 @@ int lastMenuChoiceInCategories[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 int activeLineIndexChauffeur = 0;
 int activeLineIndex3dmarker = 0;
+
+// 自定义坐标保存相关变量
+bool requireRefreshOfLocationSaveSlots = false;
+bool requireRefreshOfLocationSlotMenu = false;
+int lastKnownSavedLocationCount = 0;
+
+// 自定义坐标编辑器相关变量
+Vector3 customEditCoords = { 0.0f, 0.0f, 0.0f };
+bool customCoordsInitialized = false;
+const float COORD_STEP = 0.11f;   // 坐标步进 0.11（更快调整）
+const float COORD_RANGE = 10.0f; // 坐标可调范围 ±10.0（更大范围）
+bool editCoordsMenuNeedsRefresh = false;
+
+// 自定义朝向/航向编辑相关变量
+float customEditYaw = 0.0f;
+const float ANGLE_STEP = 2.0f;   // 角度步进 2 度
+const float ANGLE_RANGE = 90.0f; // 角度可调范围 ±90 度
 
 const std::vector<tele_location> LOCATIONS_SAFE = {
 	{ "迈克尔的房屋 1 门口", -827.138f, 176.368f, 70.5999f },
@@ -1491,6 +1510,7 @@ void set_3d_marker(){
 }
 
 void getTelChauffeurIndex();
+bool process_savedlocation_menu();  // 前向声明
 
 bool onconfirm_chauffeur_menu(MenuItem<int> choice)
 {
@@ -1640,6 +1660,10 @@ bool onconfirm_teleport_category(MenuItem<int> choice){
 	else if (choice.value == -7){
 		set_3d_marker();
 		return false;
+	}
+	else if (choice.value == -9){
+		// 保存自定义坐标菜单
+		return process_savedlocation_menu();
 	}
 
 	lastChosenCategory = choice.value;
@@ -1837,9 +1861,15 @@ bool process_teleport_menu(int categoryIndex){
 		menuItems.push_back(markerItem);
 
 		markerItem = new MenuItem<int>();
-		markerItem->caption = "自定义坐标传送";
+		markerItem->caption = "传送至自定义坐标";
 		markerItem->value = -6;
 		markerItem->isLeaf = true;
+		menuItems.push_back(markerItem);
+
+		markerItem = new MenuItem<int>();
+		markerItem->caption = "保存的自定义坐标";
+		markerItem->value = -9;
+		markerItem->isLeaf = false;
 		menuItems.push_back(markerItem);
 			
 		ToggleMenuItem<int>* togItem = new ToggleMenuItem<int>();
@@ -2289,3 +2319,833 @@ void update_teleport_features(){
 	if (teleported_i == true && INTERIOR::GET_INTERIOR_AT_COORDS(ENTITY::GET_ENTITY_COORDS(playerPed, true).x, ENTITY::GET_ENTITY_COORDS(playerPed, true).y, ENTITY::GET_ENTITY_COORDS(playerPed, true).z) == 0) teleported_i = false;
 	
 } // 循环结束
+
+
+/////////////////////// 保存自定义坐标功能实现 ///////////////////////////////
+
+// 获取当前位置的本地化名称（区域名称 + 街道名称）
+std::string get_current_location_name()
+{
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 coords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+	
+	// 获取区域名称（返回的是字符串指针）
+	char* zoneName = (char*)ZONE::GET_NAME_OF_ZONE(coords.x, coords.y, coords.z);
+	std::string localizedZoneName = "";
+	
+	if (zoneName != nullptr && strlen(zoneName) > 0)
+	{
+		// 获取本地化文本
+		char* localizedName = (char*)UI::_GET_LABEL_TEXT(zoneName);
+		
+		// 如果本地化文本有效且不等于原始名称，使用本地化名称
+		if (localizedName != nullptr && strlen(localizedName) > 0 && strcmp(localizedName, zoneName) != 0)
+		{
+			localizedZoneName = std::string(localizedName);
+		}
+	}
+	
+	// 获取街道名称
+	Hash streetNameHash = 0;
+	Hash crossingRoadHash = 0;
+	PATHFIND::GET_STREET_NAME_AT_COORD(coords.x, coords.y, coords.z, &streetNameHash, &crossingRoadHash);
+	
+	std::string streetName = "";
+	if (streetNameHash != 0)
+	{
+		const char* streetNamePtr = UI::GET_STREET_NAME_FROM_HASH_KEY(streetNameHash);
+		if (streetNamePtr != nullptr && strlen(streetNamePtr) > 0)
+		{
+			streetName = std::string(streetNamePtr);
+		}
+	}
+	
+	// 组合区域名称和街道名称
+	std::string finalName = "";
+	
+	if (!localizedZoneName.empty() && !streetName.empty())
+	{
+		// 区域名称 + 街道名称
+		finalName = localizedZoneName + " - " + streetName;
+	}
+	else if (!localizedZoneName.empty())
+	{
+		// 只有区域名称
+		finalName = localizedZoneName;
+	}
+	else if (!streetName.empty())
+	{
+		// 只有街道名称
+		finalName = streetName;
+	}
+	else
+	{
+		// 都没有，使用默认名称
+		finalName = "新建位置";
+	}
+	
+	return finalName;
+}
+
+// 生成唯一的位置名称（处理重复名称）
+std::string generate_unique_location_name(std::string baseName, std::vector<SavedLocationDBRow*> existingLocations)
+{
+	// 检查基础名称是否已存在
+	bool nameExists = false;
+	int counter = 1;
+	
+	for (auto loc : existingLocations)
+	{
+		if (loc->saveName == baseName)
+		{
+			nameExists = true;
+			break;
+		}
+	}
+	
+	if (!nameExists)
+	{
+		return baseName;
+	}
+	
+	// 名称已存在，添加计数器
+	std::string uniqueName;
+	do
+	{
+		std::ostringstream ss;
+		ss << baseName << "  [ " << counter << " ]";
+		uniqueName = ss.str();
+		
+		nameExists = false;
+		for (auto loc : existingLocations)
+		{
+			if (loc->saveName == uniqueName)
+			{
+				nameExists = true;
+				break;
+			}
+		}
+		counter++;
+	} while (nameExists);
+	
+	return uniqueName;
+}
+
+// 生成坐标调整选项的辅助函数（范围±10.0，步进0.11）
+std::vector<std::string> generate_coord_captions(float centerValue)
+{
+	std::vector<std::string> captions;
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	
+	for (int i = 0; i < numOptions; i++)
+	{
+		float offset = (i - centerIndex) * COORD_STEP; // 以中心索引为基准
+		float displayValue = centerValue + offset;
+		std::ostringstream ss;
+		ss << std::fixed << std::setprecision(2) << displayValue;
+		captions.push_back(ss.str());
+	}
+	return captions;
+}
+
+// 生成角度调整选项（范围±ANGLE_RANGE，步进 ANGLE_STEP）
+std::vector<std::string> generate_angle_captions(float centerAngle)
+{
+	std::vector<std::string> captions;
+	const int numOptions = (int)((ANGLE_RANGE * 2.0f) / ANGLE_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+
+	for (int i = 0; i < numOptions; i++)
+	{
+		float offset = (i - centerIndex) * ANGLE_STEP;
+		float displayValue = centerAngle + offset;
+		std::ostringstream ss;
+		ss << std::fixed << std::setprecision(0) << displayValue;
+		captions.push_back(ss.str());
+	}
+	return captions;
+}
+
+// 全局变量，用于记录每次进入菜单时的初始坐标（作为中心值）
+static Vector3 coordEditBase = { 0.0f, 0.0f, 0.0f };
+static float yawEditBase = 0.0f;
+
+// 坐标调整回调函数
+void onchange_custom_coord_x(int value, SelectFromListMenuItem* source)
+{
+	// value 为选项索引，中心索引按范围/步进动态计算
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditCoords.x = coordEditBase.x + offset * COORD_STEP;
+}
+
+void onchange_custom_coord_y(int value, SelectFromListMenuItem* source)
+{
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditCoords.y = coordEditBase.y + offset * COORD_STEP;
+}
+
+void onchange_custom_coord_z(int value, SelectFromListMenuItem* source)
+{
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditCoords.z = coordEditBase.z + offset * COORD_STEP;
+}
+
+void onchange_custom_yaw(int value, SelectFromListMenuItem* source)
+{
+	const int numOptions = (int)((ANGLE_RANGE * 2.0f) / ANGLE_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditYaw = yawEditBase + offset * ANGLE_STEP;
+}
+
+// 菜单中断检查函数
+bool location_save_slots_menu_interrupt()
+{
+	if (requireRefreshOfLocationSaveSlots)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool location_slot_menu_interrupt()
+{
+	if (requireRefreshOfLocationSlotMenu)
+	{
+		return true;
+	}
+	return false;
+}
+
+// 保存当前坐标位置的函数
+void save_current_location()
+{
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 coords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+	
+	ENTDatabase* database = get_database();
+	std::vector<SavedLocationDBRow*> existingLocations = database->get_saved_locations();
+	
+	// 获取位置名称
+	std::string baseName = get_current_location_name();
+	std::string uniqueName = generate_unique_location_name(baseName, existingLocations);
+	
+	// 清理已有数据
+	for (auto loc : existingLocations)
+	{
+		delete loc;
+	}
+	existingLocations.clear();
+	
+	// 弹出输入框让用户确认或修改名称
+	// 为输入框添加上方提示
+	keyboard_on_screen_already = true;
+	curr_message = "为当前坐标位置，输入保存名称：";
+	std::string result = show_keyboard("输入当前坐标位置名称", (char*)uniqueName.c_str());
+	
+	if (!result.empty())
+	{
+		// 保存到数据库
+		float heading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		bool success = database->save_location(coords.x, coords.y, coords.z, result, -1, heading);
+		
+		if (success)
+		{
+			set_status_text("当前坐标位置已保存！");
+			requireRefreshOfLocationSaveSlots = true;
+		}
+		else
+		{
+			set_status_text("~r~当前坐标位置保存失败！");
+		}
+	}
+}
+
+// 删除全部已保存的坐标位置
+void delete_all_saved_locations()
+{
+	ENTDatabase* database = get_database();
+	std::vector<SavedLocationDBRow*> savedLocations = database->get_saved_locations();
+	
+	if (savedLocations.empty())
+	{
+		set_status_text("~y~没有已保存的坐标位置！");
+		return;
+	}
+	
+	// 删除所有位置
+	for (auto loc : savedLocations)
+	{
+		database->delete_saved_location(loc->rowID);
+		delete loc;
+	}
+	savedLocations.clear();
+	
+	set_status_text("已删除全部保存的坐标位置！");
+	requireRefreshOfLocationSaveSlots = true;
+}
+
+// 已保存位置的子菜单回调函数
+bool onconfirm_savedlocation_slot(MenuItem<int> choice);
+
+// 全局静态变量，用于在菜单和回调之间传递slot
+static int g_current_location_slot = -1;
+
+// 已保存位置的子菜单
+bool process_savedlocation_slot_menu(int slot)
+{
+	// 保存当前slot供回调函数使用
+	g_current_location_slot = slot;
+	
+	// 进入子菜单时，将光标重置到顶部，避免沿用删除前的旧索引
+	static int activeLineIndexSavedLocationSlot = 0;
+	activeLineIndexSavedLocationSlot = 0;
+	
+	do
+	{
+		requireRefreshOfLocationSlotMenu = false;
+		
+		ENTDatabase* database = get_database();
+		std::vector<SavedLocationDBRow*> savedLocations = database->get_saved_locations(slot);
+		
+		if (savedLocations.empty())
+		{
+			set_status_text("~r~未找到该保存的坐标位置！");
+			return false;
+		}
+		
+		SavedLocationDBRow* location = savedLocations.at(0);
+		
+		std::vector<MenuItem<int>*> menuItems;
+		
+		// 立即传送
+		MenuItem<int>* item = new MenuItem<int>();
+		item->caption = "立即传送";
+		item->value = 0;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 用当前坐标覆盖
+		item = new MenuItem<int>();
+		item->caption = "用当前坐标位置覆盖";
+		item->value = 1;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 重命名
+		item = new MenuItem<int>();
+		item->caption = "重命名";
+		item->value = 2;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 删除
+		item = new MenuItem<int>();
+		item->caption = "删除";
+		item->value = 3;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 显示坐标信息
+		std::ostringstream titleSS;
+		// 仅显示名称，坐标信息挪到菜单项中
+		titleSS << location->saveName;
+		
+		// 在第一行插入只读文本项显示坐标信息
+		{
+			MenuItem<int>* coordInfo = new MenuItem<int>();
+			std::ostringstream coordSS;
+			coordSS << std::fixed << std::setprecision(2)
+				<< "X: " << location->posX << "  |  "
+				<< "Y: " << location->posY << "  |  "
+				<< "Z: " << location->posZ;
+			// 若支持 yaw，则追加显示
+			coordSS << std::fixed << std::setprecision(0);
+			coordSS << "  |  Yaw: " << location->yaw << "°";
+			coordInfo->caption = coordSS.str();
+			coordInfo->value = -99; // 只读占位
+			coordInfo->isLeaf = true;
+			menuItems.insert(menuItems.begin(), coordInfo);
+		}
+
+		bool result = draw_generic_menu<int>(menuItems, &activeLineIndexSavedLocationSlot, titleSS.str(), 
+			onconfirm_savedlocation_slot, NULL, NULL, location_slot_menu_interrupt);
+		
+		delete location;
+		savedLocations.clear();
+		
+		// 如果选择了删除，退出菜单
+		if (result || !requireRefreshOfLocationSlotMenu)
+		{
+			return result;
+		}
+		
+	} while (requireRefreshOfLocationSlotMenu);
+	
+	return false;
+}
+
+// 已保存位置子菜单的回调函数实现
+bool onconfirm_savedlocation_slot(MenuItem<int> choice)
+{
+	// 使用全局静态变量获取当前slot
+	ENTDatabase* db = get_database();
+	std::vector<SavedLocationDBRow*> savedLocations = db->get_saved_locations(g_current_location_slot);
+	
+	if (savedLocations.empty())
+	{
+		return false;
+	}
+	
+	SavedLocationDBRow* location = savedLocations.at(0);
+	bool result = false;
+	
+	switch (choice.value)
+	{
+	case 0: // 立即传送
+	{
+		Vector3 coords;
+		coords.x = location->posX;
+		coords.y = location->posY;
+		coords.z = location->posZ;
+		teleport_to_coords(coords);
+		{
+			Ped p = PLAYER::PLAYER_PED_ID();
+			if (PED::IS_PED_IN_ANY_VEHICLE(p, false))
+			{
+				Entity veh = PED::GET_VEHICLE_PED_IS_USING(p);
+				if (ENTITY::DOES_ENTITY_EXIST(veh)) ENTITY::SET_ENTITY_HEADING(veh, location->yaw);
+			}
+			else
+			{
+				ENTITY::SET_ENTITY_HEADING(p, location->yaw);
+			}
+			// 重置相机朝向，使其与玩家朝向一致
+			WAIT(0); // 等待一帧让朝向设置生效
+			CAM::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f);
+			CAM::SET_GAMEPLAY_CAM_RELATIVE_PITCH(0.0f, 1.0f);
+		}
+		// 刷新一次菜单但保持光标位置
+		requireRefreshOfLocationSlotMenu = true;
+		result = false; // 不返回上级菜单，停留在当前选项
+		break;
+	}
+	case 1: // 用当前坐标覆盖
+	{
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		Vector3 currentCoords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+		float heading = ENTITY::GET_ENTITY_HEADING(PLAYER::PLAYER_PED_ID());
+		db->save_location(currentCoords.x, currentCoords.y, currentCoords.z, location->saveName, g_current_location_slot, heading);
+		set_status_text("当前保存的坐标位置已更新！");
+		requireRefreshOfLocationSlotMenu = true;
+		requireRefreshOfLocationSaveSlots = true;
+		result = false; // 不返回上级菜单，停留在当前选项
+		break;
+	}
+	case 2: // 重命名
+	{
+		// 为输入框添加上方提示
+		keyboard_on_screen_already = true;
+		curr_message = "为当前坐标位置，输入新名称：";
+		std::string newName = show_keyboard("输入当前坐标位置新名称", (char*)location->saveName.c_str());
+		if (!newName.empty())
+		{
+			db->rename_saved_location(newName, g_current_location_slot);
+			set_status_text("重命名成功！");
+			requireRefreshOfLocationSlotMenu = true;
+			requireRefreshOfLocationSaveSlots = true;
+		}
+		result = false; // 不返回上级菜单，停留在当前选项
+		break;
+	}
+	case 3: // 删除
+	{
+		db->delete_saved_location(g_current_location_slot);
+		set_status_text("当前坐标位置已删除！");
+		requireRefreshOfLocationSaveSlots = true;
+		result = true; // 删除后返回上级菜单
+		break;
+	}
+	}
+	
+	delete location;
+	savedLocations.clear();
+	
+	return result;
+}
+
+// 编辑自定义坐标菜单
+bool process_edit_custom_coords_menu()
+{
+	do
+	{
+		editCoordsMenuNeedsRefresh = false;
+		
+		std::vector<MenuItem<int>*> menuItems;
+		
+		// 获取当前坐标位置
+		MenuItem<int>* item = new MenuItem<int>();
+		item->caption = "获取当前坐标位置";
+		item->value = 0;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 清除当前坐标位置
+		item = new MenuItem<int>();
+		item->caption = "清除当前坐标位置";
+		item->value = 6;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// X轴调整（生成以基准坐标为中心的101个选项，范围±10.0，步进0.11）
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> xOptions = generate_coord_captions(coordEditBase.x);
+			SelectFromListMenuItem* xItem = new SelectFromListMenuItem(xOptions, onchange_custom_coord_x);
+			
+			// 根据当前坐标和基准坐标计算索引值
+			float xOffset = customEditCoords.x - coordEditBase.x;
+			const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+			const int centerIndex = numOptions / 2;
+			int xIndex = centerIndex + (int)std::round(xOffset / COORD_STEP);
+			if (xIndex < 0) xIndex = 0;
+			if (xIndex > (numOptions - 1)) xIndex = (numOptions - 1);
+			
+			xItem->caption = "横向 [X轴]";
+			xItem->value = xIndex;
+			xItem->wrap = false; // 不循环
+			menuItems.push_back(xItem);
+		}
+		else
+		{
+			std::vector<std::string> xPlaceholder{ "未获取" };
+			SelectFromListMenuItem* xItem = new SelectFromListMenuItem(xPlaceholder, NULL);
+			xItem->caption = "横向 [X轴]";
+			xItem->value = 0;
+			xItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(xItem);
+		}
+		
+		// Y轴调整
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> yOptions = generate_coord_captions(coordEditBase.y);
+			SelectFromListMenuItem* yItem = new SelectFromListMenuItem(yOptions, onchange_custom_coord_y);
+			
+			// 根据当前坐标和基准坐标计算索引值
+			float yOffset = customEditCoords.y - coordEditBase.y;
+			const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+			const int centerIndex = numOptions / 2;
+			int yIndex = centerIndex + (int)std::round(yOffset / COORD_STEP);
+			if (yIndex < 0) yIndex = 0;
+			if (yIndex > (numOptions - 1)) yIndex = (numOptions - 1);
+			
+			yItem->caption = "纵向 [Y轴]";
+			yItem->value = yIndex;
+			yItem->wrap = false;
+			menuItems.push_back(yItem);
+		}
+		else
+		{
+			std::vector<std::string> yPlaceholder{ "未获取" };
+			SelectFromListMenuItem* yItem = new SelectFromListMenuItem(yPlaceholder, NULL);
+			yItem->caption = "纵向 [Y轴]";
+			yItem->value = 0;
+			yItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(yItem);
+		}
+		
+		// Z轴调整
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> zOptions = generate_coord_captions(coordEditBase.z);
+			SelectFromListMenuItem* zItem = new SelectFromListMenuItem(zOptions, onchange_custom_coord_z);
+			
+			// 根据当前坐标和基准坐标计算索引值
+			float zOffset = customEditCoords.z - coordEditBase.z;
+			const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+			const int centerIndex = numOptions / 2;
+			int zIndex = centerIndex + (int)std::round(zOffset / COORD_STEP);
+			if (zIndex < 0) zIndex = 0;
+			if (zIndex > (numOptions - 1)) zIndex = (numOptions - 1);
+			
+			zItem->caption = "高度 [Z轴]";
+			zItem->value = zIndex;
+			zItem->wrap = false;
+			menuItems.push_back(zItem);
+		}
+		else
+		{
+			std::vector<std::string> zPlaceholder{ "未获取" };
+			SelectFromListMenuItem* zItem = new SelectFromListMenuItem(zPlaceholder, NULL);
+			zItem->caption = "高度 [Z轴]";
+			zItem->value = 0;
+			zItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(zItem);
+		}
+		
+		// 朝向/航向角（Yaw）调整
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> yawOptions = generate_angle_captions(yawEditBase);
+			SelectFromListMenuItem* yawItem = new SelectFromListMenuItem(yawOptions, onchange_custom_yaw);
+			// 根据当前朝向和基准角计算索引值
+			float yawOffset = customEditYaw - yawEditBase;
+			const int yawNumOptions = (int)((ANGLE_RANGE * 2.0f) / ANGLE_STEP) + 1;
+			const int yawCenterIndex = yawNumOptions / 2;
+			int yawIndex = yawCenterIndex + (int)std::round(yawOffset / ANGLE_STEP);
+			if (yawIndex < 0) yawIndex = 0;
+			if (yawIndex > (yawNumOptions - 1)) yawIndex = (yawNumOptions - 1);
+
+			yawItem->caption = "朝向 [Yaw]";
+			yawItem->value = yawIndex;
+			yawItem->wrap = false;
+			menuItems.push_back(yawItem);
+		}
+		else
+		{
+			std::vector<std::string> yawPlaceholder{ "未获取" };
+			SelectFromListMenuItem* yawItem = new SelectFromListMenuItem(yawPlaceholder, NULL);
+			yawItem->caption = "朝向 [Yaw]";
+			yawItem->value = 0;
+			yawItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(yawItem);
+		}
+		
+		// 立即传送
+		item = new MenuItem<int>();
+		item->caption = "立即传送";
+		item->value = 4;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 保存当前坐标位置
+		item = new MenuItem<int>();
+		item->caption = "保存当前坐标位置";
+		item->value = 5;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		int activeLineIndex = 0;
+		draw_generic_menu<int>(menuItems, &activeLineIndex, "编辑自定义坐标",
+			[](MenuItem<int> choice) -> bool
+			{
+				switch (choice.value)
+				{
+				case 0: // 获取当前坐标位置
+				{
+					Ped playerPed = PLAYER::PLAYER_PED_ID();
+					customEditCoords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+					customEditYaw = ENTITY::GET_ENTITY_HEADING(playerPed);
+					coordEditBase = customEditCoords; // 同时更新基准坐标
+					yawEditBase = customEditYaw; // 同时更新基准角
+					customCoordsInitialized = true;
+					set_status_text("已成功获取当前坐标位置！");
+					editCoordsMenuNeedsRefresh = true;
+					return false;
+				}
+				case 4: // 立即传送
+					{
+						if (!customCoordsInitialized)
+						{
+							set_status_text("~r~请先获取当前坐标位置！");
+							return false;
+						}
+						teleport_to_coords(customEditCoords);
+						// 对齐朝向（载具优先）
+						{
+							Ped p = PLAYER::PLAYER_PED_ID();
+							if (PED::IS_PED_IN_ANY_VEHICLE(p, false))
+							{
+								Entity veh = PED::GET_VEHICLE_PED_IS_USING(p);
+								if (ENTITY::DOES_ENTITY_EXIST(veh)) ENTITY::SET_ENTITY_HEADING(veh, customEditYaw);
+							}
+							else
+							{
+								ENTITY::SET_ENTITY_HEADING(p, customEditYaw);
+							}
+							// 重置相机朝向，使其与玩家朝向一致
+							WAIT(0); // 等待一帧让朝向设置生效
+							CAM::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f);
+							CAM::SET_GAMEPLAY_CAM_RELATIVE_PITCH(0.0f, 1.0f);
+						}
+						return false; // 不返回上级菜单，停留在当前选项
+					}
+					case 5: // 保存当前坐标位置
+					{
+						if (!customCoordsInitialized)
+						{
+							set_status_text("~r~请先获取当前坐标位置！");
+							return false;
+						}
+						
+						ENTDatabase* database = get_database();
+						std::vector<SavedLocationDBRow*> existingLocations = database->get_saved_locations();
+						
+						std::string baseName = get_current_location_name();
+						std::string uniqueName = generate_unique_location_name(baseName, existingLocations);
+						
+						for (auto loc : existingLocations)
+						{
+							delete loc;
+						}
+						existingLocations.clear();
+						
+						// 为输入框添加上方提示
+						keyboard_on_screen_already = true;
+						curr_message = "为当前坐标位置，输入保存名称：";
+						std::string result = show_keyboard("输入当前坐标位置名称", (char*)uniqueName.c_str());
+						
+						if (!result.empty())
+						{
+							bool success = database->save_location(customEditCoords.x, customEditCoords.y, customEditCoords.z, result, -1, customEditYaw);
+							
+							if (success)
+							{
+								set_status_text("当前坐标位置已保存！");
+								requireRefreshOfLocationSaveSlots = true;
+							}
+							else
+							{
+								set_status_text("~r~当前坐标位置保存失败！");
+							}
+						}
+						return false;
+					}
+					case 6: // 清除当前坐标位置
+					{
+						// 检查坐标是否已获取
+						if (!customCoordsInitialized)
+						{
+							set_status_text("~y~当前坐标未获取，无需清除！");
+							return false;
+						}
+						// 清除所有坐标数据
+						customEditCoords = { 0.0f, 0.0f, 0.0f };
+						customEditYaw = 0.0f;
+						coordEditBase = { 0.0f, 0.0f, 0.0f };
+						yawEditBase = 0.0f;
+						customCoordsInitialized = false;
+						set_status_text("已清除当前坐标位置！");
+						editCoordsMenuNeedsRefresh = true;
+						return false;
+					}
+				}
+				return false;
+			}, NULL, NULL, []() -> bool { return editCoordsMenuNeedsRefresh; });
+		
+	} while (editCoordsMenuNeedsRefresh);
+	
+	return false;
+}
+
+// 已保存位置列表菜单确认回调
+bool onconfirm_savedlocation_menu(MenuItem<int> choice)
+{
+	switch (choice.value)
+	{
+	case -1: // 编辑自定义坐标
+		return process_edit_custom_coords_menu();
+	case -2: // 保存当前坐标位置
+		save_current_location();
+		return false;
+	case -3: // 删除全部坐标位置
+		delete_all_saved_locations();
+		return false;
+	default:
+		return process_savedlocation_slot_menu(choice.value);
+	}
+}
+
+// 保存自定义坐标主菜单
+bool process_savedlocation_menu()
+{
+	static int activeLineIndexSavedLocation = 0;
+	
+	do
+	{
+		requireRefreshOfLocationSlotMenu = false;
+		requireRefreshOfLocationSaveSlots = false;
+		
+		ENTDatabase* database = get_database();
+		std::vector<SavedLocationDBRow*> savedLocations = database->get_saved_locations();
+		// 记录当前数量并根据数量变化情况决定是否重置菜单索引
+		size_t currentSavedCount = savedLocations.size();
+		
+		std::vector<MenuItem<int>*> menuItems;
+		
+		// 编辑自定义坐标
+		MenuItem<int>* item = new MenuItem<int>();
+		item->isLeaf = false;
+		item->value = -1;
+		item->caption = "编辑自定义坐标";
+		menuItems.push_back(item);
+		
+		// 保存当前坐标位置
+		item = new MenuItem<int>();
+		item->isLeaf = true;
+		item->value = -2;
+		item->caption = "保存当前坐标位置";
+		menuItems.push_back(item);
+		
+		// 删除全部坐标位置（始终显示，即使没有已保存的位置）
+		item = new MenuItem<int>();
+		item->isLeaf = true;
+		item->value = -3;
+		item->caption = "删除全部的坐标位置";
+		menuItems.push_back(item);
+		
+		// 已保存的位置列表
+		for (auto loc : savedLocations)
+		{
+			MenuItem<int>* locItem = new MenuItem<int>();
+			locItem->isLeaf = false;
+			locItem->value = loc->rowID;
+			
+			// 显示坐标信息
+			std::ostringstream ss;
+			ss << loc->saveName;
+			locItem->caption = ss.str();
+			
+			menuItems.push_back(locItem);
+		}
+		
+		// 如果数量减少（例如执行了"删除全部"或删除单个），将主菜单光标重置到顶部
+		if (currentSavedCount == 0 || currentSavedCount < (size_t)lastKnownSavedLocationCount)
+		{
+			activeLineIndexSavedLocation = 0;
+		}
+		else
+		{
+			// 防御性收敛，避免索引越界
+			int maxIndex = (int)menuItems.size() - 1;
+			if (maxIndex < 0) maxIndex = 0;
+			if (activeLineIndexSavedLocation > maxIndex) activeLineIndexSavedLocation = maxIndex;
+			if (activeLineIndexSavedLocation < 0) activeLineIndexSavedLocation = 0;
+		}
+		
+		draw_generic_menu<int>(menuItems, &activeLineIndexSavedLocation, "保存的自定义坐标", onconfirm_savedlocation_menu, NULL, NULL, location_save_slots_menu_interrupt);
+		
+		// 清理
+		for (auto loc : savedLocations)
+		{
+			delete loc;
+		}
+		savedLocations.clear();
+		
+		// 更新上次已知数量
+		lastKnownSavedLocationCount = (int)currentSavedCount;
+		
+	} while (requireRefreshOfLocationSaveSlots);
+	
+	return false;
+}
+
+/////////////////////// 保存自定义坐标功能实现结束 ///////////////////////////////

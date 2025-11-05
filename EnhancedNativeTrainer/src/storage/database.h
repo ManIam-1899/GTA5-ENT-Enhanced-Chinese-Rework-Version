@@ -393,6 +393,28 @@ public:
 };
 // 保存/加载车辆颜色结束
 
+// 保存/加载自定义坐标位置
+class SavedLocationDBRow
+{
+public:
+
+	int rowID;
+	std::string saveName;
+	float posX;
+	float posY;
+	float posZ;
+	float yaw; // 朝向/航向角（度）
+
+	inline ~SavedLocationDBRow()
+	{
+	}
+
+	inline SavedLocationDBRow()
+	{
+	}
+};
+// 保存/加载自定义坐标位置结束
+
 class SavedSkinDBRow
 {
 public:
@@ -471,34 +493,42 @@ public:
 	std::vector<SavedBodSkinDBRow*> get_saved_bod_skins(int index = -1);
 
 	std::vector<SavedVehColourDBRow*> get_saved_veh_colours(int index = -1);
+
+	std::vector<SavedLocationDBRow*> get_saved_locations(int index = -1);
 	
-	void ENTDatabase::delete_saved_bod_skin(sqlite3_int64 slot);
+	void delete_saved_bod_skin(sqlite3_int64 slot);
 
-	void ENTDatabase::delete_saved_veh_colour(sqlite3_int64 slot);
+	void delete_saved_veh_colour(sqlite3_int64 slot);
 
-	void ENTDatabase::rename_saved_bod_skin(std::string name, sqlite3_int64 slot);
+	void delete_saved_location(sqlite3_int64 slot);
 
-	void ENTDatabase::rename_saved_veh_colour(std::string name, sqlite3_int64 slot);
+	void rename_saved_bod_skin(std::string name, sqlite3_int64 slot);
 
-	bool ENTDatabase::save_bod_skin(Ped ped, std::string saveName, sqlite3_int64 slot);
+	void rename_saved_veh_colour(std::string name, sqlite3_int64 slot);
 
-	bool ENTDatabase::save_veh_colour(Ped ped, std::string saveName, sqlite3_int64 slot);
+	void rename_saved_location(std::string name, sqlite3_int64 slot);
+
+	bool save_bod_skin(Ped ped, std::string saveName, sqlite3_int64 slot);
+
+	bool save_veh_colour(Ped ped, std::string saveName, sqlite3_int64 slot);
+
+	bool save_location(float x, float y, float z, std::string saveName, sqlite3_int64 slot = -1, float yaw = 0.0f);
 		
-	void ENTDatabase::delete_saved_bod_skin_children(sqlite3_int64 slot);
+	void delete_saved_bod_skin_children(sqlite3_int64 slot);
 
-	void ENTDatabase::save_bod_skin_components(Ped ped, sqlite3_int64 rowID);
+	void save_bod_skin_components(Ped ped, sqlite3_int64 rowID);
 
-	void ENTDatabase::save_bod_skin_props(Ped ped, sqlite3_int64 rowID);
+	void save_bod_skin_props(Ped ped, sqlite3_int64 rowID);
 
-	void ENTDatabase::populate_saved_bod_skin(SavedBodSkinDBRow *entry);
-	
-	bool ENTDatabase::save_weapon(Ped ped, std::string saveName, sqlite3_int64 slot);
+	void populate_saved_bod_skin(SavedBodSkinDBRow *entry);
 
-	void ENTDatabase::delete_saved_weapon(sqlite3_int64 slot);
+	bool save_weapon(Ped ped, std::string saveName, sqlite3_int64 slot);
 
-	void ENTDatabase::rename_saved_weapon(std::string name, sqlite3_int64 slot);
-	
-	std::vector<SavedWeaponDBRow*> ENTDatabase::get_saved_weapon(int index = -1);
+	void delete_saved_weapon(sqlite3_int64 slot);
+
+	void rename_saved_weapon(std::string name, sqlite3_int64 slot);
+
+	std::vector<SavedWeaponDBRow*> get_saved_weapon(int index = -1);
 
 	std::vector<SavedSkinDBRow*> get_saved_skins(int index = -1);
 
