@@ -930,7 +930,8 @@ bool load_ground_at_3dcoord(Vector3& location){
 // 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE 自动处理载具（参考 YimMenu）
 void teleport_to_coords(Vector3 coords){
 	Ped playerPed = PLAYER::PLAYER_PED_ID();
-	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.5f);
+	// 通用传送执行器：为避免人物或载具嵌入地面，Z 坐标统一上抬 +0.25 米作为安全高度偏移
+	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.25f);
 	WAIT(0);
 	set_status_text("传送完成！");
 }
@@ -1148,7 +1149,8 @@ void teleport_forward(){
 	}
 	
 	// 传送到前方坐标（使用 SET_PED_COORDS_KEEP_VEHICLE 自动处理载具）
-	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, forwardCoords.x, forwardCoords.y, forwardCoords.z);
+	//向前传送，Z 坐标高度补偿，0 米（不加偏移）
+	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, forwardCoords.x, forwardCoords.y, forwardCoords.z + 0.0f);
 	WAIT(0);
 	
 	// 显示传送信息（根据室内/室外显示不同距离和模式）
@@ -1196,15 +1198,16 @@ void teleport_to_marker(){
 		WEAPON::GIVE_DELAYED_WEAPON_TO_PED(PLAYER::PLAYER_PED_ID(), 0xFBAB5776, 1, 0);
 		WAIT(0); // 给引擎一帧时间处理武器发放（可选）
 
-		// 执行传送并给出明确提示（统一使用 +0.5f 偏移以保持一致）
+		// 执行传送并给出明确提示
 		Ped playerPed = PLAYER::PLAYER_PED_ID();
-		PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.5f);
+		//传送到导航点：找不到地/水面时的应急路径：先把 Z 设为 1000 米，再高度补偿:  +0 米
+		PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.0f);
 		WAIT(0);
 		set_status_text("~y~未找到地面或水面！\n~y~已传送至目标上空1千米！");
 		return;
 	}
 
-	// 找到地面/水面，正常传送（teleport_to_coords 内会做 coords.z + 0.5f/1.0f 的统一偏移）
+	// 传送到导航点：找到地面/水面，正常传送（高度补偿，走通用执行器 +0.25f）
 	teleport_to_coords(coords);
 }
 
@@ -1234,7 +1237,8 @@ void teleport_to_mission_marker(){
 			if (blip_been_already == false) {
 				coords_mission = UI::GET_BLIP_INFO_ID_COORD(myBlip);
 				blip_mission = true;
-				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 2, 0, 0, 1);
+				//传送到任务点：高度补偿：+1.0f，避免嵌入地面/碰撞体（使用 NO_OFFSET 不修正碰撞）。
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 1, 0, 0, 1);
 			}
 			break;
 		}
@@ -1244,7 +1248,8 @@ void teleport_to_mission_marker(){
 		if (UI::DOES_BLIP_EXIST(myBlip) != 0) {
 			coords_mission = UI::GET_BLIP_INFO_ID_COORD(myBlip);
 			blip_mission = true;
-			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 2, 0, 0, 1);
+			//传送到任务点：高度补偿：+1.0f，避免嵌入地面/碰撞体（使用 NO_OFFSET 不修正碰撞）。
+			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 1, 0, 0, 1);
 		}
 	}
 }
@@ -1407,7 +1412,8 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 				float z = std::stof(tmp_str_z, &sz);
 
 				// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
-				PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, x, y, z + 0.5f);
+				// 手动输入自定义坐标，不需要高度偏移补偿， +0.0f（即不偏移）
+				PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, x, y, z + 0.0f);
 			}
 
 			if (lastJumpSpawn == "random" || lastJumpSpawn == "Random" || lastJumpSpawn == "RANDOM" || lastJumpSpawn == "随机" || lastJumpSpawn == "SJ" || lastJumpSpawn == "sj")
@@ -1452,9 +1458,10 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 					// 显示传送到的位置名称
 					std::string status_msg = "随机传送到: " + random_location->text;
 					
-					// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
-					PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, random_coords.x, random_coords.y, random_coords.z + 0.5f);
-					
+					// 随机位置传送：预设坐标以玩家为中心采样，存在约 1 米误差
+					// 先对 Z 坐标做 -1.0f 校正，再走通用执行器（内部 +0.25f 安全偏移）
+					random_coords.z -= 1.0f;
+					teleport_to_coords(random_coords);
 					WAIT(0);
 					set_status_text(status_msg);
 					return false;
@@ -1805,6 +1812,9 @@ bool onconfirm_teleport_location(MenuItem<int> choice){
 		}
 	}
 	
+	// 预设分类地点传送：预设坐标以玩家为中心采样，存在约 1 米误差
+	// 先对 Z 坐标做 -1.0f 校正，再走通用执行器（内部 +0.25f 安全偏移）
+	coords.z -= 1.0f;
 	teleport_to_coords(coords);
 
 	teleported_i = true;
@@ -2057,7 +2067,9 @@ void update_teleport_features(){
 		if (me_rot > 292 && me_rot < 337) direction = "东北";
 
 		std::string CurrCoordsLines[1];
-		ss << std::fixed << std::setprecision(0) << "横轴: " << coords.x << "   纵轴: " << coords.y << "   高度: " << coords.z << "   方向: " << direction << "   角度: " << me_rot;
+		// 坐标保留两位小数；角度不显示小数
+		ss << std::fixed << std::setprecision(2) << "横轴: " << coords.x << "   纵轴: " << coords.y << "   高度: " << coords.z << "   方向: " << direction;
+		ss << "   角度: " << std::setprecision(0) << me_rot << "°";
 		int index = 0;
 		CurrCoordsLines[index++] = ss.str();
 		int numActualLines = 0;
@@ -2715,7 +2727,9 @@ bool onconfirm_savedlocation_slot(MenuItem<int> choice)
 		coords.x = location->posX;
 		coords.y = location->posY;
 		coords.z = location->posZ;
-		teleport_to_coords(coords);
+		// 为“已保存位置 -> 立即传送”单独增加 Z 轴高度补偿，避免悬空约 1 米
+		coords.z -= 1.0f;
+		teleport_to_coords(coords);//已保存位置“立即传送”，读取数据库中的位置，调用通用执行器（+0.25f），并对齐朝向。
 		{
 			Ped p = PLAYER::PLAYER_PED_ID();
 			if (PED::IS_PED_IN_ANY_VEHICLE(p, false))
@@ -2958,7 +2972,12 @@ bool process_edit_custom_coords_menu()
 							set_status_text("~r~请先获取当前坐标位置！");
 							return false;
 						}
-						teleport_to_coords(customEditCoords);
+						// 为“编辑自定义坐标 -> 立即传送”单独增加 Z 轴高度补偿，避免悬空约 1 米
+						{
+							Vector3 adj = customEditCoords;
+							adj.z -= 1.0f;
+							teleport_to_coords(adj);//编辑自定义坐标“立即传送”，调用通用执行器（+0.25f），并对齐朝向。
+						}
 						// 对齐朝向（载具优先）
 						{
 							Ped p = PLAYER::PLAYER_PED_ID();
