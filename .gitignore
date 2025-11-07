@@ -275,3 +275,6 @@ __pycache__/
 # tools/
 *.vcxproj
 EnhancedNativeTrainer/inc/types.h
+
+# 忽略 Cursor 项目规则目录
+.cursor/rules/
