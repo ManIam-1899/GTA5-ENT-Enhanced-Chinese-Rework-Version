@@ -1366,12 +1366,59 @@ void handle_generic_settings_teleportation(std::vector<StringPairSettingDBRow>* 
 	}
 }
 
+////////////////////////  跳转到指定坐标 - 辅助函数 ////////////////////////////////
+// 检查字符是否，是有效的分隔符
+// 支持：空格、英文逗号、中文逗号、中文句号、中文顿号、英文斜杠
+bool is_valid_separator(const std::string& str, int index) {
+	// 英文分隔符：空格、英文逗号、英文斜杠
+	if (str[index] == ' ' || str[index] == ',' || str[index] == '/') {
+		return true;
+	}
+	
+	// 检查中文分隔符（UTF-8编码，占用3个字节）
+	if (index + 2 < str.size()) {
+		unsigned char b1 = (unsigned char)str[index];
+		unsigned char b2 = (unsigned char)str[index + 1];
+		unsigned char b3 = (unsigned char)str[index + 2];
+		
+		// 中文逗号: 0xEF 0xBC 0x8C (，)
+		if (b1 == 0xEF && b2 == 0xBC && b3 == 0x8C) {
+			return true;
+		}
+		// 中文句号: 0xE3 0x80 0x82 (。)
+		if (b1 == 0xE3 && b2 == 0x80 && b3 == 0x82) {
+			return true;
+		}
+		// 顿号: 0xE3 0x80 0x81 (、)
+		if (b1 == 0xE3 && b2 == 0x80 && b3 == 0x81) {
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+// 检查坐标是否在有效范围内
+bool is_coord_in_valid_range(float x, float y, float z) {
+	const float MAX_XY = 15999.9999f;
+	const float MIN_XY = -15999.9999f;
+	const float MAX_Z = 2699.9999f;
+	const float MIN_Z = -199.9999f;
+	
+	return (x >= MIN_XY && x <= MAX_XY && y >= MIN_XY && y <= MAX_XY && z >= MIN_Z && z <= MAX_Z);
+}
+
+// 检查是否是随机传送关键词
+bool is_random_keyword(const std::string& input) {
+	return (input == "random" || input == "Random" || input == "RANDOM" || input == "随机" || input == "SJ" || input == "sj");
+}
+
 ////////////////////////  跳转到指定坐标 ////////////////////////////////
 bool onconfirm_jump_category(MenuItem<int> choice)
 {
 	if (choice.value == -6) {
 		keyboard_on_screen_already = true;
-		curr_message = "输入 X Y Z 坐标, 使用空格或逗号作为分隔符, 输入 random 则传至随机位置";
+		curr_message = "输入 XYZ 坐标, 使用空格或逗号作为分隔符, 输入 “随机” 则传至随机位置";
 		std::string result = show_keyboard("手动输入名称", (char*)lastJumpSpawn.c_str());
 		if (!result.empty())
 		{
@@ -1380,43 +1427,9 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 			
 			result = trim(result);
 			lastJumpSpawn = result;
-			Hash hash = GAMEPLAY::GET_HASH_KEY((char*)result.c_str());
-
-			if (lastJumpSpawn != "random" && lastJumpSpawn != "Random" && lastJumpSpawn != "RANDOM" && lastJumpSpawn != "随机" && lastJumpSpawn != "SJ" && lastJumpSpawn != "sj")
-			{
-				std::string a = (char*)result.c_str();
-				std::string tmp_str_x, tmp_str_y, tmp_str_z;
-				int found_separator = 0;
-				bool found_symbol = false;
-
-				for (int i = 0; i < a.size(); i++) {
-					if (a[i] != *"," && a[i] != *" ") found_symbol = true;
-					if ((a[i] == *"," || a[i] == *" ") && found_symbol == true) {
-						found_separator = found_separator + 1;
-						found_symbol = false;
-					}
-					for (int n = 0; n < 10; n++) {
-						char n_string = n + '0';
-						if (found_separator == 0 && a[i] == n_string) tmp_str_x = tmp_str_x + a[i];
-						if (found_separator == 1 && a[i] == n_string) tmp_str_y = tmp_str_y + a[i];
-						if (found_separator == 2 && a[i] == n_string) tmp_str_z = tmp_str_z + a[i];
-					}
-					if (found_separator == 0 && (a[i] == *"-" || a[i] == *".")) tmp_str_x = tmp_str_x + a[i];
-					if (found_separator == 1 && (a[i] == *"-" || a[i] == *".")) tmp_str_y = tmp_str_y + a[i];
-					if (found_separator == 2 && (a[i] == *"-" || a[i] == *".")) tmp_str_z = tmp_str_z + a[i];
-				}
-
-				std::string::size_type sz;
-				float x = std::stof(tmp_str_x, &sz);
-				float y = std::stof(tmp_str_y, &sz);
-				float z = std::stof(tmp_str_z, &sz);
-
-				// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
-				// 手动输入自定义坐标，不需要高度偏移补偿， +0.0f（即不偏移）
-				PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, x, y, z + 0.0f);
-			}
-
-			if (lastJumpSpawn == "random" || lastJumpSpawn == "Random" || lastJumpSpawn == "RANDOM" || lastJumpSpawn == "随机" || lastJumpSpawn == "SJ" || lastJumpSpawn == "sj")
+			
+			// 检查是否为随机传送关键词
+			if (is_random_keyword(lastJumpSpawn))
 			{
 				// 随机从已保存的坐标点中选择（排除水下、在线模式、额外场景、需要加载场景的位置）
 				// 可用的类别索引：0=主角的家, 1=地标点, 2=屋顶/高处, 4=故事模式室内, 7=特殊演员, 8=收藏品, 9=特技地点
@@ -1467,13 +1480,111 @@ bool onconfirm_jump_category(MenuItem<int> choice)
 					return false;
 				}
 				else {
-					set_status_text("随机传送失败: 未找到可用位置!");
+					set_status_text("随机传送失败, 未找到可用位置!");
 					return false;
 				}
 			}
+			else
+			{
+				// 尝试解析坐标
+				std::string a = result;
+				std::string tmp_str_x, tmp_str_y, tmp_str_z;
+				int found_separator = 0;
+				bool found_symbol = false;
+				bool has_invalid_separator = false;
 
-			WAIT(0);
-			set_status_text("传送完成！"); 
+				// 遍历字符串解析坐标
+				for (int i = 0; i < a.size(); i++) {
+					// 检查是否是有效分隔符
+					if (is_valid_separator(a, i)) {
+						// 如果是中文字符（3字节），需要跳过后续2个字节
+						unsigned char b1 = (unsigned char)a[i];
+						if (b1 >= 0xE0 && i + 2 < a.size()) {
+							i += 2; // 跳过UTF-8中文字符的后续字节
+						}
+						
+						if (found_symbol) {
+							found_separator++;
+							found_symbol = false;
+						}
+						continue;
+					}
+					
+					// 检查是否是数字、负号或小数点
+					bool is_valid_char = false;
+					if (a[i] == '-' || a[i] == '.') {
+						is_valid_char = true;
+					}
+					for (int n = 0; n < 10; n++) {
+						if (a[i] == (n + '0')) {
+							is_valid_char = true;
+							break;
+						}
+					}
+					
+					// 如果不是有效字符也不是分隔符，标记为无效
+					if (!is_valid_char) {
+						has_invalid_separator = true;
+						break;
+					}
+					
+					// 提取坐标值
+					found_symbol = true;
+					if (found_separator == 0) {
+						tmp_str_x += a[i];
+					}
+					else if (found_separator == 1) {
+						tmp_str_y += a[i];
+					}
+					else if (found_separator == 2) {
+						tmp_str_z += a[i];
+					}
+				}
+
+				// 验证输入格式
+				if (has_invalid_separator) {
+					set_status_text("~r~错误: 输入内容包含,\n无效字符或分隔符!");
+					return false;
+				}
+
+				// 检查是否解析到了三个坐标值
+				if (tmp_str_x.empty() || tmp_str_y.empty() || tmp_str_z.empty()) {
+					set_status_text("~r~错误: 坐标格式输入错误!\n需要完整 XYZ 坐标三个值!");
+					return false;
+				}
+
+				// 尝试转换字符串为浮点数
+				try {
+					std::string::size_type sz;
+					float x = std::stof(tmp_str_x, &sz);
+					float y = std::stof(tmp_str_y, &sz);
+					float z = std::stof(tmp_str_z, &sz);
+
+					// 验证坐标是否在有效范围内
+					if (!is_coord_in_valid_range(x, y, z)) {
+						set_status_text("~r~错误: 坐标超出有效范围!");
+						return false;
+					}
+
+					// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
+					// 手动输入自定义坐标，不需要高度偏移补偿， +0.0f（即不偏移）
+					PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, x, y, z + 0.0f);
+					WAIT(0);
+					set_status_text("传送完成！");
+				}
+				catch (const std::invalid_argument&) {
+					set_status_text("~r~错误: 坐标格式无效!");
+					return false;
+				}
+				catch (const std::out_of_range&) {
+					set_status_text("~r~错误: 坐标数值超出范围!");
+					return false;
+				}
+				catch (...) {
+					set_status_text("~r~传送失败: 未知错误!");
+					return false;
+				}
+			}
 		}
 		return false;
 	}
