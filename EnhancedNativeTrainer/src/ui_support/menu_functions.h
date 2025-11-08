@@ -1192,10 +1192,6 @@ bool draw_generic_menu(MenuParameters<T> params){
 			continue;
 		}
 
-		if(menu_per_frame_call != NULL){
-			menu_per_frame_call();
-		}
-
 		const int currentLine = floor((double) currentSelectionIndex / (double) itemsPerLine);
 
 		const int originalIndex = currentSelectionIndex;
@@ -1207,6 +1203,11 @@ bool draw_generic_menu(MenuParameters<T> params){
 		// 用于菜单绘制
 		DWORD maxTickCount = GetTickCount() + waitTime;//用于在切换项目行后,暂停
 		do{
+			// 每帧调用回调函数（如绘制红圈等），确保在按键等待期间也持续调用
+			if(menu_per_frame_call != NULL){
+				menu_per_frame_call();
+			}
+
 			std::string sanit_header = params.sanitiseHeaderText ? sanitise_menu_header_text(params.headerText) : params.headerText;
 
 			// 更改标题和菜单等，在这里！！！

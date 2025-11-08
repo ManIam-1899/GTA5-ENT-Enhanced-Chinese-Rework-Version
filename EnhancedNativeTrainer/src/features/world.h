@@ -32,6 +32,8 @@ void process_clouds_menu();
 
 void process_ocean_menu();
 
+void process_cleararea_menu();
+
 void map_size_hotkey();
 
 void reset_world_globals();
