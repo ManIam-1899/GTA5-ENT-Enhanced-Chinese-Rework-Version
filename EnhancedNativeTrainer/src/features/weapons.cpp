@@ -1361,6 +1361,25 @@ bool onconfirm_weapon_menu(MenuItem<int> choice){
 		case 39: // 屏幕准星显示
 			process_weapons_crosshair_menu();
 			break;
+		case 42: // 丢弃当前装备武器
+		{
+			if (WEAPON::IS_PED_ARMED(playerPed, 7)) {
+				Hash currentWeapon = WEAPON::GET_SELECTED_PED_WEAPON(playerPed);
+				Hash unarmedHash = GAMEPLAY::GET_HASH_KEY("WEAPON_UNARMED");
+				if (currentWeapon != unarmedHash) {
+					int ammo = WEAPON::GET_AMMO_IN_PED_WEAPON(playerPed, currentWeapon);
+					if (ammo < 0) ammo = 0;
+					// 丢弃当前武器（包括特殊道具等），携带完整弹药
+					WEAPON::SET_PED_DROPS_INVENTORY_WEAPON(playerPed, currentWeapon, 0.0f, -0.5f, 0.0f, ammo);
+					// 可选等待，确保游戏生成掉落物
+					WAIT(100);
+					set_status_text("武器已丢弃！可以再次拾取！");
+				}
+			} else {
+				set_status_text("~r~当前没有装备武器！");
+			}
+			break;
+		}
 		//case 36:
 		//	if (AIMBOT_INCLUDED) process_aimbot_esp_menu();
 		//	break;
@@ -1644,6 +1663,13 @@ bool process_weapon_menu(){
 	listItem->caption = "手电筒亮度";
 	listItem->value = WeapFlashDistIndex;
 	menuItems.push_back(listItem);
+
+	// 丢弃当前装备的武器（触发式功能选项）
+	item = new MenuItem<int>();
+	item->caption = "丢弃当前装备的武器";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
 
 	//if (AIMBOT_INCLUDED) {
 	//	item = new MenuItem<int>();
