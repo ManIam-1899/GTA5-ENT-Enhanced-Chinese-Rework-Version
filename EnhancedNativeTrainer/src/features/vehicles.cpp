@@ -5709,12 +5709,82 @@ void keyboard_tip_message(char* curr_message_s) {
 	UI::_DRAW_TEXT(0.5f, 0.37f);
 }
 
+// 中文注释：返回用于"生成随机车辆"的 14 个分类在 vHashLists 中的索引
+// 索引对应：小型汽车(9)、轿车(8)、SUV(7)、轿跑车(4)、肌肉车(5)、经典跑车(3)、跑车(2)、超级跑车(1)、摩托车(17)、越野车(6)、开轮式(22)、特种/Emergency(16)、厢型车(11)、自行车(18)
+static const std::vector<int>& get_random_vehicle_category_indices_vhash() {
+	static const std::vector<int> kCats = { 9, 8, 7, 4, 5, 3, 2, 1, 17, 6, 22, 16, 11, 18 };
+	return kCats;
+}
+
+// 中文注释：在指定的 14 个分类中随机选择一辆车
+// 使用加权随机算法：先按车辆数量加权选择分类，再从分类中随机选择车辆，确保每辆车被选中的概率相等
+// 分类集合：小型汽车、轿车、SUV、轿跑车、肌肉车、经典跑车、跑车、超级跑车、摩托车、越野车、开轮式、特种车、厢型车、自行车
+static bool spawn_random_vehicle_feature_test_option() {
+	const std::vector<int>& cats = get_random_vehicle_category_indices_vhash();
+	const int kCatCount = (int)cats.size();
+	if (kCatCount <= 0) {
+		set_status_text("~r~错误: 车辆分类列表不存在！");
+		return false;
+	}
+
+	// 中文注释：构建候选分类及其车辆数量，用于加权随机
+	std::vector<std::pair<int, size_t>> candidateCats;	// <catIndex, vehicleCount>
+	candidateCats.reserve(kCatCount);
+	size_t totalVehicleCount = 0;
+	for (int i = 0; i < kCatCount; ++i) {
+		const int catIndex = cats[i];
+		if (catIndex < 0 || catIndex >= (int)vHashLists.size()) {
+			continue;
+		}
+		std::vector<Hash>* catListPtr = vHashLists[catIndex];
+		if (catListPtr == nullptr || catListPtr->empty()) {
+			continue;
+		}
+		const size_t sz = catListPtr->size();
+		candidateCats.emplace_back(catIndex, sz);
+		totalVehicleCount += sz;
+	}
+
+	if (candidateCats.empty() || totalVehicleCount == 0) {
+		set_status_text("~r~错误: 选定分类中没有车辆！");
+		return false;
+	}
+
+	// 中文注释：允许重复分类，直接进行一次加权随机选择
+	const int kTotalVehicleCount = (int)totalVehicleCount;
+	size_t r = (size_t)(rand() % kTotalVehicleCount);
+	int chosenCatIndex = candidateCats.back().first;
+	for (const auto& p : candidateCats) {
+		if (r < p.second) {
+			chosenCatIndex = p.first;
+			break;
+		}
+		r -= p.second;
+	}
+
+	// 中文注释：从选中分类中随机挑选车辆并生成
+	std::vector<Hash>* catListPtr = vHashLists[chosenCatIndex];
+	Hash vh = catListPtr->at(rand() % catListPtr->size());
+	do_spawn_vehicle_hash(vh, get_vehicle_make_and_model(vh));
+	set_status_text("~g~随机车辆生成完成！");
+	return true;
+}
+
 //创建分类子菜单，并移交到与该分类相关的子子菜单
 bool process_carspawn_menu() {
 	// 刷新读取外置XML文件（与process_custom_carspawn_menu保持一致）
 	ensure_custom_vehicles_loaded();
 	
 	std::vector<MenuItem<int>*> menuItems;
+
+	// 中文注释：在子菜单第一项加入“生成随机车辆”
+	{
+		MenuItem<int>* item = new MenuItem<int>();
+		item->caption = "生成随机车辆";
+		item->value = -10;		// 特殊值，用于在确认回调中分支处理
+		item->isLeaf = true;	// 直接触发生成动作
+		menuItems.push_back(item);
+	}
 
 	for (int i = 0; i < vHashLists.size(); i++)
 	{
@@ -5772,19 +5842,8 @@ void spawn_veh_manually() {
 		}
 		if (lastCustomVehicleSpawn == "random" || lastCustomVehicleSpawn == "Random" || lastCustomVehicleSpawn == "RANDOM" || 
 			lastCustomVehicleSpawn == "随机" || lastCustomVehicleSpawn == "SJ" || lastCustomVehicleSpawn == "sj") {
-			if (vHashLists.size() <= 2) {
-				set_status_text("~r~错误: 没有足够的车辆类别！");
-			} else {
-				int random_category = (rand() % (vHashLists.size() - 2) + 1);
-				std::vector<Hash> tmp_amount = get_vehicles_from_category(random_category);
-				if (tmp_amount.empty()) {
-					set_status_text("~r~错误: 选定类别中没有车辆！");
-				} else {
-					int random_veh = rand() % tmp_amount.size();
-					do_spawn_vehicle_hash(tmp_amount[random_veh], get_vehicle_make_and_model(tmp_amount[random_veh]));
-					set_status_text("随机车辆生成完成！");
-				}
-			}
+			// 中文注释：统一使用14个分类的随机车辆生成函数，而不是从所有分类中随机
+			spawn_random_vehicle_feature_test_option();
 		} else if (STREAMING::IS_MODEL_IN_CDIMAGE(hash) && STREAMING::IS_MODEL_A_VEHICLE(hash)) {
 			do_spawn_vehicle_hash(hash, result);
 			set_status_text("载具 [~y~ " + result + " ~s~] 生成完成！");
@@ -5793,6 +5852,12 @@ void spawn_veh_manually() {
 }
 
 bool onconfirm_spawn_menu_cars(MenuItem<int> choice){
+	// 中文注释：处理“生成随机车辆”分支
+	if (choice.value == -10) {
+		spawn_random_vehicle_feature_test_option();
+		return false;
+	}
+
     std::string caption = get_class_label(choice.value);
 	std::vector<MenuItem<int>*> menuItems;
 	std::vector<Hash> selectedCat = get_vehicles_from_category(choice.value);
