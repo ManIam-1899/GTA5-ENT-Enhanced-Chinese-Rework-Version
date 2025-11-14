@@ -138,7 +138,16 @@ bool featureVehMassMult = false;
 bool featureVehSpawnInto = false;
 bool featureVehSpawnTuned = false;
 bool featureVehSpawnOptic = false;
+bool featureVehSpawnDeleteOld = false; // 生成时删除旧车辆功能
 bool featureVehicleDoorInstant = false;
+
+// 存储上次生成的车辆，用于删除旧车辆功能
+static Vehicle g_lastSpawnedVehicle = 0;
+// 标记一个待删除的车辆：玩家离车后再删除
+static Vehicle g_pendingDeleteVehicle = 0;
+static bool g_deleteOnExitVehicle = false;
+// 延迟删除计数器，避免玩家下车动画未完成就删除车辆
+static int g_deleteDelayCounter = 0;
 bool featureLockVehicleDoors = false;
 bool featureLockVehicleDoorsUpdated = false;
 bool featureWearHelmetOff = false;
@@ -2796,34 +2805,34 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 		case 8: // 模组
 			if(process_vehmod_menu()) return false;
 			break;
-		case 22: // 速度和高度菜单
+		case 23: // 速度和高度菜单
 			process_speed_menu();
 			break;
-		case 23: // 速度限制
+		case 24: // 速度限制
 			process_speedlimit_menu();
 			break;
-		case 24: // 车门菜单
+		case 25: // 车门菜单
 			if(process_veh_door_menu()) return false;
 			break;
-		case 25: // 座位菜单
+		case 26: // 座位菜单
 			if(process_veh_seat_menu()) return false;// 始终调用座位菜单，让其内部负责显示“玩家不在载具中！”提示并阻止菜单
 			break;
-		case 26: // 车辆转向灯菜单
+		case 27: // 车辆转向灯菜单
 			process_visualize_menu();
 			break;
-		case 29: // 燃油菜单
+		case 30: // 燃油菜单
 			process_fuel_menu();
 			break;
-		case 30: // 车辆跟踪菜单
+		case 31: // 车辆跟踪菜单
 			process_remember_vehicles_menu();
 			break;
-		case 31: // 交通法规菜单
+		case 32: // 交通法规菜单
 			process_road_laws_menu();
 			break;
-		case 32: // 引擎可能会损耗
+		case 33: // 引擎可能会损耗
 			process_engine_degrade_menu();
 			break;
-		case 49: // 飞机炸弹
+		case 50: // 飞机炸弹
 		{
 			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
 				set_status_text("~r~玩家不在载具中！");
@@ -2838,13 +2847,13 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 			}
 		}
 			break;
-		case 53: // 车辆盗窃
+		case 54: // 车辆盗窃
 			process_routine_of_ringer_menu();
 			break;
-		case 54: // 冻结车辆
+		case 55: // 冻结车辆
 			vehicle_freeze_toggle();
 			break;
-		case 55: // 删除车辆
+		case 56: // 删除车辆
 		{
 			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
 				set_status_text("~r~玩家不在载具中, 无法删除车辆!");
@@ -2985,6 +2994,12 @@ void process_veh_menu(){
 	toggleItem->caption = "生成并进入车辆";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureVehSpawnInto;
+	menuItems.push_back(toggleItem);
+
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "生成时删除旧车辆";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureVehSpawnDeleteOld;
 	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
@@ -3307,6 +3322,59 @@ void vehicle_freeze_toggle(){
 
 void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 	Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+
+	// 特殊模式：未开启"生成并进入" + 开启"删除上次生成车辆" -> 持续追踪上次生成的车辆
+	if (!featureVehSpawnInto && featureVehSpawnDeleteOld) {
+		bool playerInVehicleNow = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false);
+
+		// 如果玩家当前在车里，检查是否是上次生成的车辆
+		if (playerInVehicleNow) {
+			Vehicle currentVeh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+			// 只追踪上次生成的车辆，避免误删NPC车辆
+			// 但不覆盖已设置的待删除车辆（由do_spawn_vehicle设置）
+			if (ENTITY::DOES_ENTITY_EXIST(currentVeh) && currentVeh == g_lastSpawnedVehicle) {
+				// 只有在没有待删除车辆或待删除车辆已不存在时，才设置新的待删除目标
+				if (g_pendingDeleteVehicle == 0 || !ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+					g_pendingDeleteVehicle = currentVeh;
+					g_deleteOnExitVehicle = true;
+				}
+			}
+			// 只有当玩家在待删除车辆里时才重置计数器，避免干扰已设置的删除计划
+			if (g_pendingDeleteVehicle != 0 && currentVeh == g_pendingDeleteVehicle) {
+				g_deleteDelayCounter = 0;
+			}
+		}
+		// 如果玩家不在车里，开始计数延迟删除
+		else if (!playerInVehicleNow && g_pendingDeleteVehicle != 0 && ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+			g_deleteDelayCounter++;
+
+			// 延迟约（100帧/秒）后删除车辆，确保玩家下车动画完成
+			if (g_deleteDelayCounter >= 100) {
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(g_pendingDeleteVehicle, false, true);
+				ENTITY::DELETE_ENTITY(&g_pendingDeleteVehicle);
+				// 验证删除结果并显示提示
+				if (!ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+					set_status_text("~r~上次生成的旧车辆已删除！");
+				}
+				g_pendingDeleteVehicle = 0;
+				g_deleteOnExitVehicle = false;
+				g_deleteDelayCounter = 0;
+			}
+		}
+
+		// 如果车辆不存在了，清理标记
+		if (g_pendingDeleteVehicle != 0 && !ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+			g_pendingDeleteVehicle = 0;
+			g_deleteOnExitVehicle = false;
+			g_deleteDelayCounter = 0;
+		}
+	}
+	// 如果条件不满足或功能被关闭，清理延迟删除状态
+	else if (g_deleteOnExitVehicle || g_pendingDeleteVehicle != 0) {
+		g_pendingDeleteVehicle = 0;
+		g_deleteOnExitVehicle = false;
+		g_deleteDelayCounter = 0;
+	}
 
 	eGameVersion version = getGameVersion();
 
@@ -5676,6 +5744,7 @@ void reset_vehicle_globals() {
 		featureVehicleDoorInstant =
 		featureLockVehicleDoors =
 		featureVehSpawnInto = 
+		featureVehSpawnDeleteOld =
 		featureNoVehFallOff =
 		featureWearHelmetOff =
 		featureEngineDegrade = 
@@ -5724,6 +5793,12 @@ void reset_vehicle_globals() {
 
 	featureDespawnScriptDisabled = false;
 	featureDespawnScriptDisabledUpdated = false;
+
+	// 清理：重置上次生成的车辆记录与延迟删除状态
+	g_lastSpawnedVehicle = 0;
+	g_pendingDeleteVehicle = 0;
+	g_deleteOnExitVehicle = false;
+	g_deleteDelayCounter = 0;
 
 	// 清理：删除水上驾车平台并恢复波浪强度
 	if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
@@ -6078,17 +6153,63 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 			WAIT(0);
 		}
 
+		// 获取新车辆的尺寸，用于计算生成距离
 		Vector3 minDimens, maxDimens;
 		GAMEPLAY::GET_MODEL_DIMENSIONS(model, &minDimens, &maxDimens);
-		float spawnOffY = max(5.0f, 2.0f + 0.5f * (maxDimens.y - minDimens.y));
+		float newVehicleLength = maxDimens.y - minDimens.y;
 
-		float lookDir = ENTITY::GET_ENTITY_HEADING(PLAYER::PLAYER_PED_ID());
-		Vector3 coords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(PLAYER::PLAYER_PED_ID(), 0.0, spawnOffY, 0.0);
+		// 记录上次生成的车辆句柄，用于在本次生成后删除或延迟删除
+		Vehicle previousVehicle = 0;
+		if (featureVehSpawnDeleteOld && g_lastSpawnedVehicle != 0 && ENTITY::DOES_ENTITY_EXIST(g_lastSpawnedVehicle)) {
+			previousVehicle = g_lastSpawnedVehicle;
+		}
+
+		// 记录玩家当前所在车辆的速度和引擎状态，用于换车时的平滑过渡
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+		Vector3 currentVelocity = { 0, 0, 0 };
+		float currentSpeed = 0.0f;
+		bool currentEngineOn = false;
+		bool playerWasInVehicle = false;
+
+		if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) && ENTITY::DOES_ENTITY_EXIST(currentVehicle)) {
+			currentVelocity = ENTITY::GET_ENTITY_VELOCITY(currentVehicle);
+			currentSpeed = ENTITY::GET_ENTITY_SPEED(currentVehicle);
+			currentEngineOn = VEHICLE::GET_IS_VEHICLE_ENGINE_RUNNING(currentVehicle);
+			playerWasInVehicle = true;
+		}
+
+		// 计算生成位置：如果玩家在车里，需要考虑当前车辆的长度以避免碰撞
+		float lookDir;
+		Vector3 coords;
+		if (playerWasInVehicle && ENTITY::DOES_ENTITY_EXIST(currentVehicle)) {
+			// 玩家在车里：计算当前车辆长度 + 新车辆长度，确保两车之间有足够距离
+			Vector3 minDimensCurrent, maxDimensCurrent;
+			GAMEPLAY::GET_MODEL_DIMENSIONS(ENTITY::GET_ENTITY_MODEL(currentVehicle), &minDimensCurrent, &maxDimensCurrent);
+			float currentVehicleLength = maxDimensCurrent.y - minDimensCurrent.y;
+			
+			// 生成距离 = 当前车辆长度的一半 + 新车辆长度的一半 + 1米额外间距
+			float spawnDistance = (currentVehicleLength * 0.5f) + (newVehicleLength * 0.5f) + 1.0f;
+			
+			// 基于当前车辆的位置和朝向生成
+			lookDir = ENTITY::GET_ENTITY_HEADING(currentVehicle);
+			coords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(currentVehicle, 0.0, spawnDistance, 0.0);
+		}
+		else {
+			// 玩家不在车里：基于玩家位置生成，使用默认距离
+			float spawnOffY = max(5.0f, 2.0f + 0.5f * newVehicleLength);
+			lookDir = ENTITY::GET_ENTITY_HEADING(playerPed);
+			coords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(playerPed, 0.0, spawnOffY, 0.0);
+		}
+
 		Vehicle veh = VEHICLE::CREATE_VEHICLE(model, coords.x, coords.y, coords.z, lookDir, true, false);
 
 		if (!ENTITY::IS_ENTITY_IN_AIR(PLAYER::PLAYER_PED_ID())) {
 			VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(veh);
 		}
+
+		// 设置新车辆属性（在删除旧车前）
+		VEHICLE::SET_VEHICLE_DIRT_LEVEL(veh, 0.0f);
 
 		if (featureVehSpawnTuned && !tracked_being_restored) {
 			fully_tune_vehicle(veh, featureVehSpawnOptic);
@@ -6111,7 +6232,48 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 			oldVehicleState = false;
 		}
 
-		VEHICLE::SET_VEHICLE_DIRT_LEVEL(veh, 0.0f);
+		// 如果玩家之前在车里，继承速度和引擎状态，确保行进中换车连贯（在玩家坐进新车后再设置，避免被传送进车的逻辑重置速度）
+		if (playerWasInVehicle) {
+			VEHICLE::SET_VEHICLE_ENGINE_ON(veh, currentEngineOn, true, false);
+			if (currentSpeed > 0.0f) {
+				// 使用旧车的速度，让新车沿自身朝向继续前进
+				Vector3 forward = ENTITY::GET_ENTITY_FORWARD_VECTOR(veh);
+				ENTITY::SET_ENTITY_VELOCITY(veh, forward.x * currentSpeed, forward.y * currentSpeed, forward.z * currentSpeed);
+				VEHICLE::SET_VEHICLE_FORWARD_SPEED(veh, currentSpeed);
+			}
+		}
+
+		// 删除上次生成的旧车辆（仅当功能开启时）
+		if (featureVehSpawnDeleteOld && previousVehicle != 0 && ENTITY::DOES_ENTITY_EXIST(previousVehicle) && previousVehicle != veh) {
+			bool playerInVehicleNow = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false);
+
+			// 情况一：未开启"生成并进入车辆"且玩家当前在车里 -> 特殊处理
+			if (!featureVehSpawnInto && playerInVehicleNow) {
+				// 判断上次生成的车辆是否是玩家当前驾驶的车辆
+				if (previousVehicle == currentVehicle) {
+					// previousVehicle 是玩家当前驾驶的车辆 -> 设置为延迟删除目标
+					// 玩家下车后，update_vehicle_features 会删除它
+					g_pendingDeleteVehicle = previousVehicle;
+					g_deleteOnExitVehicle = true;
+					g_deleteDelayCounter = 0;
+				}
+				else {
+					// previousVehicle 是之前生成的车辆(A/B/C...) -> 立即删除
+					ENTITY::SET_ENTITY_AS_MISSION_ENTITY(previousVehicle, false, true);
+					ENTITY::DELETE_ENTITY(&previousVehicle);
+				}
+			}
+			// 情况二：未开启"生成并进入车辆"且玩家当前不在车里 -> 立即删除旧车
+			else if (!featureVehSpawnInto && !playerInVehicleNow) {
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(previousVehicle, false, true);
+				ENTITY::DELETE_ENTITY(&previousVehicle);
+			}
+			// 其他情况（开启"生成并进入车辆"等） -> 保持原有的立即删除行为
+			else {
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(previousVehicle, false, true);
+				ENTITY::DELETE_ENTITY(&previousVehicle);
+			}
+		}
 
 		if (DefaultPlateIndex != -1 && DefaultPlateIndex < VEHICLE::GET_NUMBER_OF_VEHICLE_NUMBER_PLATES()) {
 			VEHICLE::SET_VEHICLE_MOD_KIT(veh, 0);
@@ -6127,6 +6289,9 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 		}
 
 		ENTITY::RESET_ENTITY_ALPHA(veh);
+
+		// 存储新生成的车辆用于下次删除
+		g_lastSpawnedVehicle = veh;
 
 		WAIT(0);
 		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
@@ -6155,6 +6320,7 @@ void add_vehicle_feature_enablements(std::vector<FeatureEnabledLocalDefinition>*
 	results->push_back(FeatureEnabledLocalDefinition{"featureNoVehFallOff", &featureNoVehFallOff}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehicleDoorInstant", &featureVehicleDoorInstant});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnInto", &featureVehSpawnInto});
+	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnDeleteOld", &featureVehSpawnDeleteOld});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSteerAngle", &featureVehSteerAngle});
 	results->push_back(FeatureEnabledLocalDefinition{"featureRollWhenShoot", &featureRollWhenShoot});
 	results->push_back(FeatureEnabledLocalDefinition{"featureTractionControl", &featureTractionControl});
