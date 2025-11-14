@@ -218,6 +218,16 @@ static std::map<std::string, std::vector<std::pair<std::string, std::string>>> g
 static std::vector<std::string> g_CustomVehicleCategories; // 分类顺序
 static FILETIME g_LastXmlModifyTime = {0}; // XML文件最后修改时间
 
+// 内置车辆名称映射（用于游戏内没有本地化翻译的车辆）
+static const std::map<std::string, std::string> BUILTIN_VEHICLE_NAME_MAPPING = {
+	//{"模型名称", "显示名称"},
+	{"GRAINTRAILE", "绿色货箱拖挂"},
+	{"DOCKTRAILER", "集装箱拖挂"},
+	{"TANKER", "黄色油罐车"},
+	{"FREIGHTTRAI", "平板拖挂"},
+	{"proptrailer", "集装箱房车"},
+};
+
 static std::string BstrToUtf8(BSTR b)
 {
     if (b == nullptr) return std::string("");
@@ -1058,7 +1068,24 @@ void PopulateVehicleModelsArray()
 	// 遍历哈希列表并对其进行排序。
 	for (auto& hlist : vHashLists)
 	{
-		std::sort(hlist->begin(), hlist->end(), [](const Hash& a, const Hash& b) -> bool { return (get_vehicle_make_and_model(a)) < get_vehicle_make_and_model(b); });
+		// 中文注释：为排序缓存车辆显示名称，避免在比较器中重复调用 get_vehicle_make_and_model 提高性能
+		std::map<Hash, std::string> nameCache;
+		auto get_cached_name = [&nameCache](Hash hash) -> const std::string&
+		{
+			auto it = nameCache.find(hash);
+			if (it != nameCache.end())
+			{
+				return it->second;
+			}
+			// 中文注释：第一次访问时计算并缓存车辆名称
+			auto inserted = nameCache.emplace(hash, get_vehicle_make_and_model(hash));
+			return inserted.first->second;
+		};
+
+		std::sort(hlist->begin(), hlist->end(), [&get_cached_name](const Hash& a, const Hash& b) -> bool
+		{
+			return get_cached_name(a) < get_cached_name(b);
+		});
 	}
 
 	//std::stringstream ss;
@@ -1070,6 +1097,10 @@ char* GetVehicleModelName(int modelHash)
 {
 	int index = 0xFFFF;
 	uint64_t modelInfo = GetModelInfo(modelHash, &index);
+	// 添加空指针检查，防止访问无效模型时崩溃
+	if (modelInfo == 0 || modelInfo == NULL) {
+		return (char*)"";
+	}
 	return (char*)(modelInfo + 0x298);
 }
 
@@ -1077,6 +1108,10 @@ char* GetVehicleMakeName(int modelHash)
 {
 	int index = 0xFFFF;
 	uint64_t modelInfo = GetModelInfo(modelHash, &index);
+	// 添加空指针检查，防止访问无效模型时崩溃
+	if (modelInfo == 0 || modelInfo == NULL) {
+		return (char*)"";
+	}
 	return (char*)(modelInfo + 0x2A4);
 }
 
@@ -1141,36 +1176,57 @@ std::vector<Hash> get_vehicles_from_category(int category)
 	}
 }
 
+// 用于生成车辆菜单：游戏本地化翻译 > 内置映射 > XML的title > 模型名
 std::string get_vehicle_make_and_model(int modelHash)
 {
 	// 原始模型标签（兜底）
 	const char* modelNameC = VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(modelHash);
 	std::string modelNameStr = modelNameC ? modelNameC : "";
 
-	// 1) 先查外置 XML
-	for (const auto& cat : g_CustomVehicleCategories) {
-		auto it = g_CustomVehicles.find(cat);
-		if (it == g_CustomVehicles.end()) continue;
-		for (const auto& entry : it->second) {
-			if (GAMEPLAY::GET_HASH_KEY((char*)entry.first.c_str()) == modelHash && !entry.second.empty()) {
-				return entry.second; // XML 命名优先
-			}
-		}
-	}
-
-	// 2) 再查游戏内置 make / model
+	// 优先级1: 游戏内置本地化翻译 (make + model)
 	std::string make  = std::string(UI::_GET_LABEL_TEXT(GetVehicleMakeName(modelHash)));
 	std::string model = std::string(UI::_GET_LABEL_TEXT(GetVehicleModelName(modelHash)));
 
 	auto is_valid = [](const std::string& s){
 		return !s.empty() && s != "NULL";
-		};
+	};
 
 	if (is_valid(make) && is_valid(model)) return make + " " + model;
 	if (is_valid(model))                 return model;
 	if (is_valid(make))                  return make;
 
-	// 3) 兜底：返回模型标签
+	// 优先级2: 查内置名称映射（支持大小写不敏感查找）
+	if (!modelNameStr.empty()) {
+		// 将模型名转换为大写进行查找（内置映射表的键都是大写）
+		std::string upperModelName = modelNameStr;
+		std::transform(upperModelName.begin(), upperModelName.end(), upperModelName.begin(), ::toupper);
+		
+		auto it = BUILTIN_VEHICLE_NAME_MAPPING.find(upperModelName);
+		if (it != BUILTIN_VEHICLE_NAME_MAPPING.end()) {
+			return it->second; // 返回内置映射名称
+		}
+		
+		// 如果大写查找失败，尝试原始大小写（以防映射表中有非大写键）
+		if (modelNameStr != upperModelName) {
+			auto it2 = BUILTIN_VEHICLE_NAME_MAPPING.find(modelNameStr);
+			if (it2 != BUILTIN_VEHICLE_NAME_MAPPING.end()) {
+				return it2->second;
+			}
+		}
+	}
+
+	// 优先级3: 查外置 XML 的 title 属性
+	for (const auto& cat : g_CustomVehicleCategories) {
+		auto it = g_CustomVehicles.find(cat);
+		if (it == g_CustomVehicles.end()) continue;
+		for (const auto& entry : it->second) {
+			if (GAMEPLAY::GET_HASH_KEY((char*)entry.first.c_str()) == modelHash && !entry.second.empty()) {
+				return entry.second; // 返回 XML title
+			}
+		}
+	}
+
+	// 优先级4: 兜底返回模型标签
 	return modelNameStr;
 }
 
@@ -5845,8 +5901,10 @@ void spawn_veh_manually() {
 			// 中文注释：统一使用14个分类的随机车辆生成函数，而不是从所有分类中随机
 			spawn_random_vehicle_feature_test_option();
 		} else if (STREAMING::IS_MODEL_IN_CDIMAGE(hash) && STREAMING::IS_MODEL_A_VEHICLE(hash)) {
-			do_spawn_vehicle_hash(hash, result);
-			set_status_text("载具 [~y~ " + result + " ~s~] 生成完成！");
+			// 使用 get_vehicle_make_and_model 获取正确的显示名称
+			std::string displayName = get_vehicle_make_and_model(hash);
+			do_spawn_vehicle_hash(hash, displayName);
+			set_status_text("载具 [~y~ " + displayName + " ~s~] 生成完成！");
 		}
 	}
 }
@@ -5868,11 +5926,13 @@ bool onconfirm_spawn_menu_cars(MenuItem<int> choice){
 		itemIndex++;
 		MenuItem<int>* item = new MenuItem<int>();
 		
-		if (get_vehicle_make_and_model(hash).compare("NULL") == 0 || get_vehicle_make_and_model(hash).compare("") == 0)
+		// 中文注释：缓存本次循环的车辆显示名称，避免重复调用 get_vehicle_make_and_model
+		std::string displayName = get_vehicle_make_and_model(hash);
+		if (displayName.compare("NULL") == 0 || displayName.compare("") == 0)
 			//item->caption = "Item " + std::to_string(itemIndex);
 			item->caption = GetVehicleModelName(hash);
 		else
-			item->caption = get_vehicle_make_and_model(hash);
+			item->caption = displayName;
 		item->value = hash;
 		menuItems.push_back(item);
 	}
@@ -6583,37 +6643,8 @@ void save_current_vehicle(int slot){
 			
 			Hash currVehModelS = ENTITY::GET_ENTITY_MODEL(veh);
 			if (slot == -1 && STREAMING::IS_MODEL_IN_CDIMAGE(currVehModelS) && STREAMING::IS_MODEL_A_VEHICLE(currVehModelS) && STREAMING::IS_MODEL_VALID(currVehModelS)) {
-				// 获取车辆名称 - 优先级：XML名称 > 游戏内置名称 > 模型名称
-				std::string displayName;
-				
-				// 1. 尝试从XML获取名称
-				char* modelName = VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(currVehModelS);
-				std::string modelNameStr = modelName;
-				
-				// 检查此车辆是否来自外置XML
-				for (const auto& cat : g_CustomVehicleCategories) {
-					const auto it = g_CustomVehicles.find(cat);
-					if (it != g_CustomVehicles.end()) {
-						for (const auto& entry : it->second) {
-							if (GAMEPLAY::GET_HASH_KEY((char*)entry.first.c_str()) == currVehModelS && !entry.second.empty()) {
-								displayName = entry.second;
-								break;
-							}
-						}
-					}
-					if (!displayName.empty()) break;
-				}
-				
-				// 2. 如果XML中没有，尝试获取游戏内置名称
-				if (displayName.empty()) {
-					displayName = UI::_GET_LABEL_TEXT(modelName);
-				}
-				
-				// 3. 如果仍然没有，使用模型名称
-				if (displayName.empty() || displayName == "NULL") {
-					displayName = modelNameStr;
-				}
-				
+				// 使用 get_vehicle_make_and_model 获取车辆名称（游戏本地化翻译 > 内置映射 > XML的title > 模型名）
+				std::string displayName = get_vehicle_make_and_model(currVehModelS);
 				ss << displayName;
 			}
 			else if (slot == -1) {
