@@ -6069,6 +6069,19 @@ bool process_custom_carspawn_menu()
     return draw_generic_menu<int>(menuItems, &activeLineIndexCustomCarSpawnMenu, "新增车辆 - 类型", onconfirm_custom_spawn_menu_cars, nullptr, nullptr, nullptr);
 }
 
+// 全局变量用于存储当前分类的 hash -> model 映射（供 cornerInfoProvider 使用）
+static std::vector<std::pair<Hash, std::string>> g_CurrentCustomVehicleHashModelPairs;
+
+// cornerInfoProvider 函数：显示新增车辆的 XML model 名称
+std::string get_custom_vehicle_corner_info(MenuItem<int> item) {
+    for (const auto& p : g_CurrentCustomVehicleHashModelPairs) {
+        if (p.first == item.value && !p.second.empty()) {
+            return std::string("模型: ") + p.second;
+        }
+    }
+    return "模型: 未知";
+}
+
 // 自定义外置 XML 车型菜单与生成
 bool onconfirm_custom_spawn_menu_cars(MenuItem<int> choice)
 {
@@ -6077,12 +6090,18 @@ bool onconfirm_custom_spawn_menu_cars(MenuItem<int> choice)
     const auto it = g_CustomVehicles.find(cat);
     if (it == g_CustomVehicles.end()) return false;
 
+    // 清空全局映射表，准备为当前分类重新填充
+    g_CurrentCustomVehicleHashModelPairs.clear();
+
     std::vector<MenuItem<int>*> menuItems;
     for (const auto& entry : it->second)
     {
         const std::string& model = entry.first;
         const std::string& title = entry.second;
         Hash hash = GAMEPLAY::GET_HASH_KEY((char*)model.c_str());
+
+        // 存储到全局映射表，供 cornerInfoProvider 使用
+        g_CurrentCustomVehicleHashModelPairs.emplace_back(hash, model);
 
         MenuItem<int>* item = new MenuItem<int>();
         // 菜单系统采用 UTF-8 文本，直接传入 UTF-8 字符串
@@ -6101,14 +6120,7 @@ bool onconfirm_custom_spawn_menu_cars(MenuItem<int> choice)
     params.menuSelectionPtr = 0;
     params.onConfirmation = onconfirm_custom_vehlist_menu;
     params.lineImageProvider = vehicle_image_preview_finder;
-    params.cornerInfoProvider = [](MenuItem<int> item) -> std::string {
-        // 获取车辆的原模型名称，如果找不到则显示未知
-        char* modelName = GetVehicleModelName(item.value);
-        if(modelName && strlen(modelName) > 0) {//生成新增车辆
-            return std::string("模型: ") + std::string(modelName);
-        }
-        return "模型: 未知";
-    };
+    params.cornerInfoProvider = get_custom_vehicle_corner_info;
     return draw_generic_menu<int>(params);
 }
 
