@@ -5117,6 +5117,11 @@ void update_freecam_features(BOOL playerExists, Ped playerPed) {
 	// 根据鼠标移动更新相机旋转角度
 	Vector3 nextRot;
 	nextRot.x = currentRot.x - mouseDeltaY * 11.0f;
+	
+	// 限制俯仰角范围，防止万向锁导致视角晃动（限制在 -89° 到 +89° 之间）
+	if (nextRot.x > 89.0f) nextRot.x = 89.0f;
+	if (nextRot.x < -89.0f) nextRot.x = -89.0f;
+	
 	nextRot.y = 0.0f; // 不允许翻滚
 	nextRot.z = currentRot.z - mouseDeltaX * 11.0f;
 	CAM::SET_CAM_ROT(freeCamHandle, nextRot.x, nextRot.y, nextRot.z, 2);
