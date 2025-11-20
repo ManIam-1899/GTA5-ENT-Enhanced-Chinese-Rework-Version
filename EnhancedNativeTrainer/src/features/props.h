@@ -83,3 +83,6 @@ bool props_save_slots_menu_interrupt();
 bool process_savedprops_menu();
 
 void update_props_pending_dialogs();
+
+// 删除指定区域内的已生成物体
+int delete_spawned_props_in_radius(Vector3 coords, float radius);

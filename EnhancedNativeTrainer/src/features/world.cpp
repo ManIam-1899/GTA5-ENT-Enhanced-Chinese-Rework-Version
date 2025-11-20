@@ -15,6 +15,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <Psapi.h>
 #include <Windows.h>
 #include "misc.h"
+#include "props.h"
 
 int activeLineIndexWorld = 0;
 int activeLineIndexWeather = 0;
@@ -804,7 +805,7 @@ void process_world_menu()
 	// 区域清理菜单入口
 	item = new MenuItem<int>();
 	item->isLeaf = false;
-	item->caption = "区域清理";
+	item->caption = "区域清理选项";
 	item->value = -7;
 	menuItems.push_back(item);
 
@@ -885,16 +886,35 @@ bool onconfirm_cleararea_menu(MenuItem<int> choice)
 		set_status_text("已清理人物！");
 		break;
 	case 3: // 清理物体
-		GAMEPLAY::CLEAR_AREA_OF_OBJECTS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
-		set_status_text("已清理物体！");
-		break;
+		{
+			GAMEPLAY::CLEAR_AREA_OF_OBJECTS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+			int spawnedPropsCount = delete_spawned_props_in_radius(playerPos, radius);
+			set_status_text("已清理物体！");
+			if (spawnedPropsCount > 0)
+			{
+				std::ostringstream ss;
+				ss << "包含 ENT 已生成物体 " << spawnedPropsCount << " 个。";
+				set_status_text(ss.str());
+			}
+			break;
+		}
 	case 4: // 清理全部
-		GAMEPLAY::CLEAR_AREA_OF_VEHICLES(playerPos.x, playerPos.y, playerPos.z, radius, 0, 0, 0, 0, 0);
-		GAMEPLAY::CLEAR_AREA_OF_PEDS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
-		GAMEPLAY::CLEAR_AREA_OF_OBJECTS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
-		set_status_text("已清理全部！");
-		break;
+		{
+			GAMEPLAY::CLEAR_AREA_OF_VEHICLES(playerPos.x, playerPos.y, playerPos.z, radius, 0, 0, 0, 0, 0);
+			GAMEPLAY::CLEAR_AREA_OF_PEDS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+			GAMEPLAY::CLEAR_AREA_OF_OBJECTS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+			int spawnedPropsCount = delete_spawned_props_in_radius(playerPos, radius);
+			set_status_text("已清理全部！");
+			if (spawnedPropsCount > 0)
+			{
+				std::ostringstream ss;
+				ss << "包含 ENT 已生成物体 " << spawnedPropsCount << " 个。";
+				set_status_text(ss.str());
+			}
+			break;
+		}
 	}
+
 	return false;
 }
 
