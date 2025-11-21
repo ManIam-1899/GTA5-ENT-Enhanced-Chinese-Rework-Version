@@ -417,9 +417,191 @@ void update_screenshot_message() {
 
 // 外部函数声明（来自misc.cpp）
 extern char* keyValToName(int keyValue);
-extern void write_xml_config_file();
 
-// 更新XML配置文件中的截图按键（使用标准的按键配置更新流程）
+// 只更新XML配置文件中的单个按键配置（避免影响其他按键设置）
+static void update_single_key_in_xml(const std::string& keyFunction) {
+	HRESULT hrInit = CoInitialize(NULL);
+	
+	// 创建XML文档
+	MSXML2::IXMLDOMDocumentPtr spXMLDoc;
+	HRESULT hr = spXMLDoc.CreateInstance(__uuidof(MSXML2::DOMDocument60));
+	if (FAILED(hr)) {
+		if (SUCCEEDED(hrInit)) CoUninitialize();
+		return;
+	}
+	
+	// 设置preserveWhiteSpace为true以保留空行和格式
+	spXMLDoc->put_preserveWhiteSpace(VARIANT_TRUE);
+	
+	// 加载现有的XML文件
+	if (!spXMLDoc->load("Enhanced Native Trainer/ent-config.xml")) {
+		if (SUCCEEDED(hrInit)) CoUninitialize();
+		return;
+	}
+	
+	// 获取按键配置管理器
+	KeyInputConfig* keyConfig = get_config()->get_key_config();
+	if (keyConfig == NULL) {
+		if (SUCCEEDED(hrInit)) CoUninitialize();
+		return;
+	}
+	
+	// 获取当前按键配置
+	KeyConfig* key = keyConfig->get_key(keyFunction);
+	if (key == NULL) {
+		if (SUCCEEDED(hrInit)) CoUninitialize();
+		return;
+	}
+	
+	// 构建XPath查询，查找特定function的按键节点
+	std::wstring xpath = L"//ent-config/keys/key[@function='" + 
+		std::wstring(keyFunction.begin(), keyFunction.end()) + L"']";
+	
+	IXMLDOMNodePtr node = spXMLDoc->selectSingleNode(xpath.c_str());
+	
+	bool nodeExists = (node != NULL);
+	
+	if (nodeExists) {
+		// 如果节点存在，更新它的value属性
+		IXMLDOMNamedNodeMap* attribs = nullptr;
+		node->get_attributes(&attribs);
+		
+		if (attribs != NULL) {
+			// 更新value属性
+			IXMLDOMNode* valueNode = nullptr;
+			attribs->getNamedItem(L"value", &valueNode);
+			
+			if (valueNode != NULL) {
+				std::string keyValueName = keyValToName(key->keyCode);
+				BSTR valueBstr = _com_util::ConvertStringToBSTR(keyValueName.c_str());
+				VARIANT valueVar;
+				VariantInit(&valueVar);
+				V_VT(&valueVar) = VT_BSTR;
+				V_BSTR(&valueVar) = valueBstr;
+				valueNode->put_nodeValue(valueVar);
+				VariantClear(&valueVar);
+				valueNode->Release();
+			}
+			
+			attribs->Release();
+		}
+	}
+	
+	// 如果节点不存在，需要手动插入到正确位置（在freecam_toggle之后）
+	if (!nodeExists) {
+		// 释放DOM资源（因为不需要使用DOM方式）
+		spXMLDoc.Release();
+		if (SUCCEEDED(hrInit)) CoUninitialize();
+		
+		// 重新初始化COM（用于文件操作）
+		hrInit = CoInitialize(NULL);
+		
+		// 直接读取原始XML文件
+		std::ifstream origFile("Enhanced Native Trainer/ent-config.xml", std::ios::binary);
+		if (!origFile.is_open()) {
+			if (SUCCEEDED(hrInit)) CoUninitialize();
+			return;
+		}
+		std::string content((std::istreambuf_iterator<char>(origFile)), std::istreambuf_iterator<char>());
+		origFile.close();
+		
+		// 获取按键值名称
+		std::string keyValueName = keyValToName(key->keyCode);
+		
+		// 获取按键显示名称（用于注释）
+		std::string keyDisplayName = "F12"; // 默认显示名称
+		if (ScreenshotKeyIndex >= 0 && ScreenshotKeyIndex < (int)MISC_SCREENSHOT_KEY_CAPTIONS.size()) {
+			keyDisplayName = MISC_SCREENSHOT_KEY_CAPTIONS[ScreenshotKeyIndex];
+		}
+		
+		// 构建要插入的内容（保持与原文件相同的格式）
+		std::string insertContent = "\r\n\t<key function=\"screenshot\" value=\"" + keyValueName + "\"/>\r\n";
+		insertContent += "\t<!-- 游戏全屏截图，按键为 " + keyDisplayName + " -->\r\n";
+		
+		// 查找freecam_toggle注释的位置（在这之后插入）
+		size_t insertPos = content.find("<!-- 开启/关闭，自由相机模式，按键为 F7 -->");
+		
+		if (insertPos != std::string::npos) {
+			// 找到注释行的结束位置
+			size_t lineEndPos = content.find('\n', insertPos);
+			if (lineEndPos != std::string::npos) {
+				// 在注释行之后插入
+				content.insert(lineEndPos + 1, insertContent);
+			}
+		}
+		
+		// 直接保存处理后的内容
+		std::ofstream outFile("Enhanced Native Trainer/ent-config.xml", std::ios::binary);
+		if (outFile.is_open()) {
+			outFile.write(content.c_str(), content.length());
+			outFile.close();
+		}
+		
+		if (SUCCEEDED(hrInit)) CoUninitialize();
+		return;
+	}
+	
+	// 如果节点存在，保存XML文件到临时文件
+	std::string tempFileName = "Enhanced Native Trainer/ent-config.xml.tmp";
+	spXMLDoc->save(tempFileName.c_str());
+	
+	// 读取临时文件内容
+	std::ifstream inFile(tempFileName, std::ios::binary);
+	std::string content((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+	inFile.close();
+	
+	// 删除临时文件
+	DeleteFileA(tempFileName.c_str());
+	
+	// 手动添加换行符以保持格式（统一使用Windows CRLF格式）
+	// 确保<?xml version="1.0" encoding="utf-8"?>后面有换行符
+	size_t xmlDeclPos = content.find("?>");
+	if (xmlDeclPos != std::string::npos) {
+		xmlDeclPos += 2; // 移动到?>后面
+		// 检查后面是否有换行符
+		if (xmlDeclPos < content.length() && content[xmlDeclPos] != '\n' && content[xmlDeclPos] != '\r') {
+			// 添加换行符（使用Windows CRLF格式）
+			content.insert(xmlDeclPos, "\r\n");
+		}
+	}
+	
+	// 确保<ent-config>前面有换行符
+	size_t entConfigPos = content.find("<ent-config>");
+	if (entConfigPos != std::string::npos && entConfigPos > 0) {
+		// 检查前面是否有换行符
+		if (content[entConfigPos - 1] != '\n' && content[entConfigPos - 1] != '\r') {
+			// 添加换行符（使用Windows CRLF格式）
+			content.insert(entConfigPos, "\r\n");
+		}
+	}
+	
+	// 将所有LF转换为CRLF（强制二进制模式写入并手动转换换行符）
+	std::string result;
+	result.reserve(content.length() * 2); // 预分配足够空间
+	for (size_t i = 0; i < content.length(); i++) {
+		if (content[i] == '\n' && (i == 0 || content[i - 1] != '\r')) {
+			// 发现单独的LF，转换为CRLF
+			result += "\r\n";
+		} else {
+			// 保持原字符
+			result += content[i];
+		}
+	}
+	
+	// 确保文件末尾有一个空行（</ent-config>后面）
+	if (!result.empty() && result[result.length() - 1] != '\n') {
+		result += "\r\n";
+	}
+	
+	// 以二进制模式写入最终文件，确保CRLF格式
+	std::ofstream outFile("Enhanced Native Trainer/ent-config.xml", std::ios::binary);
+	outFile.write(result.c_str(), result.length());
+	outFile.close();
+	
+	if (SUCCEEDED(hrInit)) CoUninitialize();
+}
+
+// 更新XML配置文件中的截图按键（只更新截图按键，不影响其他配置）
 static void update_screenshot_key_in_xml() {
 	// 获取按键配置管理器
 	KeyInputConfig* keyConfig = get_config()->get_key_config();
@@ -434,8 +616,8 @@ static void update_screenshot_key_in_xml() {
 	// 更新内存中的按键配置
 	keyConfig->set_key((char*)KeyConfig::KEY_SCREENSHOT.c_str(), keyValueName, false, false, false);
 	
-	// 写入XML配置文件
-	write_xml_config_file();
+	// 只更新XML中的截图按键配置（不影响其他按键）
+	update_single_key_in_xml(KeyConfig::KEY_SCREENSHOT);
 }
 
 // 重置截图功能设置为默认值
