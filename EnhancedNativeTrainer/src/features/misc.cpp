@@ -363,108 +363,184 @@ std::string get_saved_hotkey_display_caption(int hotkeyIndex) {
 	return caption.str();
 }
 
-// 检查快捷键是否重复
+// 检查快捷键是否重复（统一从 KeyInputConfig 读取实际应用的按键）
 bool is_hotkey_duplicate(int hotkeyNum, int keyIndex, bool ctrl, bool alt, bool shift) {
 	// 如果是未绑定，不检查重复
-	if (keyIndex == 0) {
+	if (keyIndex == 0 || keyIndex >= sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
 		return false;
 	}
 	
-	// 检查其他快捷键是否有相同的组合
+	int newKeyCode = MISC_HOTKEY_VALUES[keyIndex];
+	KeyInputConfig* keyConfig = get_config()->get_key_config();
+	if (keyConfig == NULL) return false;
+	
+	// 检查其他8个快捷键
+	std::string hotkeyNames[] = {
+		KeyConfig::KEY_HOT_1, KeyConfig::KEY_HOT_2, KeyConfig::KEY_HOT_3,
+		KeyConfig::KEY_HOT_4, KeyConfig::KEY_HOT_5, KeyConfig::KEY_HOT_6,
+		KeyConfig::KEY_HOT_7, KeyConfig::KEY_HOT_8, KeyConfig::KEY_HOT_9
+	};
+	
 	for (int i = 0; i < 9; i++) {
 		if (i == hotkeyNum) continue; // 跳过自己
 		
-		// 检查是否有相同的按键组合
-		if (HotkeyIndex[i] == keyIndex && 
-			HotkeyCtrl[i] == ctrl && 
-			HotkeyAlt[i] == alt && 
-			HotkeyShift[i] == shift) {
-			return true;
+		KeyConfig* key = keyConfig->get_key(hotkeyNames[i]);
+		if (key != NULL && key->keyCode == newKeyCode && 
+			key->modCtrl == ctrl && key->modAlt == alt && key->modShift == shift) {
+			return true; // 与其他快捷键重复
 		}
 	}
+	
+	// 检查常用按键（仅当快捷键没有修饰键时才检测冲突）
+	// 原因：带修饰键的快捷键（如Ctrl+F4）不应与单独的F4冲突
+	if (!ctrl && !alt && !shift) {
+		std::string commonKeyNames[] = {
+			KeyConfig::KEY_TOGGLE_MAIN_MENU, KeyConfig::KEY_MENU_UP, KeyConfig::KEY_MENU_DOWN,
+			KeyConfig::KEY_MENU_LEFT, KeyConfig::KEY_MENU_RIGHT, KeyConfig::KEY_MENU_SELECT,
+			KeyConfig::KEY_MENU_BACK
+		};
+		
+		for (int i = 0; i < 7; i++) {
+			KeyConfig* key = keyConfig->get_key(commonKeyNames[i]);
+			if (key != NULL && key->keyCode == newKeyCode) {
+				return true; // 与常用按键重复
+			}
+		}
+		
+		// 检查其他按键
+		std::string otherKeyNames[] = {
+			KeyConfig::KEY_TOGGLE_AIRBRAKE, KeyConfig::KEY_FREECAM_TOGGLE, KeyConfig::KEY_VEH_BOOST,
+			KeyConfig::KEY_VEH_STOP, KeyConfig::KEY_VEH_ROCKETS, KeyConfig::KEY_VEH_LEFTBLINK,
+			KeyConfig::KEY_VEH_RIGHTBLINK, KeyConfig::KEY_VEH_EMERGENCYBLINK
+		};
+		
+		for (int i = 0; i < 8; i++) {
+			KeyConfig* key = keyConfig->get_key(otherKeyNames[i]);
+			if (key != NULL && key->keyCode == newKeyCode) {
+				return true; // 与其他按键重复
+			}
+		}
+	}
+	
 	return false;
 }
 
-// 检查常用按键是否重复
+// 检查常用按键是否重复（统一从 KeyInputConfig 读取实际应用的按键）
 bool is_common_key_duplicate(int commonKeyNum, int keyIndex) {
 	// 如果是未绑定，不检查重复
-	if (keyIndex == 0) {
+	if (keyIndex == 0 || keyIndex >= sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
 		return false;
 	}
 	
-	// 获取当前常用按键数组
-	int commonKeys[7] = {
-		CommonKeyToggleMenuIndex, CommonKeyMoveUpIndex, CommonKeyMoveDownIndex,
-		CommonKeyMoveLeftIndex, CommonKeyMoveRightIndex, CommonKeyConfirmSelectIndex, CommonKeyBackCancelIndex
+	int newKeyCode = MISC_HOTKEY_VALUES[keyIndex];
+	KeyInputConfig* keyConfig = get_config()->get_key_config();
+	if (keyConfig == NULL) return false;
+	
+	// 检查其他6个常用按键
+	std::string commonKeyNames[] = {
+		KeyConfig::KEY_TOGGLE_MAIN_MENU, KeyConfig::KEY_MENU_UP, KeyConfig::KEY_MENU_DOWN,
+		KeyConfig::KEY_MENU_LEFT, KeyConfig::KEY_MENU_RIGHT, KeyConfig::KEY_MENU_SELECT,
+		KeyConfig::KEY_MENU_BACK
 	};
 	
-	// 检查其他常用按键是否有相同的按键
 	for (int i = 0; i < 7; i++) {
 		if (i == commonKeyNum) continue; // 跳过自己
-		if (commonKeys[i] == keyIndex) {
-			return true;
+		
+		KeyConfig* key = keyConfig->get_key(commonKeyNames[i]);
+		if (key != NULL && key->keyCode == newKeyCode) {
+			return true; // 与其他常用按键重复
 		}
 	}
 	
-	// 检查其他按键是否有相同的按键
-	int otherKeys[8] = {
-		OtherKeyToggleFreeMoveIndex, OtherKeyFreeCamToggleIndex, OtherKeyVehicleBoostIndex, OtherKeyVehicleStopIndex,
-		OtherKeyVehicleRocketsIndex, OtherKeyLeftBlinkIndex, OtherKeyRightBlinkIndex, OtherKeyEmergencyBlinkIndex
+	// 检查其他按键
+	std::string otherKeyNames[] = {
+		KeyConfig::KEY_TOGGLE_AIRBRAKE, KeyConfig::KEY_FREECAM_TOGGLE, KeyConfig::KEY_VEH_BOOST,
+		KeyConfig::KEY_VEH_STOP, KeyConfig::KEY_VEH_ROCKETS, KeyConfig::KEY_VEH_LEFTBLINK,
+		KeyConfig::KEY_VEH_RIGHTBLINK, KeyConfig::KEY_VEH_EMERGENCYBLINK
 	};
 	
 	for (int i = 0; i < 8; i++) {
-		if (otherKeys[i] == keyIndex) {
-			return true;
+		KeyConfig* key = keyConfig->get_key(otherKeyNames[i]);
+		if (key != NULL && key->keyCode == newKeyCode) {
+			return true; // 与其他按键重复
 		}
 	}
 	
-	// 检查快捷键是否有相同的按键（不考虑修饰键，因为常用按键和其他按键不支持修饰键）
+	// 检查快捷键（仅当快捷键没有修饰键时才冲突，因为常用按键不支持修饰键）
+	// 例如：F4（常用按键）与 F4（无修饰键的快捷键）冲突，但不与 Ctrl+F4 冲突
+	std::string hotkeyNames[] = {
+		KeyConfig::KEY_HOT_1, KeyConfig::KEY_HOT_2, KeyConfig::KEY_HOT_3,
+		KeyConfig::KEY_HOT_4, KeyConfig::KEY_HOT_5, KeyConfig::KEY_HOT_6,
+		KeyConfig::KEY_HOT_7, KeyConfig::KEY_HOT_8, KeyConfig::KEY_HOT_9
+	};
+	
 	for (int i = 0; i < 9; i++) {
-		if (HotkeyIndex[i] == keyIndex) {
-			return true;
+		KeyConfig* key = keyConfig->get_key(hotkeyNames[i]);
+		// 仅当快捷键没有任何修饰键时才视为冲突
+		if (key != NULL && key->keyCode == newKeyCode && 
+			!key->modCtrl && !key->modAlt && !key->modShift) {
+			return true; // 与无修饰键的快捷键重复
 		}
 	}
 	
 	return false;
 }
 
-// 检查其他按键是否重复
+// 检查其他按键是否重复（统一从 KeyInputConfig 读取实际应用的按键）
 bool is_other_key_duplicate(int otherKeyNum, int keyIndex) {
 	// 如果是未绑定，不检查重复
-	if (keyIndex == 0) {
+	if (keyIndex == 0 || keyIndex >= sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
 		return false;
 	}
 	
-	// 获取当前其他按键数组
-	int otherKeys[8] = {
-		OtherKeyToggleFreeMoveIndex, OtherKeyFreeCamToggleIndex, OtherKeyVehicleBoostIndex, OtherKeyVehicleStopIndex,
-		OtherKeyVehicleRocketsIndex, OtherKeyLeftBlinkIndex, OtherKeyRightBlinkIndex, OtherKeyEmergencyBlinkIndex
+	int newKeyCode = MISC_HOTKEY_VALUES[keyIndex];
+	KeyInputConfig* keyConfig = get_config()->get_key_config();
+	if (keyConfig == NULL) return false;
+	
+	// 检查其他7个其他按键
+	std::string otherKeyNames[] = {
+		KeyConfig::KEY_TOGGLE_AIRBRAKE, KeyConfig::KEY_FREECAM_TOGGLE, KeyConfig::KEY_VEH_BOOST,
+		KeyConfig::KEY_VEH_STOP, KeyConfig::KEY_VEH_ROCKETS, KeyConfig::KEY_VEH_LEFTBLINK,
+		KeyConfig::KEY_VEH_RIGHTBLINK, KeyConfig::KEY_VEH_EMERGENCYBLINK
 	};
 	
-	// 检查其他按键是否有相同的按键
 	for (int i = 0; i < 8; i++) {
 		if (i == otherKeyNum) continue; // 跳过自己
-		if (otherKeys[i] == keyIndex) {
-			return true;
+		
+		KeyConfig* key = keyConfig->get_key(otherKeyNames[i]);
+		if (key != NULL && key->keyCode == newKeyCode) {
+			return true; // 与其他按键重复
 		}
 	}
 	
-	// 检查常用按键是否有相同的按键
-	int commonKeys[7] = {
-		CommonKeyToggleMenuIndex, CommonKeyMoveUpIndex, CommonKeyMoveDownIndex,
-		CommonKeyMoveLeftIndex, CommonKeyMoveRightIndex, CommonKeyConfirmSelectIndex, CommonKeyBackCancelIndex
+	// 检查常用按键
+	std::string commonKeyNames[] = {
+		KeyConfig::KEY_TOGGLE_MAIN_MENU, KeyConfig::KEY_MENU_UP, KeyConfig::KEY_MENU_DOWN,
+		KeyConfig::KEY_MENU_LEFT, KeyConfig::KEY_MENU_RIGHT, KeyConfig::KEY_MENU_SELECT,
+		KeyConfig::KEY_MENU_BACK
 	};
 	
 	for (int i = 0; i < 7; i++) {
-		if (commonKeys[i] == keyIndex) {
-			return true;
+		KeyConfig* key = keyConfig->get_key(commonKeyNames[i]);
+		if (key != NULL && key->keyCode == newKeyCode) {
+			return true; // 与常用按键重复
 		}
 	}
 	
-	// 检查快捷键是否有相同的按键（不考虑修饰键，因为常用按键和其他按键不支持修饰键）
+	// 检查快捷键（仅当快捷键没有修饰键时才冲突，因为其他按键不支持修饰键）
+	// 例如：F6（其他按键）与 F6（无修饰键的快捷键）冲突，但不与 Ctrl+F6 冲突
+	std::string hotkeyNames[] = {
+		KeyConfig::KEY_HOT_1, KeyConfig::KEY_HOT_2, KeyConfig::KEY_HOT_3,
+		KeyConfig::KEY_HOT_4, KeyConfig::KEY_HOT_5, KeyConfig::KEY_HOT_6,
+		KeyConfig::KEY_HOT_7, KeyConfig::KEY_HOT_8, KeyConfig::KEY_HOT_9
+	};
+	
 	for (int i = 0; i < 9; i++) {
-		if (HotkeyIndex[i] == keyIndex) {
-			return true;
+		KeyConfig* key = keyConfig->get_key(hotkeyNames[i]);
+		// 仅当快捷键没有任何修饰键时才视为冲突
+		if (key != NULL && key->keyCode == newKeyCode && 
+			!key->modCtrl && !key->modAlt && !key->modShift) {
+			return true; // 与无修饰键的快捷键重复
 		}
 	}
 	
@@ -4141,46 +4217,25 @@ void onchange_common_key(int value, SelectFromListMenuItem* source) {
 	if (keyIndex >= 0 && keyIndex < 7) {
 		// 检查按键重复
 		if (is_common_key_duplicate(keyIndex, value)) {
-			set_status_text("按键重复！\n已恢复默认绑定键位。");
-			set_status_text_centre_screen("按键 ~r~重复！~s~已恢复默认绑定键位。");
+			// 获取默认值
+			int defaultValues[] = {4, 57, 51, 53, 55, 54, 49}; // F4, 小键盘8/2/4/6/5/0
+			int defaultValue = defaultValues[keyIndex];
 			
-			// 恢复默认绑定键位
-			switch(keyIndex) {
-				case 0: CommonKeyToggleMenuIndex = 4; break;      // F4
-				case 1: CommonKeyMoveUpIndex = 57; break;         // 小键盘 8
-				case 2: CommonKeyMoveDownIndex = 51; break;       // 小键盘 2
-				case 3: CommonKeyMoveLeftIndex = 53; break;       // 小键盘 4
-				case 4: CommonKeyMoveRightIndex = 55; break;      // 小键盘 6
-				case 5: CommonKeyConfirmSelectIndex = 54; break;  // 小键盘 5
-				case 6: CommonKeyBackCancelIndex = 49; break;     // 小键盘 0
+			// 检查默认值是否也被占用
+			if (is_common_key_duplicate(keyIndex, defaultValue)) {
+				// 默认值也被占用，恢复为未绑定
+				set_status_text("按键重复, 默认值也被占用！\n已恢复为：未绑定状态！");
+				set_status_text_centre_screen("按键 ~r~重复！~s~已恢复为：未绑定状态！");
+				value = 0; // 未绑定
+			} else {
+				// 默认值未被占用，恢复为默认值
+				set_status_text("按键重复！\n已恢复默认绑定键位。");
+				set_status_text_centre_screen("按键 ~r~重复！~s~已恢复默认绑定键位。");
+				value = defaultValue;
 			}
-			CommonKeyChanged[keyIndex] = true;
-			
-			// 立即更新KeyInputConfig以使更改生效
-			KeyInputConfig* keyConfig = get_config()->get_key_config();
-			if (keyConfig != NULL) {
-				std::string keyName;
-				int keyValue;
-				
-				switch(keyIndex) {
-					case 0: keyName = KeyConfig::KEY_TOGGLE_MAIN_MENU; keyValue = CommonKeyToggleMenuIndex; break;
-					case 1: keyName = KeyConfig::KEY_MENU_UP; keyValue = CommonKeyMoveUpIndex; break;
-					case 2: keyName = KeyConfig::KEY_MENU_DOWN; keyValue = CommonKeyMoveDownIndex; break;
-					case 3: keyName = KeyConfig::KEY_MENU_LEFT; keyValue = CommonKeyMoveLeftIndex; break;
-					case 4: keyName = KeyConfig::KEY_MENU_RIGHT; keyValue = CommonKeyMoveRightIndex; break;
-					case 5: keyName = KeyConfig::KEY_MENU_SELECT; keyValue = CommonKeyConfirmSelectIndex; break;
-					case 6: keyName = KeyConfig::KEY_MENU_BACK; keyValue = CommonKeyBackCancelIndex; break;
-				}
-				
-				if (keyValue >= 0 && keyValue < sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
-					int actualKeyValue = MISC_HOTKEY_VALUES[keyValue];
-					char* keyValueName = keyValToName(actualKeyValue);
-					keyConfig->set_key((char*)keyName.c_str(), keyValueName, false, false, false);
-				}
-			}
-			return; // 阻止设置重复的按键，已恢复默认值
 		}
 		
+		// 统一更新索引变量（无论是否重复，value都是最终要设置的值）
 		switch(keyIndex) {
 			case 0: CommonKeyToggleMenuIndex = value; break;
 			case 1: CommonKeyMoveUpIndex = value; break;
@@ -4224,48 +4279,25 @@ void onchange_other_key(int value, SelectFromListMenuItem* source) {
 	if (keyIndex >= 0 && keyIndex < 8) {
 		// 检查按键重复
 		if (is_other_key_duplicate(keyIndex, value)) {
-			set_status_text("按键重复！\n已恢复默认绑定键位。");
-			set_status_text_centre_screen("按键 ~r~重复！~s~已恢复默认绑定键位。");
+			// 获取默认值
+			int defaultValues[] = {6, 7, 58, 52, 59, 72, 73, 63}; // F6/F7, 小键盘9/3/+, 左右箭头, 小键盘.
+			int defaultValue = defaultValues[keyIndex];
 			
-			// 恢复默认绑定键位
-			switch(keyIndex) {
-				case 0: OtherKeyToggleFreeMoveIndex = 6; break;   // F6
-				case 1: OtherKeyFreeCamToggleIndex = 7; break;    // F7
-				case 2: OtherKeyVehicleBoostIndex = 58; break;    // 小键盘 9
-				case 3: OtherKeyVehicleStopIndex = 52; break;     // 小键盘 3
-				case 4: OtherKeyVehicleRocketsIndex = 59; break;  // 小键盘 +
-				case 5: OtherKeyLeftBlinkIndex = 72; break;       // 左箭头
-				case 6: OtherKeyRightBlinkIndex = 73; break;      // 右箭头
-				case 7: OtherKeyEmergencyBlinkIndex = 63; break;  // 小键盘 .
+			// 检查默认值是否也被占用
+			if (is_other_key_duplicate(keyIndex, defaultValue)) {
+				// 默认值也被占用，恢复为未绑定
+				set_status_text("按键重复, 默认值也被占用！\n已恢复为：未绑定状态！");
+				set_status_text_centre_screen("按键 ~r~重复！~s~已恢复为：未绑定状态！");
+				value = 0; // 未绑定
+			} else {
+				// 默认值未被占用，恢复为默认值
+				set_status_text("按键重复！\n已恢复默认绑定键位。");
+				set_status_text_centre_screen("按键 ~r~重复！~s~已恢复默认绑定键位。");
+				value = defaultValue;
 			}
-			OtherKeyChanged[keyIndex] = true;
-			
-			// 立即更新KeyInputConfig以使更改生效
-			KeyInputConfig* keyConfig = get_config()->get_key_config();
-			if (keyConfig != NULL) {
-				std::string keyName;
-				int keyValue;
-				
-				switch(keyIndex) {
-					case 0: keyName = KeyConfig::KEY_TOGGLE_AIRBRAKE; keyValue = OtherKeyToggleFreeMoveIndex; break;
-					case 1: keyName = KeyConfig::KEY_FREECAM_TOGGLE; keyValue = OtherKeyFreeCamToggleIndex; break;
-					case 2: keyName = KeyConfig::KEY_VEH_BOOST; keyValue = OtherKeyVehicleBoostIndex; break;
-					case 3: keyName = KeyConfig::KEY_VEH_STOP; keyValue = OtherKeyVehicleStopIndex; break;
-					case 4: keyName = KeyConfig::KEY_VEH_ROCKETS; keyValue = OtherKeyVehicleRocketsIndex; break;
-					case 5: keyName = KeyConfig::KEY_VEH_LEFTBLINK; keyValue = OtherKeyLeftBlinkIndex; break;
-					case 6: keyName = KeyConfig::KEY_VEH_RIGHTBLINK; keyValue = OtherKeyRightBlinkIndex; break;
-					case 7: keyName = KeyConfig::KEY_VEH_EMERGENCYBLINK; keyValue = OtherKeyEmergencyBlinkIndex; break;
-				}
-				
-				if (keyValue >= 0 && keyValue < sizeof(MISC_HOTKEY_VALUES)/sizeof(int)) {
-					int actualKeyValue = MISC_HOTKEY_VALUES[keyValue];
-					char* keyValueName = keyValToName(actualKeyValue);
-					keyConfig->set_key((char*)keyName.c_str(), keyValueName, false, false, false);
-				}
-			}
-			return; // 阻止设置重复的按键，已恢复默认值
 		}
 		
+		// 统一更新索引变量（无论是否重复，value都是最终要设置的值）
 		switch(keyIndex) {
 			case 0: OtherKeyToggleFreeMoveIndex = value; break;
 			case 1: OtherKeyFreeCamToggleIndex = value; break;
