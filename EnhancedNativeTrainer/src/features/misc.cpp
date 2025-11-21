@@ -4996,6 +4996,9 @@ void deactivate_freecam(Ped playerPed) {
 	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_BRAKE, TRUE);
 	CONTROLS::ENABLE_CONTROL_ACTION(2, INPUT_VEH_RADIO_WHEEL, TRUE);
 	
+	// 清除游戏焦点设置，恢复默认的环境加载行为
+	STREAMING::CLEAR_FOCUS();
+	
 	// 标记自由相机已关闭（保持速度模式不重置，下次打开继续使用上次的速度）
 	freeCamActive = false;
 	//currentSpeedMode = 0;//保持当前值，不重置为0
@@ -5168,6 +5171,17 @@ void update_freecam_features(BOOL playerExists, Ped playerPed) {
 			Entity ent = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) ? PED::GET_VEHICLE_PED_IS_IN(playerPed, false) : playerPed;
 			ENTITY::SET_ENTITY_COORDS(ent, newPosX, newPosY, newPosZ, false, false, false, true);
 		}
+	}
+	
+	// 【环境加载】在不跟随模式下，强制加载相机位置的周围环境
+	if (MISC_FREECAM_FOLLOW_VALUES[FreeCamFollowIndex] == 1) { // 1=不跟随
+		Vector3 camPos = CAM::GET_CAM_COORD(freeCamHandle);
+		// 设置游戏焦点到相机位置，强制加载该位置周围的环境
+		// 注意：玩家位置的环境会自动保持加载状态，不会被卸载
+		STREAMING::_SET_FOCUS_AREA(camPos.x, camPos.y, camPos.z, 0.0f, 0.0f, 0.0f);
+	} else { // 0=跟随
+		// 清除焦点设置，让游戏自动根据玩家位置加载环境
+		STREAMING::CLEAR_FOCUS();
 	}
 
 	// 绘制自由相机十字准星
