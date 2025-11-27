@@ -38,6 +38,10 @@ int activeLineIndexPowerPunchWeapons = 0;
 static bool shown_vacuum_message = false; 
 // 重力枪消息提示 
 static bool shown_gravitygun_message = false;
+// 载具模型枪消息提示
+static bool shown_vehiclemodelgun_message = false;
+// 角色模型枪消息提示
+static bool shown_pedmodelgun_message = false;
 
 // 保存武器相关变量
 bool requireRefreshOfWeaponSaveSlotMenu = false;
@@ -76,6 +80,23 @@ int WeaponsCrosshairColorIndex = 0; // 默认0 白色
 bool WeaponsCrosshairColorChanged = false;
 int strb_c = 0;
 float strobe_tick = 0.0;
+
+// 载具模型枪和角色模型枪相关变量
+bool featureVehicleModelGun = false;
+bool featureVehicleModelGunUpdated = false;
+bool featurePedModelGun = false;
+bool featurePedModelGunUpdated = false;
+int VehicleModelGunCategoryIndex = 0; // 默认选择小型汽车
+bool VehicleModelGunCategoryChanged = true; // 用于配置加载
+int VehicleModelGunSpeedIndex = 4; // 默认正常速度（索引4=200.0f）
+bool VehicleModelGunSpeedChanged = true; // 用于配置加载
+bool featureVehicleModelGunInvincible = false;
+
+int PedModelGunCategoryIndex = 0; // 默认选择环境女性
+bool PedModelGunCategoryChanged = true; // 用于配置加载
+int PedModelGunSpeedIndex = 4; // 默认正常速度（索引4=200.0f）
+bool PedModelGunSpeedChanged = true; // 用于配置加载
+bool featurePedModelGunInvincible = false;
 
 // 手电筒强度
 int WeapFlashDistIndex = 0;
@@ -1380,6 +1401,12 @@ bool onconfirm_weapon_menu(MenuItem<int> choice){
 			}
 			break;
 		}
+		case 43: // 载具模型枪菜单
+			process_vehicle_model_gun_menu();
+			break;
+		case 44: // 角色模型枪菜单
+			process_ped_model_gun_menu();
+			break;
 		//case 36:
 		//	if (AIMBOT_INCLUDED) process_aimbot_esp_menu();
 		//	break;
@@ -1671,6 +1698,20 @@ bool process_weapon_menu(){
 	item->isLeaf = true;
 	menuItems.push_back(item);
 
+	// 载具模型枪菜单
+	item = new MenuItem<int>();
+	item->caption = "载具模型枪";
+	item->value = i++;
+	item->isLeaf = false;
+	menuItems.push_back(item);
+
+	// 角色模型枪菜单
+	item = new MenuItem<int>();
+	item->caption = "角色模型枪";
+	item->value = i++;
+	item->isLeaf = false;
+	menuItems.push_back(item);
+
 	//if (AIMBOT_INCLUDED) {
 	//	item = new MenuItem<int>();
 	//	item->caption = "Aimbot ESP";
@@ -1706,6 +1747,22 @@ void reset_weapon_globals(){
 	featureWeaponsCrosshair = false; // 屏幕准星默认关闭
 	WeaponsCrosshairStyleIndex = 0; // 默认0 对应实线（1）
 	WeaponsCrosshairColorIndex = 0; // 默认0 对应白色
+	
+	// 重置载具模型枪和角色模型枪相关变量
+	featureVehicleModelGun = false;
+	featureVehicleModelGunUpdated = false;
+	featurePedModelGun = false;
+	featurePedModelGunUpdated = false;
+	VehicleModelGunCategoryIndex = 0;
+	VehicleModelGunCategoryChanged = true;
+	VehicleModelGunSpeedIndex = 4; // 默认正常速度（索引4=200.0f）
+	VehicleModelGunSpeedChanged = true;
+	featureVehicleModelGunInvincible = false;
+	PedModelGunCategoryIndex = 0;
+	PedModelGunCategoryChanged = true;
+	PedModelGunSpeedIndex = 4; // 默认正常速度（索引4=200.0f）
+	PedModelGunSpeedChanged = true;
+	featurePedModelGunInvincible = false;
 
 	activeLineIndexCopArmed = 0;
 	activeLineIndexPedAgainstWeapons = 0;
@@ -2625,6 +2682,57 @@ void update_weapon_features(BOOL bPlayerExists, Player player){
 	if (bPlayerExists && !freeCamActive) {
 		draw_weapons_crosshair();
 	}
+	
+	// 载具模型枪和角色模型枪的互斥逻辑（使用Updated标志避免菜单闪烁）
+	// 注意：必须同时重置对方的Updated标志，否则菜单框架不知道值被外部修改，会导致闪烁
+	if (featureVehicleModelGunUpdated) {
+		if (featureVehicleModelGun && featurePedModelGun) {
+			featurePedModelGun = false;
+			featurePedModelGunUpdated = true; // ✅ 关键：通知菜单框架值已改变
+			set_status_text("~r~已关闭 ~q~角色模型枪");
+		}
+		featureVehicleModelGunUpdated = false;
+	}
+	
+	if (featurePedModelGunUpdated) {
+		if (featurePedModelGun && featureVehicleModelGun) {
+			featureVehicleModelGun = false;
+			featureVehicleModelGunUpdated = true; // ✅ 关键：通知菜单框架值已改变
+			set_status_text("~r~已关闭 ~p~载具模型枪");
+		}
+		featurePedModelGunUpdated = false;
+	}
+	
+	// 载具模型枪开启提示
+	if (featureVehicleModelGun) {
+		if (!shown_vehiclemodelgun_message) {
+			set_status_text("~y~已启用 ~p~载具模型枪！");
+			shown_vehiclemodelgun_message = true;
+		}
+	} else {
+		shown_vehiclemodelgun_message = false; // 关闭时重置标记
+	}
+	
+	// 角色模型枪开启提示
+	if (featurePedModelGun) {
+		if (!shown_pedmodelgun_message) {
+			set_status_text("~y~已启用 ~q~角色模型枪！");
+			shown_pedmodelgun_message = true;
+		}
+	} else {
+		shown_pedmodelgun_message = false; // 关闭时重置标记
+	}
+	
+	// 载具模型枪和角色模型枪射击检测（参考MenyooSP实现）
+	// 当玩家射击时触发，IS_PED_SHOOTING会在武器发射子弹瞬间返回true
+	if (bPlayerExists && PED::IS_PED_SHOOTING(playerPed)) {
+		if (featureVehicleModelGun) {
+			fire_vehicle_model_gun();
+		}
+		if (featurePedModelGun) {
+			fire_ped_model_gun();
+		}
+	}
 }
 
 void save_player_weapons(Ped playerPed){
@@ -2981,6 +3089,10 @@ void add_weapon_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featureArmyMelee", &featureArmyMelee});
 	results->push_back(FeatureEnabledLocalDefinition{"featureDetainedIfNotMove", &featureDetainedIfNotMove});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWeaponsCrosshair", &featureWeaponsCrosshair});
+	results->push_back(FeatureEnabledLocalDefinition{"featureVehicleModelGun", &featureVehicleModelGun, &featureVehicleModelGunUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePedModelGun", &featurePedModelGun, &featurePedModelGunUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featureVehicleModelGunInvincible", &featureVehicleModelGunInvincible});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePedModelGunInvincible", &featurePedModelGunInvincible});
 }
 
 void add_weapon_feature_enablements2(std::vector<StringPairSettingDBRow>* results)
@@ -3000,6 +3112,10 @@ void add_weapon_feature_enablements2(std::vector<StringPairSettingDBRow>* result
 	results->push_back(StringPairSettingDBRow{ "WeapFlashDistIndex", std::to_string(WeapFlashDistIndex) });
 	results->push_back(StringPairSettingDBRow{ "WeaponsCrosshairStyleIndex", std::to_string(WeaponsCrosshairStyleIndex) });
 	results->push_back(StringPairSettingDBRow{ "WeaponsCrosshairColorIndex", std::to_string(WeaponsCrosshairColorIndex) });
+	results->push_back(StringPairSettingDBRow{ "VehicleModelGunCategoryIndex", std::to_string(VehicleModelGunCategoryIndex) });
+	results->push_back(StringPairSettingDBRow{ "VehicleModelGunSpeedIndex", std::to_string(VehicleModelGunSpeedIndex) });
+	results->push_back(StringPairSettingDBRow{ "PedModelGunCategoryIndex", std::to_string(PedModelGunCategoryIndex) });
+	results->push_back(StringPairSettingDBRow{ "PedModelGunSpeedIndex", std::to_string(PedModelGunSpeedIndex) });
 }
 
 void onchange_weap_dmg_modifier(int value, SelectFromListMenuItem* source){
@@ -3070,6 +3186,22 @@ void handle_generic_settings_weapons(std::vector<StringPairSettingDBRow>* settin
 		else if (setting.name.compare("WeaponsCrosshairColorIndex") == 0) {
 			WeaponsCrosshairColorIndex = stoi(setting.value);
 			WeaponsCrosshairColorChanged = true;
+		}
+		else if (setting.name.compare("VehicleModelGunCategoryIndex") == 0) {
+			VehicleModelGunCategoryIndex = stoi(setting.value);
+			VehicleModelGunCategoryChanged = true;
+		}
+		else if (setting.name.compare("VehicleModelGunSpeedIndex") == 0) {
+			VehicleModelGunSpeedIndex = stoi(setting.value);
+			VehicleModelGunSpeedChanged = true;
+		}
+		else if (setting.name.compare("PedModelGunCategoryIndex") == 0) {
+			PedModelGunCategoryIndex = stoi(setting.value);
+			PedModelGunCategoryChanged = true;
+		}
+		else if (setting.name.compare("PedModelGunSpeedIndex") == 0) {
+			PedModelGunSpeedIndex = stoi(setting.value);
+			PedModelGunSpeedChanged = true;
 		}
 	}
 }
@@ -3217,4 +3349,475 @@ bool process_weapons_crosshair_menu() {
 	menuItems.push_back(listItem);
 	
 	return draw_generic_menu<int>(menuItems, &activeLineIndexWeapon, caption, NULL, NULL, NULL);
+}
+
+// 载具模型枪回调函数
+void onchange_vehicle_model_gun_category_index(int value, SelectFromListMenuItem* source) {
+	VehicleModelGunCategoryIndex = value;
+	
+	// 检测：当切换到特种车辆（索引11）且开启了永不通缉时，显示警告
+	if (value == 11 && featurePlayerNeverWanted) {
+		set_status_text("~r~警告: 选择特种车辆分类时！");
+		set_status_text("~r~注意: 请不要开启永不通缉！");
+	}
+}
+
+void onchange_vehicle_model_gun_speed_index(int value, SelectFromListMenuItem* source) {
+	VehicleModelGunSpeedIndex = value;
+}
+
+// 角色模型枪回调函数
+void onchange_ped_model_gun_category_index(int value, SelectFromListMenuItem* source) {
+	PedModelGunCategoryIndex = value;
+}
+
+void onchange_ped_model_gun_speed_index(int value, SelectFromListMenuItem* source) {
+	PedModelGunSpeedIndex = value;
+}
+
+// 载具模型枪菜单处理
+bool process_vehicle_model_gun_menu() {
+	const std::string caption = "载具模型枪设置";
+	
+	std::vector<MenuItem<int>*> menuItems;
+	SelectFromListMenuItem* listItem;
+	ToggleMenuItem<int>* toggleItem;
+	
+	int i = 0;
+	
+	// 启用/关闭载具模型枪
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "启用载具模型枪";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureVehicleModelGun;
+	toggleItem->toggleValueUpdated = &featureVehicleModelGunUpdated;
+	menuItems.push_back(toggleItem);
+	
+	// 载具分类选择
+	listItem = new SelectFromListMenuItem(VEHICLE_MODEL_GUN_CATEGORIES, onchange_vehicle_model_gun_category_index);
+	listItem->wrap = false;
+	listItem->caption = "选择载具模型";
+	listItem->value = VehicleModelGunCategoryIndex;
+	menuItems.push_back(listItem);
+	
+	// 载具发射速度选择
+	listItem = new SelectFromListMenuItem(MODEL_GUN_SPEED_CAPTIONS, onchange_vehicle_model_gun_speed_index);
+	listItem->wrap = false;
+	listItem->caption = "载具发射速度";
+	listItem->value = VehicleModelGunSpeedIndex;
+	menuItems.push_back(listItem);
+	
+	// 载具无敌开关
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "开启载具无敌";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureVehicleModelGunInvincible;
+	menuItems.push_back(toggleItem);
+	
+	return draw_generic_menu<int>(menuItems, &activeLineIndexWeapon, caption, NULL, NULL, NULL);
+}
+
+// 角色模型枪菜单处理
+bool process_ped_model_gun_menu() {
+	const std::string caption = "角色模型枪设置";
+	
+	std::vector<MenuItem<int>*> menuItems;
+	SelectFromListMenuItem* listItem;
+	ToggleMenuItem<int>* toggleItem;
+	
+	int i = 0;
+	
+	// 启用/关闭角色模型枪
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "启用角色模型枪";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePedModelGun;
+	toggleItem->toggleValueUpdated = &featurePedModelGunUpdated;
+	menuItems.push_back(toggleItem);
+	
+	// 角色分类选择
+	listItem = new SelectFromListMenuItem(PED_MODEL_GUN_CATEGORIES, onchange_ped_model_gun_category_index);
+	listItem->wrap = false;
+	listItem->caption = "选择角色模型";
+	listItem->value = PedModelGunCategoryIndex;
+	menuItems.push_back(listItem);
+	
+	// 角色发射速度选择
+	listItem = new SelectFromListMenuItem(MODEL_GUN_SPEED_CAPTIONS, onchange_ped_model_gun_speed_index);
+	listItem->wrap = false;
+	listItem->caption = "角色发射速度";
+	listItem->value = PedModelGunSpeedIndex;
+	menuItems.push_back(listItem);
+	
+	// 角色无敌开关
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "开启角色无敌";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePedModelGunInvincible;
+	menuItems.push_back(toggleItem);
+	
+	return draw_generic_menu<int>(menuItems, &activeLineIndexWeapon, caption, NULL, NULL, NULL);
+}
+
+// 获取随机载具Hash（根据NativeTrainerConfig.xml的分类）- 随机不重复模式
+Hash get_random_vehicle_hash_by_category(int categoryIndex) {
+	// 根据NativeTrainerConfig.xml的分类数据定义车辆模型
+	static const std::vector<std::vector<std::string>> VEHICLE_MODELS_BY_CATEGORY = {
+		// 小型汽车
+		{"ASBO", "PANTO", "RHAPSODY", "WEEVIL", "CLUB", "ISSI3", "BRIOSO2", "BRIOSO3", "PRAIRIE", "BLISTA"},
+		
+		// 轿车
+		{"PRIMO", "CINQUEMILA", "ASTEROPE2", "DEITY", "COG55", "SUPERD", "TAILGATER2", "MINIMUS", "SURGE", "FUGITIVE"},
+		
+		// SUV
+		{"TOROS", "NOVAK", "GRESLEY", "CASTIGATOR", "VIVANITE", "JUBILEE", "IWAGEN", "CONTENDER", "REBLA", "XLS"},
+		
+		// 轿跑车
+		{"KANJOSJ", "FELON", "WINDSOR", "F620", "JACKAL", "EXEMPLAR", "FR36", "ORACLE", "SENTINEL", "ZION"},
+		
+		// 肌肉车
+		{"VIRGO", "BUFFALO4", "GAUNTLET", "DOMINATOR7", "DOMINATOR3", "SLAMVAN3", "SABREGT", "VIGERO2", "HERMES", "RUINER4"},
+		
+		// 经典跑车
+		{"MANANA", "CASCO", "PIGALLE", "GT500", "PEYOTE", "DYNASTY", "JB700", "MAMBA", "FELTZER3", "COQUETTE5"},
+		
+		// 跑车
+		{"JESTER", "DRIFTJESTER", "BANSHEE", "KURUMA", "ITALIGTO", "ITALIRSX", "PENUMBRA2", "TENF", "TENF2", "SEVEN70"},
+		
+		// 超级跑车
+		{"IGNUS", "ZENTORNO", "REAPER", "BANSHEE2", "TURISMO3", "VOLTIC2", "NERO2", "ADDER", "THRAX", "PFISTER811"},
+		
+		// 摩托车
+		{"POLICEB2", "DOUBLE", "AKUMA", "BATI2", "THRUST", "NEMESIS", "SOVEREIGN", "HAKUCHOU", "STRYDER", "BF400"},
+		
+		// 越野车
+		{"INSURGENT2", "DLOADER", "KAMACHO", "MESA", "VERUS", "CARACARA2", "DRAUGUR", "PATRIOT3", "DUBSTA3", "BLAZER2"},
+		
+		// 开轮式
+		{"FORMULA", "FORMULA2", "OPENWHEEL2", "OPENWHEEL1"},
+		
+		// 特种车
+		{"FBI", "FIRETRUK", "POLDORADO", "POLGAUNTLET", "POLICE4", "PRANGER", "LGUARD", "POLICE", "SHERIFF2", "POLICET"},
+		
+		// 厢型车
+		{"PARADISE", "YOUGA", "RUMPO3", "BISON", "YOUGA4", "SPEEDO2", "MINIVAN", "MINIVAN2", "BOBCATXL", "PONY"},
+		
+		// 自行车
+		{"BMX", "SCORCHER", "CRUISER", "TRIBIKE", "INDUCTOR2", "TRIBIKE2", "TRIBIKE3", "INDUCTOR", "FIXTER"},
+		
+		// 直升机
+		{"HUNTER", "VALKYRIE", "MAVERICK", "VOLATUS", "SWIFT", "BUZZARD", "FROGGER", "SAVAGE", "AKULA", "POLMAV"},
+		
+		// 飞机
+		{"STRIKEFORCE", "TULA", "LAZER", "BOMBUSHKA", "CUBAN800", "ALKONOST", "TITAN", "DUSTER", "LUXOR", "BESRA"},
+		
+		// 船只
+		{"SPEEDER", "TORO", "PATROLBOAT", "SEASHARK", "AVISA", "PREDATOR", "SUNTRAP", "TROPIC", "LONGFIN", "DINGHY"}
+	};
+	
+	// 洗牌算法相关静态变量
+	static int lastCategoryIndex = -1; // 上次使用的分类
+	static int currentIndex = 0; // 当前使用的索引
+	static std::vector<int> shuffledIndices; // 洗牌后的索引列表
+	
+	if (categoryIndex < 0 || categoryIndex >= VEHICLE_MODELS_BY_CATEGORY.size()) {
+		categoryIndex = 0; // 默认到小型汽车分类
+	}
+	
+	const auto& vehList = VEHICLE_MODELS_BY_CATEGORY[categoryIndex];
+	if (vehList.empty()) {
+		return GAMEPLAY::GET_HASH_KEY((char*)"ADDER"); // 默认车辆
+	}
+	
+	// 检查是否需要重新洗牌（分类切换或遍历完成）
+	if (lastCategoryIndex != categoryIndex || currentIndex >= shuffledIndices.size()) {
+		// 初始化索引列表（0, 1, 2, ..., size-1）
+		shuffledIndices.clear();
+		for (int i = 0; i < vehList.size(); ++i) {
+			shuffledIndices.push_back(i);
+		}
+		
+		// Fisher-Yates 洗牌算法
+		for (int i = shuffledIndices.size() - 1; i > 0; --i) {
+			int j = rand() % (i + 1);
+			std::swap(shuffledIndices[i], shuffledIndices[j]);
+		}
+		
+		currentIndex = 0;
+		lastCategoryIndex = categoryIndex;
+	}
+	
+	// 获取当前模型并递增索引
+	int modelIndex = shuffledIndices[currentIndex];
+	currentIndex++;
+	
+	return GAMEPLAY::GET_HASH_KEY((char*)vehList[modelIndex].c_str());
+}
+
+// 获取随机角色Hash（根据ent-Peds-1.xml的分类）- 随机不重复模式
+Hash get_random_ped_hash_by_category(int categoryIndex) {
+	// 根据ent-Peds-1.xml的分类数据定义角色模型
+	static const std::vector<std::vector<std::string>> PED_MODELS_BY_CATEGORY = {
+		// 主角
+		//{"player_zero", "player_one", "player_two", "p_franklin_02"},
+		
+		// 环境女性
+		{"a_f_m_beach_01", "a_f_m_bevhills_01", "a_f_m_bodybuild_01", "a_f_m_downtown_01", "a_f_m_genbiker_01", "a_f_m_genstreet_01", "a_f_m_prolhost_01", "a_f_m_tourist_01", "a_f_m_trampbeac_01", "a_f_y_beach_02"},
+		
+		// 环境男性
+		{"a_m_m_acult_01", "a_m_m_afriamer_01", "a_m_m_beach_01", "a_m_m_beach_02", "a_m_m_bevhills_01", "a_m_m_bevhills_02", "a_m_m_business_01", "a_m_m_eastsa_01", "a_m_m_eastsa_02", "a_m_m_farmer_01"},
+		
+		// 过场动画
+		{"cs_amandatownley", "cs_andreas", "cs_ashley", "cs_bankman", "cs_barry", "cs_beverly", "cs_brad", "cs_carbuyer", "cs_casey", "cs_chengsr"},
+		
+		// 帮派女性
+		{"g_f_importexport_01", "g_f_y_ballas_01", "g_f_y_families_01", "g_f_y_lost_01", "g_f_y_vagos_01", "g_f_m_undeadmage", "g_f_m_fooliganz_01"},
+		
+		// 帮派男性
+		{"g_m_importexport_01", "g_m_m_armboss_01", "g_m_m_armgoon_01", "g_m_m_armlieut_01", "g_m_m_casrn_01", "g_m_m_chemwork_01", "g_m_m_chiboss_01", "g_m_m_chicold_01", "g_m_m_chigoon_01", "g_m_m_chigoon_02"},
+		
+		// 故事模式
+		{"ig_abigail", "ig_acidlabcook", "ig_agatha", "ig_agent", "ig_agent_02", "ig_ahronward", "ig_amandatownley", "ig_andreas", "ig_armsmanufac_01", "ig_ary"},
+		
+		// 线上模式
+		{"mp_f_bennymech_01", "mp_f_boatstaff_01", "mp_f_cardesign_01", "mp_f_chbar_01", "mp_f_cocaine_01", "mp_f_counterfeit_01", "mp_f_deadhooker", "mp_f_execpa_01", "mp_f_execpa_02", "mp_f_forgery_01"},
+		
+		// 场景女性
+		{"s_f_m_autoshop_01", "s_f_m_fembarber", "s_f_m_maid_01", "s_f_m_retailstaff_01", "s_f_m_shop_high", "s_f_m_studioassist_01", "s_f_m_sweatshop_01", "s_f_m_warehouse_01", "s_f_y_airhostess_01", "s_f_y_bartender_01"},
+		
+		// 场景男性
+		{"s_m_m_ammucountry", "s_m_m_armoured_01", "s_m_m_armoured_02", "s_m_m_autoshop_01", "s_m_m_autoshop_02", "s_m_m_bailoffice_01", "s_m_m_bouncer_01", "s_m_m_ccrew_01", "s_m_m_ccrew_02", "s_m_m_ccrew_03"},
+		
+		// 剧情场景女性
+		{"u_f_y_comjane", "u_f_y_princess", "u_f_y_mistress", "u_f_o_carol", "u_f_o_eileen", "u_f_y_beth", "u_f_y_lauren", "u_f_y_taylor", "u_f_m_miranda", "u_f_m_miranda_02"},
+		
+		// 剧情场景男性
+		{"u_m_y_mani", "u_m_y_chip", "u_m_y_ushi", "u_m_m_jesus_01", "u_m_y_prisoner_01", "u_m_m_blane", "u_m_m_curtis", "u_m_y_abner", "u_m_o_dean", "u_m_m_griff_01"},
+		
+		// 其他角色
+		{"ig_furry", "hc_driver", "hc_gunman", "hc_hacker", "u_m_m_jewelsec_01", "u_m_m_jewelthief", "u_f_y_jewelass_01", "u_m_o_filmnoir", "ig_zombie_dj_01", "u_m_y_zombie_01"},
+	
+		// 动物
+		{"a_c_cat_01", "a_c_chimp_02", "a_c_chop", "a_c_cow", "a_c_coyote", "a_c_deer", "a_c_husky", "a_c_pig", "a_c_rabbit_01", "a_c_rhesus"}
+	};
+	
+	// 洗牌算法相关静态变量
+	static int lastCategoryIndex = -1; // 上次使用的分类
+	static int currentIndex = 0; // 当前使用的索引
+	static std::vector<int> shuffledIndices; // 洗牌后的索引列表
+	
+	if (categoryIndex < 0 || categoryIndex >= PED_MODELS_BY_CATEGORY.size()) {
+		categoryIndex = 0; // 默认到环境女性分类
+	}
+	
+	const auto& pedList = PED_MODELS_BY_CATEGORY[categoryIndex];
+	if (pedList.empty()) {
+		return GAMEPLAY::GET_HASH_KEY((char*)"a_f_y_beach_02"); // 默认角色
+	}
+	
+	// 检查是否需要重新洗牌（分类切换或遍历完成）
+	if (lastCategoryIndex != categoryIndex || currentIndex >= shuffledIndices.size()) {
+		// 初始化索引列表（0, 1, 2, ..., size-1）
+		shuffledIndices.clear();
+		for (int i = 0; i < pedList.size(); ++i) {
+			shuffledIndices.push_back(i);
+		}
+		
+		// Fisher-Yates 洗牌算法
+		for (int i = shuffledIndices.size() - 1; i > 0; --i) {
+			int j = rand() % (i + 1);
+			std::swap(shuffledIndices[i], shuffledIndices[j]);
+		}
+		
+		currentIndex = 0;
+		lastCategoryIndex = categoryIndex;
+	}
+	
+	// 获取当前模型并递增索引
+	int modelIndex = shuffledIndices[currentIndex];
+	currentIndex++;
+	
+	return GAMEPLAY::GET_HASH_KEY((char*)pedList[modelIndex].c_str());
+}
+
+// 辅助函数：将角度转换为弧度
+Vector3 DegreeToRadian(Vector3 angles) {
+	Vector3 result;
+	result.x = angles.x * 0.0174532925199433f;
+	result.y = angles.y * 0.0174532925199433f;
+	result.z = angles.z * 0.0174532925199433f;
+	return result;
+}
+
+// 辅助函数：根据相机计算指定距离的坐标（参考MenyooSP实现）
+Vector3 get_coords_from_gameplay_cam(float distance) {
+	Vector3 camRot = CAM::GET_GAMEPLAY_CAM_ROT(2);
+	Vector3 camCoord = CAM::GET_GAMEPLAY_CAM_COORD();
+	
+	// 将旋转角度转换为弧度
+	Vector3 rotRad = DegreeToRadian(camRot);
+	
+	// 根据相机旋转和距离计算新坐标
+	rotRad.y = distance * cos(rotRad.x);
+	camCoord.x = camCoord.x + rotRad.y * sin(rotRad.z * -1.0f);
+	camCoord.y = camCoord.y + rotRad.y * cos(rotRad.z * -1.0f);
+	camCoord.z = camCoord.z + distance * sin(rotRad.x);
+	
+	return camCoord;
+}
+
+// 载具模型枪发射函数
+void fire_vehicle_model_gun() {
+	if (!featureVehicleModelGun) return;
+	
+	static Hash nextVehicleHash = 0; // 正在加载的模型
+	static Hash readyVehicleHash = 0; // 已加载准备发射的模型
+
+	// 1. 预加载逻辑（确保始终有一个模型在后台加载）
+	if (nextVehicleHash == 0) {
+		nextVehicleHash = get_random_vehicle_hash_by_category(VehicleModelGunCategoryIndex);
+		
+		if (!STREAMING::IS_MODEL_IN_CDIMAGE(nextVehicleHash) || !STREAMING::IS_MODEL_A_VEHICLE(nextVehicleHash)) {
+			nextVehicleHash = GAMEPLAY::GET_HASH_KEY((char*)"ADDER");
+		}
+		STREAMING::REQUEST_MODEL(nextVehicleHash);
+	}
+	else if (STREAMING::HAS_MODEL_LOADED(nextVehicleHash)) {
+		// 新模型加载完成，更新到ready状态
+		// 如果旧的ready模型存在且不同，释放它
+		if (readyVehicleHash != 0 && readyVehicleHash != nextVehicleHash) {
+			STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(readyVehicleHash);
+		}
+		readyVehicleHash = nextVehicleHash;
+		nextVehicleHash = 0; // 重置next，以便下一帧加载新模型
+	}
+
+	// 2. 发射逻辑（使用已加载好的ready模型，无需等待）
+	if (readyVehicleHash != 0 && STREAMING::HAS_MODEL_LOADED(readyVehicleHash)) {
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		Vector3 camPos = CAM::GET_GAMEPLAY_CAM_COORD();
+		Vector3 camRot = CAM::GET_GAMEPLAY_CAM_ROT(2);
+		
+		Vector3 minDim, maxDim;
+		GAMEPLAY::GET_MODEL_DIMENSIONS(readyVehicleHash, &minDim, &maxDim);
+		
+		// 计算生成位置（根据分类调整距离，避免大型载具撞到玩家）
+		float camToPlayerDist = GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(camPos.x, camPos.y, camPos.z, playerPos.x, playerPos.y, playerPos.z, true);
+		float extraDistance = 1.5f; // 默认额外距离
+		
+		// 为大型飞行器增加额外生成距离，避免撞到玩家
+		if (VehicleModelGunCategoryIndex == 14) { // 直升机
+			extraDistance = 6.0f; // 直升机需要更大的安全距离
+		} else if (VehicleModelGunCategoryIndex == 15) { // 飞机
+			extraDistance = 8.0f; // 飞机需要最大的安全距离
+		}
+		
+		float spawnDistance = camToPlayerDist + maxDim.y + extraDistance;
+		Vector3 spawnPos = get_coords_from_gameplay_cam(spawnDistance);
+		
+		// 创建载具（使用相机的旋转方向）
+		Vehicle spawnedVeh = VEHICLE::CREATE_VEHICLE(readyVehicleHash, spawnPos.x, spawnPos.y, spawnPos.z, camRot.z, true, false);
+		
+		if (ENTITY::DOES_ENTITY_EXIST(spawnedVeh)) {
+			// 设置载具旋转角度（船只需要特殊处理避免翻滚）
+			if (VehicleModelGunCategoryIndex == 16) {
+				// 船只特殊处理：船头跟随相机方向和俯仰角，但避免左右翻滚
+				// pitch(x)跟随相机俯仰，roll(y)强制为0避免翻滚，yaw(z)跟随相机方向
+				ENTITY::SET_ENTITY_ROTATION(spawnedVeh, camRot.x, 0.0f, camRot.z, 2, true);
+			} else {
+				// 其他载具：完全跟随相机旋转（车辆、飞机、直升机等）
+				ENTITY::SET_ENTITY_ROTATION(spawnedVeh, camRot.x, camRot.y, camRot.z, 2, true);
+			}
+			
+			ENTITY::SET_ENTITY_COLLISION(spawnedVeh, true, false);
+			
+			if (featureVehicleModelGunInvincible) {
+				ENTITY::SET_ENTITY_INVINCIBLE(spawnedVeh, true);
+			}
+			
+			// 移除最大速度限制，让物理引擎自然处理
+			// ENTITY::SET_ENTITY_MAX_SPEED(spawnedVeh, 9999.0f);
+			
+			// 应用相对力：只施加向前的力，移除旋转力矩（偏移量改为0）
+			float speed = MODEL_GUN_SPEED_VALUES[VehicleModelGunSpeedIndex];
+			ENTITY::APPLY_FORCE_TO_ENTITY(spawnedVeh, 1, 0.0f, speed, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, true, true, false, true);
+			
+			ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&spawnedVeh);
+		}
+	}
+}
+
+// 角色模型枪发射函数
+void fire_ped_model_gun() {
+	if (!featurePedModelGun) return;
+	
+	static Hash nextPedHash = 0; // 正在加载的模型
+	static Hash readyPedHash = 0; // 已加载准备发射的模型
+
+	// 1. 预加载逻辑（确保始终有一个模型在后台加载）
+	if (nextPedHash == 0) {
+		nextPedHash = get_random_ped_hash_by_category(PedModelGunCategoryIndex);
+		
+		if (!STREAMING::IS_MODEL_IN_CDIMAGE(nextPedHash)) {
+			nextPedHash = GAMEPLAY::GET_HASH_KEY((char*)"a_f_y_beach_02");
+		}
+		STREAMING::REQUEST_MODEL(nextPedHash);
+	}
+	else if (STREAMING::HAS_MODEL_LOADED(nextPedHash)) {
+		// 新模型加载完成，更新到ready状态
+		if (readyPedHash != 0 && readyPedHash != nextPedHash) {
+			STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(readyPedHash);
+		}
+		readyPedHash = nextPedHash;
+		nextPedHash = 0; // 重置next
+	}
+
+	// 2. 发射逻辑（使用已加载好的ready模型）
+	if (readyPedHash != 0 && STREAMING::HAS_MODEL_LOADED(readyPedHash)) {
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		Vector3 camPos = CAM::GET_GAMEPLAY_CAM_COORD();
+		Vector3 camRot = CAM::GET_GAMEPLAY_CAM_ROT(2);
+		
+		Vector3 minDim, maxDim;
+		GAMEPLAY::GET_MODEL_DIMENSIONS(readyPedHash, &minDim, &maxDim);
+		
+		// 计算生成位置
+		float camToPlayerDist = GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(camPos.x, camPos.y, camPos.z, playerPos.x, playerPos.y, playerPos.z, true);
+		float spawnDistance = camToPlayerDist + maxDim.y + 0.5f;
+		
+		Vector3 spawnPos = get_coords_from_gameplay_cam(spawnDistance);
+		
+		// 创建角色
+		Ped spawnedPed = PED::CREATE_PED(4, readyPedHash, spawnPos.x, spawnPos.y, spawnPos.z, camRot.z, true, true);
+		
+		if (ENTITY::DOES_ENTITY_EXIST(spawnedPed)) {
+			// 设置角色旋转
+			ENTITY::SET_ENTITY_ROTATION(spawnedPed, camRot.x, camRot.y, camRot.z, 2, true);
+			ENTITY::SET_ENTITY_COLLISION(spawnedPed, true, false);
+			
+			if (featurePedModelGunInvincible) {
+				ENTITY::SET_ENTITY_INVINCIBLE(spawnedPed, true);
+				ENTITY::SET_ENTITY_PROOFS(spawnedPed, true, true, true, true, true, true, true, true);
+			} else {
+				ENTITY::SET_ENTITY_INVINCIBLE(spawnedPed, false);
+				ENTITY::SET_ENTITY_HAS_GRAVITY(spawnedPed, true); // 确保开启重力
+				ENTITY::SET_ENTITY_CAN_BE_DAMAGED(spawnedPed, true);
+			}
+			
+			// 启用布娃娃物理
+			PED::SET_PED_CAN_RAGDOLL(spawnedPed, true);
+			PED::SET_PED_CAN_RAGDOLL_FROM_PLAYER_IMPACT(spawnedPed, true);
+			
+			// 移除最大速度限制
+			// ENTITY::SET_ENTITY_MAX_SPEED(spawnedPed, 9999.0f);
+			
+			// 应用相对力：只施加向前的力，移除旋转力矩
+			float speed = MODEL_GUN_SPEED_VALUES[PedModelGunSpeedIndex];
+			ENTITY::APPLY_FORCE_TO_ENTITY(spawnedPed, 1, 0.0f, speed, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, true, true, false, true);
+			
+			ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&spawnedPed);
+		}
+	}
 }

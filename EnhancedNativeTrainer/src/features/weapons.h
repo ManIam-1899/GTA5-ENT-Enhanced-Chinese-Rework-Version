@@ -484,3 +484,44 @@ void draw_weapons_crosshair();
 void onchange_weapons_crosshair_style_index(int value, SelectFromListMenuItem* source);
 void onchange_weapons_crosshair_color_index(int value, SelectFromListMenuItem* source);
 bool process_weapons_crosshair_menu();
+
+// 载具模型枪相关常量和变量
+extern bool featureVehicleModelGun; // 载具模型枪开关
+extern bool featureVehicleModelGunUpdated; // 载具模型枪状态更新标志
+extern bool featurePedModelGun; // 角色模型枪开关
+extern bool featurePedModelGunUpdated; // 角色模型枪状态更新标志
+
+const std::vector<std::string> VEHICLE_MODEL_GUN_CATEGORIES{ "小型汽车", "轿车", "SUV", "轿跑车", "肌肉车", "经典跑车", "跑车", "超级跑车", "摩托车", "越野车", "开轮式", "特种车", "厢型车", "自行车", "直升机", "飞机", "船只" };
+
+const std::vector<std::string> PED_MODEL_GUN_CATEGORIES{ "环境女性", "环境男性", "过场动画", "帮派女性", "帮派男性", "故事模式", "线上模式", "场景女性", "场景男性", "剧情场景女性", "剧情场景男性", "其他角色", "动物" };
+
+const std::vector<std::string> MODEL_GUN_SPEED_CAPTIONS{ "最慢 [10]", "很慢 [20]", "慢速 [50]", "中低速 [100]", "默认速度 [200]", "中速 [300]", "中高速 [400]", "快速 [500]", "很快 [600]", "极快 [700]", "超快 [800]", "最快 [1000]" };
+const float MODEL_GUN_SPEED_VALUES[] = { 10.0f, 20.0f, 50.0f, 100.0f, 200.0f, 300.0f, 400.0f, 500.0f, 600.0f, 700.0f, 800.0f, 1000.0f };
+
+extern int VehicleModelGunCategoryIndex; // 载具分类索引
+extern bool VehicleModelGunCategoryChanged; // 用于配置加载
+extern int VehicleModelGunSpeedIndex; // 载具发射速度索引
+extern bool VehicleModelGunSpeedChanged; // 用于配置加载
+extern bool featureVehicleModelGunInvincible; // 载具无敌开关
+
+extern int PedModelGunCategoryIndex; // 角色分类索引
+extern bool PedModelGunCategoryChanged; // 用于配置加载
+extern int PedModelGunSpeedIndex; // 角色发射速度索引
+extern bool PedModelGunSpeedChanged; // 用于配置加载
+extern bool featurePedModelGunInvincible; // 角色无敌开关
+
+// 载具模型枪和角色模型枪函数声明
+void onchange_vehicle_model_gun_category_index(int value, SelectFromListMenuItem* source);
+void onchange_vehicle_model_gun_speed_index(int value, SelectFromListMenuItem* source);
+void onchange_ped_model_gun_category_index(int value, SelectFromListMenuItem* source);
+void onchange_ped_model_gun_speed_index(int value, SelectFromListMenuItem* source);
+bool process_vehicle_model_gun_menu();
+bool process_ped_model_gun_menu();
+void fire_vehicle_model_gun();
+void fire_ped_model_gun();
+Hash get_random_vehicle_hash_by_category(int categoryIndex);
+Hash get_random_ped_hash_by_category(int categoryIndex);
+
+// 辅助函数声明
+Vector3 DegreeToRadian(Vector3 angles);
+Vector3 get_coords_from_gameplay_cam(float distance);
