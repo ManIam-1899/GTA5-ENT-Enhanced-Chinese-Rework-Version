@@ -3754,6 +3754,26 @@ void fire_ped_model_gun() {
 	
 	static Hash nextPedHash = 0; // 正在加载的模型
 	static Hash readyPedHash = 0; // 已加载准备发射的模型
+	static std::vector<Ped> pedGunSpawnedPeds; // 已发射的角色列表
+	const int maxPedGunSpawned = 100; // 最大人物数量限制（循环保留100个）
+	
+	// 清理已不存在的实体（死亡或被删除的），避免计数一直增长
+	for (auto it = pedGunSpawnedPeds.begin(); it != pedGunSpawnedPeds.end(); ) {
+		if (!ENTITY::DOES_ENTITY_EXIST(*it)) {
+			it = pedGunSpawnedPeds.erase(it);
+		} else {
+			++it;
+		}
+	}
+	
+	// 当达到上限时，删除最旧的人物（循环清理，始终保留100个）
+	if ((int)pedGunSpawnedPeds.size() >= maxPedGunSpawned) {
+		Ped oldestPed = pedGunSpawnedPeds.front();
+		if (ENTITY::DOES_ENTITY_EXIST(oldestPed)) {
+			ENTITY::DELETE_ENTITY(&oldestPed);
+		}
+		pedGunSpawnedPeds.erase(pedGunSpawnedPeds.begin());
+	}
 
 	// 1. 预加载逻辑（确保始终有一个模型在后台加载）
 	if (nextPedHash == 0) {
@@ -3793,9 +3813,13 @@ void fire_ped_model_gun() {
 		Ped spawnedPed = PED::CREATE_PED(4, readyPedHash, spawnPos.x, spawnPos.y, spawnPos.z, camRot.z, true, true);
 		
 		if (ENTITY::DOES_ENTITY_EXIST(spawnedPed)) {
-			// 设置角色旋转
-			ENTITY::SET_ENTITY_ROTATION(spawnedPed, camRot.x, camRot.y, camRot.z, 2, true);
-			ENTITY::SET_ENTITY_COLLISION(spawnedPed, true, false);
+			pedGunSpawnedPeds.push_back(spawnedPed);
+			
+			// 只设置朝向（背对射击方向），保持站立姿势，不设置俯仰和翻滚
+			ENTITY::SET_ENTITY_HEADING(spawnedPed, camRot.z + 360.0f);
+			ENTITY::SET_ENTITY_COLLISION(spawnedPed, true, true);
+			ENTITY::SET_ENTITY_HAS_GRAVITY(spawnedPed, true);
+			ENTITY::SET_ENTITY_DYNAMIC(spawnedPed, true);
 			
 			if (featurePedModelGunInvincible) {
 				ENTITY::SET_ENTITY_INVINCIBLE(spawnedPed, true);
@@ -3809,13 +3833,37 @@ void fire_ped_model_gun() {
 			// 启用布娃娃物理
 			PED::SET_PED_CAN_RAGDOLL(spawnedPed, true);
 			PED::SET_PED_CAN_RAGDOLL_FROM_PLAYER_IMPACT(spawnedPed, true);
+			PED::SET_PED_RAGDOLL_ON_COLLISION(spawnedPed, true);
 			
-			// 移除最大速度限制
-			// ENTITY::SET_ENTITY_MAX_SPEED(spawnedPed, 9999.0f);
+			// 清除任务，禁止AI抢控制权
+			AI::CLEAR_PED_TASKS_IMMEDIATELY(spawnedPed);
+			PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(spawnedPed, true);
 			
-			// 应用相对力：只施加向前的力，移除旋转力矩
+			// 立刻进入布娃娃状态（类型0=自然掉落，更真实）
+			// 无敌时快速恢复，不开无敌时正常受伤死亡
+			if (featurePedModelGunInvincible) {
+				PED::SET_PED_TO_RAGDOLL(spawnedPed, 2000, 2000, 0, true, true, false); // 无敌模式：2秒快速站起来
+			} else {
+				PED::SET_PED_TO_RAGDOLL(spawnedPed, 10000, 10000, 0, true, true, false); // 普通模式：10秒布娃娃，可能死亡
+			}
+			
+			// 应用相机朝向速度：根据相机方向计算三维速度向量（与射击方向一致）
+			Vector3 camRotRad = DegreeToRadian(camRot);
+			float cosX = cos(camRotRad.x);
+			Vector3 dir;
+			dir.x = -sin(camRotRad.z) * cosX;
+			dir.y =  cos(camRotRad.z) * cosX;
+			dir.z =  sin(camRotRad.x);
+			
+			// 计算发射速度（1.25倍力度）
 			float speed = MODEL_GUN_SPEED_VALUES[PedModelGunSpeedIndex];
-			ENTITY::APPLY_FORCE_TO_ENTITY(spawnedPed, 1, 0.0f, speed, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, true, true, false, true);
+			float finalSpeed = speed * 1.25f;
+			
+			// 设置最大速度限制，避免引擎过早钳制速度
+			ENTITY::SET_ENTITY_MAX_SPEED(spawnedPed, finalSpeed * 1.5f);
+			
+			// 设置初始速度（准星方向）
+			ENTITY::SET_ENTITY_VELOCITY(spawnedPed, dir.x * finalSpeed, dir.y * finalSpeed, dir.z * finalSpeed);
 			
 			ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&spawnedPed);
 		}
