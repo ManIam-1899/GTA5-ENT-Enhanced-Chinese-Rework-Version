@@ -3670,6 +3670,16 @@ Vector3 get_coords_from_gameplay_cam(float distance) {
 void fire_vehicle_model_gun() {
 	if (!featureVehicleModelGun) return;
 	
+	// 射速限制：防止高射速武器（如加特林）导致崩溃
+	static DWORD lastFireTime = 0;
+	const DWORD MIN_FIRE_INTERVAL = 150; // 最小发射间隔（毫秒），约每秒6-7发
+	
+	DWORD currentTime = GetTickCount();
+	if (currentTime - lastFireTime < MIN_FIRE_INTERVAL) {
+		return; // 未到达最小间隔，跳过本次发射
+	}
+	lastFireTime = currentTime;
+	
 	static Hash nextVehicleHash = 0; // 正在加载的模型
 	static Hash readyVehicleHash = 0; // 已加载准备发射的模型
 
@@ -3752,6 +3762,16 @@ void fire_vehicle_model_gun() {
 void fire_ped_model_gun() {
 	if (!featurePedModelGun) return;
 	
+	// 射速限制：防止高射速武器（如加特林）导致崩溃
+	static DWORD lastFireTime = 0;
+	const DWORD MIN_FIRE_INTERVAL = 150; // 最小发射间隔（毫秒），约每秒6-7发
+	
+	DWORD currentTime = GetTickCount();
+	if (currentTime - lastFireTime < MIN_FIRE_INTERVAL) {
+		return; // 未到达最小间隔，跳过本次发射
+	}
+	lastFireTime = currentTime;
+	
 	static Hash nextPedHash = 0; // 正在加载的模型
 	static Hash readyPedHash = 0; // 已加载准备发射的模型
 	static std::vector<Ped> pedGunSpawnedPeds; // 已发射的角色列表
@@ -3770,7 +3790,9 @@ void fire_ped_model_gun() {
 	if ((int)pedGunSpawnedPeds.size() >= maxPedGunSpawned) {
 		Ped oldestPed = pedGunSpawnedPeds.front();
 		if (ENTITY::DOES_ENTITY_EXIST(oldestPed)) {
-			ENTITY::DELETE_ENTITY(&oldestPed);
+			//ENTITY::DELETE_ENTITY(&oldestPed);
+			// 更推荐用 DELETE_PED，确保 ped 相关资源彻底清理
+			PED::DELETE_PED(&oldestPed);
 		}
 		pedGunSpawnedPeds.erase(pedGunSpawnedPeds.begin());
 	}
@@ -3842,11 +3864,12 @@ void fire_ped_model_gun() {
 			// 立刻进入布娃娃状态（类型0=自然掉落，更真实）
 			// 无敌时快速恢复，不开无敌时正常受伤死亡
 			if (featurePedModelGunInvincible) {
-				PED::SET_PED_TO_RAGDOLL(spawnedPed, 2000, 2000, 0, true, true, false); // 无敌模式：2秒快速站起来
+				PED::SET_PED_TO_RAGDOLL(spawnedPed, 3000, 3000, 0, true, true, false); // 无敌模式：3秒快速站起来
 			} else {
 				PED::SET_PED_TO_RAGDOLL(spawnedPed, 10000, 10000, 0, true, true, false); // 普通模式：10秒布娃娃，可能死亡
 			}
-			
+			PED::SET_PED_RAGDOLL_FORCE_FALL(spawnedPed); // 强制进入下落/摔倒姿态，避免空中站立
+
 			// 应用相机朝向速度：根据相机方向计算三维速度向量（与射击方向一致）
 			Vector3 camRotRad = DegreeToRadian(camRot);
 			float cosX = cos(camRotRad.x);
