@@ -727,7 +727,7 @@ bool ENTDatabase::open()
 
 	write_text_to_log_file("正在打开 DB 数据库文件");
 
-	WCHAR* db_path = get_storage_dir_path("ent_cn_test.db");
+	WCHAR* db_path = get_storage_dir_path("ent_enhanced_cn.db");
 
 	std::wstring ws(db_path);
 	std::string fileSS(ws.begin(), ws.end());
@@ -798,7 +798,7 @@ bool ENTDatabase::open()
 	else
 	{
 		ss.str(""); ss.clear();
-		ss << "未找到版本: " << dbversion;
+		ss << "当前数据库版本: " << dbversion;
 		write_text_to_log_file(ss.str());
 		handle_version(dbversion);
 	}
