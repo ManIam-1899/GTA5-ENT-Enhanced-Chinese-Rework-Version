@@ -193,6 +193,17 @@ Vehicle alarmed_veh = -1;
 bool near_enough = false;
 int a_counter_tick = 0;
 
+// 车辆标记管理功能变量
+bool featureVehicleMarkersEnabled = false;  // 开启地图车辆标记总开关
+struct MarkedVehicleInfo {
+	Vehicle vehicle;        // 车辆实体
+	Blip blip;             // 地图标记
+	int vehicleClass;      // 车辆类别（用于显示对应图标）
+	Hash modelHash;        // 车辆模型哈希
+};
+std::vector<MarkedVehicleInfo> MARKED_VEHICLES;  // 标记的车辆列表
+Vehicle lastMarkedVehicle = 0;  // 最后标记的车辆
+
 int Shut_seconds = -1; 
 
 bool tracked_being_restored = false;
@@ -1574,6 +1585,387 @@ void save_tracked_veh() {
 	}
 }
 
+// ==================== 车辆标记管理功能实现 ====================
+
+// 根据车辆类别获取对应的Blip图标（简化版）
+static int get_blip_sprite_for_vehicle_class(int vehicleClass) {
+	// 仅保留特定图标，其余统一使用轿车图标 (225)
+	switch (vehicleClass) {
+		case 8:  return 348;  // VC_MOTORCYCLE - 摩托车
+		case 13: return 348;  // VC_CYCLE - 自行车 (使用摩托车图标)
+		case 14: return 427;  // VC_BOAT - 船只
+		case 15: return 64;   // VC_HELICOPTER - 直升机
+		case 16: return 423;  // VC_PLANE - 飞机
+		default: return 225;  // 其他所有车辆统一使用轿车图标
+	}
+}
+
+// 标记当前驾驶的车辆
+void mark_current_vehicle() {
+	if (!featureVehicleMarkersEnabled) {
+		set_status_text("请先开启地图车辆标记功能！");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		set_status_text("您没有驾驶任何车辆！");
+		return;
+	}
+
+	Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	if (!ENTITY::DOES_ENTITY_EXIST(currentVehicle)) {
+		set_status_text("~r~无法获取当前车辆！");
+		return;
+	}
+
+	// 检查该车辆是否已经被标记
+	for (const auto& markedVeh : MARKED_VEHICLES) {
+		if (markedVeh.vehicle == currentVehicle) {
+			set_status_text("该车辆已经被标记！");
+			return;
+		}
+	}
+
+	// 获取车辆信息
+	Hash modelHash = ENTITY::GET_ENTITY_MODEL(currentVehicle);
+	int vehicleClass = VEHICLE::GET_VEHICLE_CLASS(currentVehicle);
+	
+	// 创建地图标记
+	Blip blip = UI::ADD_BLIP_FOR_ENTITY(currentVehicle);
+	UI::SET_BLIP_AS_FRIENDLY(blip, true);
+	
+	// 根据车辆类别设置对应图标
+	int blipSprite = get_blip_sprite_for_vehicle_class(vehicleClass);
+	UI::SET_BLIP_SPRITE(blip, blipSprite);
+	
+	UI::SET_BLIP_COLOUR(blip, 34);   // 粉红色
+	UI::SET_BLIP_SCALE(blip, 1.0f); // 略微大点 (原 0.85f)
+	UI::SET_BLIP_AS_SHORT_RANGE(blip, false);  // 远距离可见
+	
+	// 设置标记名称
+	std::string vehicleName = get_vehicle_make_and_model(modelHash);
+	UI::BEGIN_TEXT_COMMAND_SET_BLIP_NAME("STRING");
+	UI::_ADD_TEXT_COMPONENT_STRING((char*)vehicleName.c_str());
+	UI::END_TEXT_COMMAND_SET_BLIP_NAME(blip);
+
+	// 保存标记信息
+	MarkedVehicleInfo markedInfo;
+	markedInfo.vehicle = currentVehicle;
+	markedInfo.blip = blip;
+	markedInfo.vehicleClass = vehicleClass;
+	markedInfo.modelHash = modelHash;
+	MARKED_VEHICLES.push_back(markedInfo);
+
+	// 记录为最后标记的车辆
+	lastMarkedVehicle = currentVehicle;
+	ENTITY::SET_ENTITY_AS_MISSION_ENTITY(currentVehicle, true, true);
+
+	std::ostringstream ss;
+	ss << "已标记车辆:  " << vehicleName << "  [总数: " << MARKED_VEHICLES.size() << " 辆]";
+	set_status_text(ss.str());
+}
+
+// 清除当前驾驶车辆的标记
+void unmark_current_vehicle() {
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		set_status_text("您没有驾驶任何车辆！");
+		return;
+	}
+
+	Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	
+	// 查找并删除该车辆的标记
+	for (auto it = MARKED_VEHICLES.begin(); it != MARKED_VEHICLES.end(); ++it) {
+		if (it->vehicle == currentVehicle) {
+			// 删除地图标记
+			if (UI::DOES_BLIP_EXIST(it->blip)) {
+				UI::REMOVE_BLIP(&it->blip);
+			}
+			
+			// 从列表中移除
+			MARKED_VEHICLES.erase(it);
+			
+			set_status_text("已清除当前车辆标记！");
+			return;
+		}
+	}
+	
+	set_status_text("当前车辆没有标记！");
+}
+
+// 清除所有车辆标记
+void clear_all_vehicle_markers() {
+	for (auto& markedVeh : MARKED_VEHICLES) {
+		if (UI::DOES_BLIP_EXIST(markedVeh.blip)) {
+			UI::REMOVE_BLIP(&markedVeh.blip);
+		}
+	}
+	MARKED_VEHICLES.clear();
+	lastMarkedVehicle = 0;
+	set_status_text("已清除所有车辆标记！");
+}
+
+// 传送到最后标记的车辆
+void teleport_to_last_marked_vehicle() {
+	if (lastMarkedVehicle == 0 || !ENTITY::DOES_ENTITY_EXIST(lastMarkedVehicle)) {
+		set_status_text("您没有标记的车辆，或车辆已不存在！");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	
+	// 检查玩家是否已经在标记的车辆中
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		if (currentVehicle == lastMarkedVehicle) {
+			set_status_text("~r~您已在标记车辆, 勿重复传送!");
+			return;
+		}
+	}
+	
+	Vector3 vehCoords = ENTITY::GET_ENTITY_COORDS(lastMarkedVehicle, true);
+	
+	// 传送到车辆位置
+	ENTITY::SET_ENTITY_COORDS(playerPed, vehCoords.x, vehCoords.y, vehCoords.z, 0, 0, 0, 1);
+	
+	// 如果车辆有空座位，让玩家进入
+	if (VEHICLE::ARE_ANY_VEHICLE_SEATS_FREE(lastMarkedVehicle)) {
+		AI::TASK_WARP_PED_INTO_VEHICLE(playerPed, lastMarkedVehicle, -1);
+	}
+	
+	set_status_text("已传送到标记的车辆！");
+}
+
+// 标记车辆传送到玩家身边（直接传送到玩家位置并让玩家进入）
+void teleport_last_marked_vehicle_to_player() {
+	if (lastMarkedVehicle == 0 || !ENTITY::DOES_ENTITY_EXIST(lastMarkedVehicle)) {
+		set_status_text("您没有标记的车辆，或车辆已不存在！");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	
+	// 检查玩家是否已经在标记的车辆中
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		if (currentVehicle == lastMarkedVehicle) {
+			set_status_text("~r~您已在标记车辆, 勿重复传送!");
+			return;
+		}
+	}
+	
+	Vector3 playerCoords = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+	float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+	
+	// 将车辆直接传送到玩家位置
+	ENTITY::SET_ENTITY_COORDS(lastMarkedVehicle, playerCoords.x, playerCoords.y, playerCoords.z, 0, 0, 0, 1);
+	ENTITY::SET_ENTITY_HEADING(lastMarkedVehicle, playerHeading);
+	
+	// 让玩家自动进入车辆
+	if (VEHICLE::ARE_ANY_VEHICLE_SEATS_FREE(lastMarkedVehicle)) {
+		AI::TASK_WARP_PED_INTO_VEHICLE(playerPed, lastMarkedVehicle, -1);
+		set_status_text("标记车辆, 已传至身边并驾驶!");
+	} else {
+		set_status_text("标记车辆, 已传送到您的身边!");
+	}
+}
+
+// 更新车辆标记（清理已删除的车辆，并绘制车顶3D标记）
+void update_vehicle_markers() {
+	if (!featureVehicleMarkersEnabled) {
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vehicle playerVehicle = 0;
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		playerVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	}
+
+	// 清理已删除的车辆，并更新车顶标记
+	for (auto it = MARKED_VEHICLES.begin(); it != MARKED_VEHICLES.end();) {
+		if (!ENTITY::DOES_ENTITY_EXIST(it->vehicle)) {
+			// 车辆已被删除，移除标记
+			if (UI::DOES_BLIP_EXIST(it->blip)) {
+				UI::REMOVE_BLIP(&it->blip);
+			}
+			it = MARKED_VEHICLES.erase(it);
+		} else {
+			// --- 玩家进入标记车辆时隐藏玩家地图标记 (这里实现为隐藏车辆Blip,避免重叠) ---
+			// 解释：用户要求"进入车辆时隐藏玩家地图标记"。通常这意味着地图上只显示一个点。
+			// 因为玩家箭头无法完全隐藏（除非隐藏整个HUD），最佳实践是：
+			// 当玩家在标记车辆里时，隐藏【车辆的黄色Blip】，因为玩家箭头就在那个位置。
+			// 这样地图上就只剩下一个点（玩家箭头），达到了"不重叠"和"清晰"的效果。
+			// 离开车辆后，恢复显示车辆黄色Blip。
+			
+			if (playerVehicle == it->vehicle) {
+				// 玩家正在驾驶这辆标记车辆 -> 隐藏车辆标记 (Alpha = 0)
+				// 此时地图上只显示玩家箭头
+				if (UI::DOES_BLIP_EXIST(it->blip)) {
+					UI::SET_BLIP_ALPHA(it->blip, 0);
+				}
+			} else {
+				// 玩家不在车里 -> 恢复显示车辆标记
+				if (UI::DOES_BLIP_EXIST(it->blip)) {
+					UI::SET_BLIP_ALPHA(it->blip, 255);
+				}
+				
+				// --- 绘制车顶3D标记 (双层旋转黄色箭头) ---
+				// 仅当玩家不在车里时绘制，避免遮挡视线
+				Vector3 vehCoords = ENTITY::GET_ENTITY_COORDS(it->vehicle, true);
+				// 获取车辆高度以正确放置标记
+				Vector3 minDim, maxDim;
+				GAMEPLAY::GET_MODEL_DIMENSIONS(ENTITY::GET_ENTITY_MODEL(it->vehicle), &minDim, &maxDim);
+				float markerZ = vehCoords.z + maxDim.z + 1.0f; // 基础高度：车顶上方1.0米
+				
+				// 箭头参数
+				int markerType = 20; // 倒V箭头 (UpsideDownChevron)
+				float scale = 0.75f; // 略微放大 (原0.5)
+				int r = 255, g = 255, b = 0, a = 200; // 黄色
+				
+				// 绘制第一层箭头 (下层)
+				GRAPHICS::DRAW_MARKER(
+					markerType,
+					vehCoords.x, vehCoords.y, markerZ,
+					0.0f, 0.0f, 0.0f,   // dir
+					0.0f, 180.0f, 0.0f, // rot (180度翻转使其向下)
+					scale, scale, scale,
+					r, g, b, a,
+					true,               // bobUpAndDown
+					false,              // faceCamera
+					2,                  // p19 (2=旋转)
+					true,               // rotate
+					NULL, NULL, false
+				);
+
+				// 绘制第二层箭头 (中层，偏移0.8米)
+				GRAPHICS::DRAW_MARKER(
+					markerType,
+					vehCoords.x, vehCoords.y, markerZ + 0.8f,
+					0.0f, 0.0f, 0.0f,
+					0.0f, 180.0f, 0.0f,
+					scale, scale, scale,
+					r, g, b, a,
+					true,
+					false,
+					2,
+					true,
+					NULL, NULL, false
+				);
+
+				// 绘制第三层箭头 (上层，偏移1.2米)
+				GRAPHICS::DRAW_MARKER(
+					markerType,
+					vehCoords.x, vehCoords.y, markerZ + 1.6f,
+					0.0f, 0.0f, 0.0f,
+					0.0f, 180.0f, 0.0f,
+					scale, scale, scale,
+					r, g, b, a,
+					true,
+					false,
+					2,
+					true,
+					NULL, NULL, false
+				);
+			}
+			++it;
+		}
+	}
+}
+
+void toggle_vehicle_markers(bool enabled) {
+	featureVehicleMarkersEnabled = enabled;
+
+	if (!enabled) {
+		clear_all_vehicle_markers();
+		set_status_text("已关闭-地图车辆标记功能");
+	} else {
+		set_status_text("已开启-地图车辆标记功能");
+	}
+}
+
+static bool get_vehicle_markers_toggle_state(std::vector<int> extras) {
+	(void)extras;
+	return featureVehicleMarkersEnabled;
+}
+
+static void set_vehicle_markers_toggle_state(bool enabled, std::vector<int> extras) {
+	(void)extras;
+	toggle_vehicle_markers(enabled);
+}
+
+// ==================== 车辆标记管理菜单 ====================
+
+bool onconfirm_vehicle_markers_menu(MenuItem<int> choice) {
+	switch (choice.value) {
+		case 1: // 标记当前驾驶车辆
+			mark_current_vehicle();
+			break;
+		case 2: // 清除驾驶车辆标记
+			unmark_current_vehicle();
+			break;
+		case 3: // 传送到最后标记车辆
+			teleport_to_last_marked_vehicle();
+			break;
+		case 4: // 标记车辆传送到身边
+			teleport_last_marked_vehicle_to_player();
+			break;
+	}
+	return false;
+}
+
+void process_vehicle_markers_menu() {
+	const std::string caption = "车辆标记选项";
+	
+	std::vector<MenuItem<int>*> menuItems;
+	MenuItem<int> *item;
+	FunctionDrivenToggleMenuItem<int>* toggleItem;
+	
+	int i = 0;
+	
+	// 开启地图车辆标记（复选框）
+	toggleItem = new FunctionDrivenToggleMenuItem<int>();
+	toggleItem->caption = "启用地图车辆标记";
+	toggleItem->value = i++;
+	toggleItem->getter_call = get_vehicle_markers_toggle_state;
+	toggleItem->setter_call = set_vehicle_markers_toggle_state;
+	menuItems.push_back(toggleItem);
+	
+	// 标记当前驾驶车辆
+	item = new MenuItem<int>();
+	item->caption = "标记当前驾驶车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 清除驾驶车辆标记
+	item = new MenuItem<int>();
+	item->caption = "清除驾驶车辆标记";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 传送到最后标记车辆
+	item = new MenuItem<int>();
+	item->caption = "传送到最后标记车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 标记车辆传送到身边
+	item = new MenuItem<int>();
+	item->caption = "标记车辆传送到身边";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	draw_generic_menu<int>(menuItems, 0, caption, onconfirm_vehicle_markers_menu, NULL, NULL);
+}
+
+// ==================== 结束车辆标记管理功能 ====================
+
 bool onconfirm_vehdoor_menu(MenuItem<int> choice){
 
 	if(choice.value == -1) {
@@ -2900,6 +3292,9 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 			}
 		}
 			break;
+		case 58: // 车辆标记管理
+			process_vehicle_markers_menu();
+			return false;
 		default:
 			break;
 	}
@@ -3273,6 +3668,12 @@ void process_veh_menu(){
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureVehDriveOnWater;
 	menuItems.push_back(toggleItem);
+
+	item = new MenuItem<int>();
+	item->caption = "车辆标记选项";
+	item->value = i++;
+	item->isLeaf = false;
+	menuItems.push_back(item);
 
 	draw_generic_menu<int>(menuItems, &activeLineIndexVeh, caption, onconfirm_veh_menu, NULL, NULL);
 }
@@ -5598,6 +5999,9 @@ prevInstantBrake = featureInstantBrake;
 
 		//ofs.close();
 	//}
+
+	// 更新车辆标记功能
+	update_vehicle_markers();
 }
 
 bool did_player_just_enter_vehicle(Ped playerPed){
@@ -5823,6 +6227,13 @@ void reset_vehicle_globals() {
 		}
 		FROZEN_VEHICLE_PREV_SPEED.clear();
 	}
+
+	// 清理：重置车辆标记功能
+	if (featureVehicleMarkersEnabled) {
+		clear_all_vehicle_markers();
+	}
+	featureVehicleMarkersEnabled = false;
+	lastMarkedVehicle = 0;
 }
 
 void keyboard_tip_message(char* curr_message_s) {
