@@ -1661,8 +1661,10 @@ void mark_current_vehicle() {
 	lastMarkedVehicle = currentVehicle;
 	ENTITY::SET_ENTITY_AS_MISSION_ENTITY(currentVehicle, true, true);
 
+	set_status_text(std::string("已标记车辆:  ") + vehicleName);
+
 	std::ostringstream ss;
-	ss << "已标记车辆:  " << vehicleName << "  [总数: " << MARKED_VEHICLES.size() << " 辆]";
+	ss << "已标记总数: " << MARKED_VEHICLES.size() << " 辆";
 	set_status_text(ss.str());
 }
 
@@ -1684,8 +1686,21 @@ void unmark_current_vehicle() {
 				UI::REMOVE_BLIP(&it->blip);
 			}
 			
-			// 从列表中移除
-			MARKED_VEHICLES.erase(it);
+			// 如果清除的是最后标记的车辆，更新lastMarkedVehicle
+			if (lastMarkedVehicle == currentVehicle) {
+				// 从列表中移除当前车辆
+				MARKED_VEHICLES.erase(it);
+				
+				// 如果还有其他标记车辆，将最后一个设为lastMarkedVehicle
+				if (!MARKED_VEHICLES.empty()) {
+					lastMarkedVehicle = MARKED_VEHICLES.back().vehicle;
+				} else {
+					lastMarkedVehicle = 0;  // 没有标记车辆了
+				}
+			} else {
+				// 不是最后标记的车辆，直接移除
+				MARKED_VEHICLES.erase(it);
+			}
 			
 			set_status_text("已清除当前车辆标记！");
 			return;
@@ -1791,6 +1806,12 @@ void update_vehicle_markers() {
 			if (UI::DOES_BLIP_EXIST(it->blip)) {
 				UI::REMOVE_BLIP(&it->blip);
 			}
+			
+			// 如果删除的是最后标记的车辆，需要更新lastMarkedVehicle
+			if (it->vehicle == lastMarkedVehicle) {
+				lastMarkedVehicle = 0;  // 重置，因为车辆已不存在
+			}
+			
 			it = MARKED_VEHICLES.erase(it);
 		} else {
 			// --- 玩家进入标记车辆时隐藏玩家地图标记 (这里实现为隐藏车辆Blip,避免重叠) ---
@@ -1855,7 +1876,7 @@ void update_vehicle_markers() {
 					NULL, NULL, false
 				);
 
-				// 绘制第三层箭头 (上层，偏移1.2米)
+				// 绘制第三层箭头 (上层，偏移1.6米)
 				GRAPHICS::DRAW_MARKER(
 					markerType,
 					vehCoords.x, vehCoords.y, markerZ + 1.6f,
