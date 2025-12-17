@@ -10,6 +10,36 @@ Feel free to raise [issues](https://github.com/FIying-Scotsman/GTAV-EnhancedNati
 
 **TL;DR LICENSE REMINDER FOR DEVELOPERS:** You can do [almost anything](LICENSE.md) you like with this code, including trying to sell it and not giving us credit for the work, but if you release something based on it, you need to make your code open source too. That's what the GPL means. If you don't manage to do this, I will come after you in a deeply tedious fashion.
 
+--------------------------------------------------------------
+
+**请原作者谅解，我未采用 Fork 方式进行更新。主要原因是修改与提交次数较多，且涉及内容复杂，不便再回迁至原 Fork 分支。**
+**ENT 增强版的适配实现完全参考并基于 melvinvdb 的相关代码。由于这是我首次进行仓库合并操作，对相关流程尚不熟悉，因此采用了手动对比与迁移代码的方式完成整合。**
+**我已在 ENT 增强版的提交记录与说明中明确标注代码来源为 melvinvdb，并无任何侵占或隐瞒原作者贡献的意图。**
+
+melvinvdb 作者的仓库：
+https://github.com/melvinvdb/GTAV-EnhancedNativeTrainer/tree/feature/support-gta-5-enhanced
+
+FIying-Scotsman 作者仓库：
+https://github.com/FIying-Scotsman/GTAV-EnhancedNativeTrainer
+
+**The following is AI-translated content**
+
+**Please accept my apologies to the original author for not updating this project using a forked repository.**
+**Due to the large number of modifications and the complexity of the changes, it was not practical to migrate everything back into the original fork.**
+
+**The ENT Enhanced adaptation is fully based on and inspired by the work of melvinvdb.**
+**As this was my first time performing repository merging and I was not yet familiar with the workflow, the integration was completed through manual comparison and code transfer.**
+
+**The ENT Enhanced commits and documentation clearly state that the source of the code is melvinvdb.**
+**There was no intention to conceal, misattribute, or appropriate the original author’s work in any way.**
+
+melvinvdb’s repository：
+https://github.com/melvinvdb/GTAV-EnhancedNativeTrainer/tree/feature/support-gta-5-enhanced
+
+FIying-Scotsman’s repository：
+https://github.com/FIying-Scotsman/GTAV-EnhancedNativeTrainer
+
+--------------------------------------------------------------
 
 ## 欢迎大家拉取我的更新！
 
