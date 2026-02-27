@@ -1,8 +1,8 @@
-name: VS2022版本环境构建-副分支-增强版
+name: VS2022版本环境构建-副分支-增强版[测试]
 
 on:
   push:
-    branches: [ "ENT-Chinese-Enhanced-version" ]
+    branches: [ "ENT-Chinese-Enhanced-version-Test" ]
 
 env:
   SOLUTION_FILE_PATH: ./EnhancedNativeTrainer.sln
@@ -42,6 +42,6 @@ jobs:
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: EnhancedNativeTrainer [VS2022-Release-Enhanced]
+        name: EnhancedNativeTrainer [VS2022-Release-Enhanced-Test]
         path: |
           EnhancedNativeTrainer/bin/Release/
