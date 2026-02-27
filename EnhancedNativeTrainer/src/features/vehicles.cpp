@@ -1193,9 +1193,15 @@ void PopulateVehicleModelsArray()
 
 char* GetVehicleModelName(int modelHash)
 {
+	// 中文注释：通过函数解析器获取 GetModelInfo 地址，兼容 Legacy 与 Enhanced 两个版本
 	int index = 0xFFFF;
-	uint64_t modelInfo = GetModelInfo(modelHash, &index);
-	// 添加空指针检查，防止访问无效模型时崩溃
+	auto pGetModelInfo = ResolveFunction<FunctionID::GetModelInfo>();
+	if (!pGetModelInfo) {
+		// 中文注释：未能解析到函数地址时返回空字符串，避免崩溃
+		return (char*)"";
+	}
+	uint64_t modelInfo = pGetModelInfo(modelHash, &index);
+	// 中文注释：添加空指针检查，防止访问无效模型时崩溃
 	if (modelInfo == 0 || modelInfo == NULL) {
 		return (char*)"";
 	}
@@ -1204,9 +1210,15 @@ char* GetVehicleModelName(int modelHash)
 
 char* GetVehicleMakeName(int modelHash)
 {
+	// 中文注释：通过函数解析器获取 GetModelInfo 地址，兼容 Legacy 与 Enhanced 两个版本
 	int index = 0xFFFF;
-	uint64_t modelInfo = GetModelInfo(modelHash, &index);
-	// 添加空指针检查，防止访问无效模型时崩溃
+	auto pGetModelInfo = ResolveFunction<FunctionID::GetModelInfo>();
+	if (!pGetModelInfo) {
+		// 中文注释：未能解析到函数地址时返回空字符串，避免崩溃
+		return (char*)"";
+	}
+	uint64_t modelInfo = pGetModelInfo(modelHash, &index);
+	// 中文注释：添加空指针检查，防止访问无效模型时崩溃
 	if (modelInfo == 0 || modelInfo == NULL) {
 		return (char*)"";
 	}
