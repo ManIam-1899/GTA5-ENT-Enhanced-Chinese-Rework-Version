@@ -2816,7 +2816,7 @@ void process_localization_menu() {
 	const std::string caption = "关于此修改器"; // 菜单标题
 
 	// 构造版本号显示字符串
-	std::string versionDisplay = "修改器版本：" + VERSION_STRING;
+	std::string versionDisplay = "修改器版本：" + VERSION_STRING + " [传承版]";
 
 	// 定义菜单项
 	StandardOrToggleMenuDef lines[lineCount] = {
