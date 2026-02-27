@@ -74,6 +74,10 @@ bool featureBodyguardWeaponAttach = false;
 bool featureBodyguardOnMap = false;
 bool featureBodyguardInfAmmo = false;
 
+// 记录开关状态变化，用于即时刷新标记
+bool prevFeatureBodyguardOnMap = false;
+bool prevFeatureBodyBlipNumberState = false;
+
 int BodyWeaponSetIndex = 0;
 
 bool hotkey_b = false;
@@ -138,7 +142,7 @@ int BodyGroupFormationIndex = 1;
 bool BodyGroupFormationChanged = true;
 
 // 显示编号
-const std::vector<std::string> BODY_SHOWNUMBERS_CAPTIONS{ "当菜单打开时", "始终", "从不" };
+const std::vector<std::string> BODY_SHOWNUMBERS_CAPTIONS{ "仅ENT菜单打开时", "始终", "从不" };
 int BodyShowNumbersIndex = 0;
 bool BodyShowNumbersChanged = true;
 
@@ -147,6 +151,11 @@ int BodyBlipFlashIndex = 0;
 bool BodyBlipFlash_Changed = true;
 int FollowInVehicleIndex = 0;
 bool FollowInVehicleChanged = true;
+
+// 跟随玩家/原地待命
+const std::vector<std::string> BODY_FOLLOW_MODE_CAPTIONS{ "跟随玩家", "原地待命" };
+int BodyFollowModeIndex = 0; // 默认跟随玩家
+bool BodyFollowModeChanged = true;
 
 // 保镖生命值
 int BodyHealthIndex = 6;
@@ -606,7 +615,7 @@ bool process_bod_individual_weapon_menu() {
 	}
 
 	std::string label = VOV_WEAPON_CAPTIONS[lastSelectedBodWeaponCategory].at(lastSelectedBodWeapon); // 武器索引
-	std::string label_caption = UI::_GET_LABEL_TEXT(&label[0]);
+	std::string label_caption = get_weapon_label_with_fallback(label);
 
 	if (label_caption.compare("手枪口径 .50") == 0) {
 		label_caption = "手枪口径 .50"; // 菜单标题不支持符号
@@ -1407,7 +1416,21 @@ bool process_player_skins_menu(){
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesBodyguardMenuPositionMemory[1], "主角模型", onconfirm_bodyguards_skins_players, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(menuItems, "主角模型");
+	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
+	params.onConfirmation = onconfirm_bodyguards_skins_players;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//主角
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool process_npc_skins_menu(){
@@ -1422,7 +1445,21 @@ bool process_npc_skins_menu(){
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesBodyguardMenuPositionMemory[1], "普通 NPC 模型", onconfirm_bodyguards_skins_npcs, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(menuItems, "普通 NPC 模型");
+	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
+	params.onConfirmation = onconfirm_bodyguards_skins_npcs;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//普通 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool process_online_skins_menu() {
@@ -1437,7 +1474,21 @@ bool process_online_skins_menu() {
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesBodyguardMenuPositionMemory[1], "在线 NPC 模型", onconfirm_bodyguards_skins_online, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(menuItems, "在线 NPC 模型");
+	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
+	params.onConfirmation = onconfirm_bodyguards_skins_online;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//在线 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool process_animal_skins_menu(){
@@ -1452,7 +1503,21 @@ bool process_animal_skins_menu(){
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesBodyguardMenuPositionMemory[1], "动物模型", onconfirm_bodyguards_skins_animals, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(menuItems, "动物模型");
+	params.menuSelectionPtr = &skinTypesBodyguardMenuPositionMemory[1];
+	params.onConfirmation = onconfirm_bodyguards_skins_animals;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//动物
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool onconfirm_bodyguard_weapons_category_menu(MenuItem<int> choice){
@@ -1488,8 +1553,7 @@ bool process_bodyguard_weapons_category_menu(int category){
 
 	for(auto a : VOV_WEAPON_CAPTIONS[category]){
 		toggleItem = new ToggleMenuItem<int>();
-		if (UI::DOES_TEXT_LABEL_EXIST((char*)a.c_str())) toggleItem->caption = UI::_GET_LABEL_TEXT((char*)a.c_str());
-		else toggleItem->caption = a;
+		toggleItem->caption = get_weapon_label_with_fallback(a);
 		toggleItem->value = index;
 		toggleItem->toggleValue = bodyguardWeaponsToggle[category].at(index++);
 		toggleItem->toggleValueUpdated = nullptr;
@@ -1559,7 +1623,7 @@ bool onconfirm_bodyguard_blips_menu(MenuItem<int> choice)
 }
 
 void process_bodyguard_blips_menu(){
-	const std::string caption = "保镖位置标记";
+	const std::string caption = "保镖位置雷达标记";
 
 	std::vector<MenuItem<int>*> menuItems;
 	SelectFromListMenuItem *listItem;
@@ -1568,7 +1632,7 @@ void process_bodyguard_blips_menu(){
 	int i = 0;
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "启用";
+	toggleItem->caption = "启用/禁用";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureBodyguardOnMap;
 	menuItems.push_back(toggleItem);
@@ -2031,6 +2095,36 @@ void add_body_blip() {
 	}
 }
 
+// 根据当前设置刷新保镖标记（启用/禁用或样式更改）
+void refresh_bodyguard_blips() {
+    if (featureBodyguardOnMap) {
+        // 重建全部保镖标记，应用最新样式
+        add_body_blip();
+    } else {
+        // 关闭时移除所有保镖标记
+        if (!BLIPTABLE_BODYGUARD.empty()) {
+            for (int i = 0; i < BLIPTABLE_BODYGUARD.size(); i++) {
+                if (UI::DOES_BLIP_EXIST(BLIPTABLE_BODYGUARD[i])) {
+                    UI::REMOVE_BLIP(&BLIPTABLE_BODYGUARD[i]);
+                }
+            }
+            BLIPTABLE_BODYGUARD.clear();
+            BLIPTABLE_BODYGUARD.shrink_to_fit();
+        }
+    }
+
+    // 重置样式变化标志位
+    BodyBlipSize_Changed = false;
+    BodyBlipColour_Changed = false;
+    BodyBlipSymbol_Changed = false;
+    BodyBlipFlash_Changed = false;
+    BodyShowNumbersChanged = false;
+
+    // 记录当前开关状态
+    prevFeatureBodyguardOnMap = featureBodyguardOnMap;
+    prevFeatureBodyBlipNumberState = featureBodyBlipNumber;
+}
+
 bool not_bodyguards_in_vehicle()
 {
 	for (int n = 0; n < spawnedENTBodyguards.size(); n++) {
@@ -2070,6 +2164,26 @@ void maintain_bodyguards(){
 			B_VEHICLE.shrink_to_fit();
 		}
 	}
+
+    // 保镖标记刷新：当开关或样式变化时即时更新
+    {
+        bool onMapToggled = (prevFeatureBodyguardOnMap != featureBodyguardOnMap);
+        bool numberToggled = (prevFeatureBodyBlipNumberState != featureBodyBlipNumber);
+
+        if (onMapToggled || numberToggled || BodyBlipSize_Changed || BodyBlipColour_Changed || BodyBlipSymbol_Changed || BodyBlipFlash_Changed || BodyShowNumbersChanged) {
+            refresh_bodyguard_blips();
+        } else if (featureBodyguardOnMap) {
+            // 保证数量同步（例如保镖增删时）
+            if (BLIPTABLE_BODYGUARD.size() != spawnedENTBodyguards.size()) {
+                refresh_bodyguard_blips();
+            }
+        } else {
+            // 已关闭但仍有残留标记时清理
+            if (!BLIPTABLE_BODYGUARD.empty()) {
+                refresh_bodyguard_blips();
+            }
+        }
+    }
 	
 	// 武器选择
 	if (under_weapon_menu == true && (IsKeyDown(KeyConfig::KEY_MENU_SELECT) || CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, controller_binds["KEY_MENU_SELECT"].first) || IsKeyDown(KeyConfig::KEY_MENU_BACK) || IsKeyDown(KeyConfig::KEY_TOGGLE_MAIN_MENU))) {
@@ -2484,7 +2598,7 @@ bool process_bodyguard_menu(){
 
 		item = new MenuItem<int>();
 		std::ostringstream ss0;
-		ss0 << "生成保镖: " << get_current_model_name(); 
+		ss0 << "生成保镖: ~h~" << get_current_model_name(); 
 		item->caption = ss0.str();
 		item->value = 0;
 		item->isLeaf = true;
@@ -2509,14 +2623,15 @@ bool process_bodyguard_menu(){
 		menuItems.push_back(item);
 
 		item = new MenuItem<int>();
-		item->caption = "切换保镖跟随玩家的方式";
-		item->value = 4;
-		item->isLeaf = true;
-		menuItems.push_back(item);
+		listItem = new SelectFromListMenuItem(BODY_FOLLOW_MODE_CAPTIONS, onchange_body_follow_mode_index);
+		listItem->wrap = false;
+		listItem->caption = "保镖跟随玩家的方式"; // 改为选择项：跟随玩家 / 原地待命
+		listItem->value = BodyFollowModeIndex;
+		menuItems.push_back(listItem);
 
 		item = new MenuItem<int>();
 		std::ostringstream ss3;
-		ss3 << "生成为路人: " << get_current_model_name();
+		ss3 << "生成为路人: ~h~" << get_current_model_name();
 		item->caption = ss3.str();
 		item->value = 5;
 		item->isLeaf = true;
@@ -2560,8 +2675,8 @@ bool process_bodyguard_menu(){
 		menuItems.push_back(listItem);
 
 		item = new MenuItem<int>();
-		item->caption = "保镖位置标记";
-		item->value = 11;
+		item->caption = "保镖位置雷达标记";
+		item->value = 12;
 		item->isLeaf = false;
 		menuItems.push_back(item);
 
@@ -2667,7 +2782,7 @@ bool process_bodyguard_menu(){
 
 		listItem = new SelectFromListMenuItem(BODY_SHOWNUMBERS_CAPTIONS, onchange_body_shownumber_index);
 		listItem->wrap = false;
-		listItem->caption = "显示保镖的编号";
+		listItem->caption = "保镖头顶显示编号";
 		listItem->value = BodyShowNumbersIndex;
 		menuItems.push_back(listItem);
 
@@ -2842,9 +2957,7 @@ bool onconfirm_bodyguard_menu(MenuItem<int> choice){
 			//中断;
 		}
 		case 4:
-			stop_b = !stop_b;
-			if (stop_b) set_status_text("原地待命！");
-			else set_status_text("跟随玩家！");
+			// 已改为选择项，确认键不再切换；保持空分支
 			break;
 		case 5:
 			spawning_a_ped = true;
@@ -2859,7 +2972,7 @@ bool onconfirm_bodyguard_menu(MenuItem<int> choice){
 		case 8:
 			process_bodyguard_weapons_menu();
 			break;
-		case 11:
+		case 12:
 			process_bodyguard_blips_menu();
 			break;
 		case 22:
@@ -2901,6 +3014,7 @@ void add_bodyguards_feature_enablements2(std::vector<StringPairSettingDBRow>* re
 	results->push_back(StringPairSettingDBRow{ "BodyBlipSymbolIndexN", std::to_string(BodyBlipSymbolIndexN) });
 	results->push_back(StringPairSettingDBRow{ "BodyBlipFlashIndex", std::to_string(BodyBlipFlashIndex) });
 	results->push_back(StringPairSettingDBRow{ "FollowInVehicleIndex", std::to_string(FollowInVehicleIndex) });
+	results->push_back(StringPairSettingDBRow{ "BodyFollowModeIndex", std::to_string(BodyFollowModeIndex) });
 	results->push_back(StringPairSettingDBRow{ "BodyWeaponSetIndex", std::to_string(BodyWeaponSetIndex) });
 	results->push_back(StringPairSettingDBRow{ "BodyHealthIndex", std::to_string(BodyHealthIndex) });
 	results->push_back(StringPairSettingDBRow{ "BodyShowNumbersIndex", std::to_string(BodyShowNumbersIndex) });
@@ -2959,6 +3073,10 @@ void handle_generic_settings_bodyguards(std::vector<StringPairSettingDBRow>* set
 		else if (setting.name.compare("FollowInVehicleIndex") == 0) {
 			FollowInVehicleIndex = stoi(setting.value);
 		}
+		else if (setting.name.compare("BodyFollowModeIndex") == 0) {
+			BodyFollowModeIndex = stoi(setting.value);
+			stop_b = (BodyFollowModeIndex == 1);
+		}
 		else if (setting.name.compare("BodyWeaponSetIndex") == 0) {
 			BodyWeaponSetIndex = stoi(setting.value);
 		}
@@ -2991,6 +3109,8 @@ void reset_bodyguards_globals(){
 	activeLineIndexBodyguardBlips = 0;
 	featureBodyBlipNumber = false;
 	featureBodyguardOnMap = false;
+	prevFeatureBodyguardOnMap = false;
+	prevFeatureBodyBlipNumberState = false;
 	featureBodyguardInvincible = false;
 	featureNoBodBlood = false;
 	featureBAggressivePed = false;
@@ -3010,6 +3130,8 @@ void reset_bodyguards_globals(){
 	BodyBlipSymbolIndexN = 0;
 	BodyBlipFlashIndex = 0;
 	FollowInVehicleIndex = 0;
+	BodyFollowModeIndex = 0; // 默认为跟随玩家
+	stop_b = false; // 同步状态为跟随
 	BodyWeaponSetIndex = 0;
 	BodyHealthIndex = 6;
 	BodyShowNumbersIndex = 0;
@@ -3073,6 +3195,16 @@ void onchange_random_bodyguard_pool_index(int value, SelectFromListMenuItem* sou
 	RandomBodyguardPoolChanged = true;
 }
 
+// 跟随玩家/原地待命
+void onchange_body_follow_mode_index(int value, SelectFromListMenuItem* source) {
+	BodyFollowModeIndex = value;
+	BodyFollowModeChanged = true;
+	// 应用行为与提示信息
+	stop_b = (value == 1);
+	if (stop_b) set_status_text("保镖：原地待命！");
+	else set_status_text("保镖：跟随玩家！");
+}
+
 // Custom peds functions for bodyguards
 bool onconfirm_bodyguards_custom_peds_category(MenuItem<std::string> choice) {
 	// Copy logic from skins.cpp for custom peds category selection
@@ -3107,7 +3239,21 @@ bool onconfirm_bodyguards_custom_peds_category(MenuItem<std::string> choice) {
 		return true;
 	};
 	
-	return draw_generic_menu<std::string>(items, &selectedPed, choice.value, onconfirm, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(items, choice.value);
+	params.menuSelectionPtr = &selectedPed;
+	params.onConfirmation = onconfirm;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if (!item.value.empty()) {//新增角色模型 1
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool process_custom_peds_bodyguard_menu() {
@@ -3137,7 +3283,14 @@ bool process_custom_peds_bodyguard_menu() {
 		return onconfirm_bodyguards_custom_peds_category(choice);
 	};
 	
-	return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类 1", onconfirm, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(items, "新增角色模型分类 1");
+	params.menuSelectionPtr = &selCat;
+	params.onConfirmation = onconfirm;
+	params.lineImageProvider = ped_image_preview_finder;
+	return draw_generic_menu<std::string>(params);
 }
 
 bool onconfirm_bodyguards_custom_peds2_category(MenuItem<std::string> choice) {
@@ -3173,7 +3326,21 @@ bool onconfirm_bodyguards_custom_peds2_category(MenuItem<std::string> choice) {
 		return true;
 	};
 	
-	return draw_generic_menu<std::string>(items, &selectedPed2, choice.value, onconfirm, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(items, choice.value);
+	params.menuSelectionPtr = &selectedPed2;
+	params.onConfirmation = onconfirm;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型名称
+		if(!item.value.empty()) {//新增角色模型 2
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool process_custom_peds2_bodyguard_menu() {
@@ -3203,5 +3370,12 @@ bool process_custom_peds2_bodyguard_menu() {
 		return onconfirm_bodyguards_custom_peds2_category(choice);
 	};
 	
-	return draw_generic_menu<std::string>(items, &selCat2, "新增角色模型分类 2", onconfirm, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+	
+	MenuParameters<std::string> params(items, "新增角色模型分类 2");
+	params.menuSelectionPtr = &selCat2;
+	params.onConfirmation = onconfirm;
+	params.lineImageProvider = ped_image_preview_finder;
+	return draw_generic_menu<std::string>(params);
 }

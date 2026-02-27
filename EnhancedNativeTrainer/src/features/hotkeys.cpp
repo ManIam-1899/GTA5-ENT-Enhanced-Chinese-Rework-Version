@@ -181,6 +181,9 @@ void trigger_function_for_hotkey_onkeyup(int hotkey)
 	case HKEY_TELEPORT_TO_MISSION_MARKER:
 		teleport_to_mission_marker();
 		break;
+	case HKEY_TELEPORT_FORWARD:
+		teleport_forward();
+		break;
 	case HKEY_TELEPORT_TO_VEHICLE_AS_PASSENGER:
 		teleport_to_vehicle_as_passenger();
 		break;
@@ -343,6 +346,9 @@ void trigger_function_for_hotkey_onkeyup(int hotkey)
 		break;
 	case HKEY_TRAFFIC_TOGGLE:
 		Traffic_switching();
+		break;
+	case HKEY_VEHICLE_FREEZE_TOGGLE:
+		vehicle_freeze_toggle();
 		break;
 	default:
 	{

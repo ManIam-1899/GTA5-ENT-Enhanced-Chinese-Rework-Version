@@ -15,11 +15,13 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <Psapi.h>
 #include <Windows.h>
 #include "misc.h"
+#include "props.h"
 
 int activeLineIndexWorld = 0;
 int activeLineIndexWeather = 0;
 int activeLineIndexClouds = 0;
 int activeLineIndexWeatherConfig = 0;
+int activeLineIndexClearArea = 0;
 
 // 改变天气
 std::string mixed_w1 = "EXTRASUNNY";
@@ -120,6 +122,34 @@ bool featureWeatherFreezeUpdated = false;
 
 bool featureCloudsFreeze = false;
 
+ // 全图水域设置
+  bool featureDisableOcean = false;
+  int OceanOpacityIndex = 0; // 0%不透明
+
+// 海洋quad结构定义（参考YimMenu）
+struct quad_info
+{
+	uint64_t m_quad_pool;
+	short m_quad_count;
+};
+
+struct ocean_quad
+{
+private:
+	char pad_0[0x8];
+public:
+	int m_opacity;
+private:
+	char pad_1[0x8];
+public:
+	float m_height;
+};
+
+// 海洋相关变量
+static quad_info* g_ocean_quads = nullptr;
+static std::vector<float> original_ocean_heights;
+static bool ocean_initialized = false;
+
 bool featureSnow = false;
 bool featureSnowUpdated = false;
 
@@ -162,6 +192,10 @@ const int WORLD_LIGHTNING_INTENSITY_VALUES[] = { -2, 3, -1 };
 int featureLightIntensityIndex = 0;
 bool featureLightIntensityChanged = true;
 
+ // 海洋透明度
+  const std::vector<std::string> OCEAN_OPACITY_CAPTIONS{ "不透明", "5%", "10%", "15%", "20%", "40%", "50%", "60%", "80%", "全透明" };
+  const int OCEAN_OPACITY_VALUES[] = { 0, 5, 10, 15, 20, 40, 50, 60, 80, 100 };
+
 // 火车速度
 const std::vector<std::string> WORLD_TRAIN_SPEED_CAPTIONS{ "关", "0.0", "5.0", "15.0", "30.0", "60.0", "80.0", "130.0", "200.0", "300.0" };
 const float WORLD_TRAIN_SPEED_VALUES[] = { -1.0, 0.0, 5.0, 15.0, 30.0, 60.0, 80.0, 130.0, 200.0, 300.0 };
@@ -184,9 +218,46 @@ const std::vector<std::string> MISC_WEATHER_METHOD_CAPTIONS{ "随机天气", "�
 int WeatherMethodIndexN = 0;
 bool WeatherMethodChanged = true;
 
+// 区域清理
+std::vector<std::string> CLEARAREA_RANGE_CAPTIONS;
+std::vector<float> CLEARAREA_RANGE_VALUES;
+int ClearAreaRangeIndex = 49; // 默认50米（索引49对应50米）
+bool ClearAreaRangeChanged = true;
+bool ClearAreaShowCircle = true; // 红圈显示开关，默认打开
+SelectFromListMenuItem* ClearAreaRangeListItem = NULL; // 保存区域范围选项指针，用于检查锁定状态
+
 // 重力等级
 int featureGravityLevelIndex = 0;
 bool featureGravityLevelChanged = true;
+
+// 初始化区域清理范围数组
+void init_cleararea_range_arrays() {
+	if (!CLEARAREA_RANGE_CAPTIONS.empty()) return; // 已初始化
+
+	// 1 - 50 米（步进 1 米）
+	for (int i = 1; i <= 50; i += 1) {
+		CLEARAREA_RANGE_CAPTIONS.push_back(std::to_string(i) + " 米");
+		CLEARAREA_RANGE_VALUES.push_back((float)i);
+	}
+
+	// 55 - 200 米（步进 5 米）
+	for (int i = 55; i <= 200; i += 5) {
+		CLEARAREA_RANGE_CAPTIONS.push_back(std::to_string(i) + " 米");
+		CLEARAREA_RANGE_VALUES.push_back((float)i);
+	}
+
+	// 210 - 500 米（步进 10 米）
+	for (int i = 210; i <= 500; i += 10) {
+		CLEARAREA_RANGE_CAPTIONS.push_back(std::to_string(i) + " 米");
+		CLEARAREA_RANGE_VALUES.push_back((float)i);
+	}
+
+	// 550 - 1000 米（步进 50 米）
+	for (int i = 550; i <= 1000; i += 50) {
+		CLEARAREA_RANGE_CAPTIONS.push_back(std::to_string(i) + " 米");
+		CLEARAREA_RANGE_VALUES.push_back((float)i);
+	}
+}
 
 void map_size_hotkey() {
 	RadarMapIndexN = RadarMapIndexN + 1;
@@ -445,6 +516,10 @@ void onchange_world_waves_index(int value, SelectFromListMenuItem* source) {
 	WorldWavesChanged = true;
 }
 
+void onchange_ocean_opacity_index(int value, SelectFromListMenuItem* source) {
+	OceanOpacityIndex = value;
+}
+
 void onchange_lightning_intensity_index(int value, SelectFromListMenuItem* source) {
 	featureLightIntensityIndex = value;
 	featureLightIntensityChanged = true;
@@ -504,6 +579,12 @@ bool onconfirm_world_menu(MenuItem<int> choice)
 	case -5:
 		process_clouds_menu();
 		break;
+	case -6:
+		process_ocean_menu();
+		break;
+	case -7:
+		process_cleararea_menu();
+		break;
 	case 2:
 		// 在 update_features 中设置 featureWorldRandomCops
 		break;
@@ -547,6 +628,12 @@ void process_world_menu()
 	item->isLeaf = false;
 	item->caption = "云层";
 	item->value = -5;
+	menuItems.push_back(item);
+
+	item = new MenuItem<int>();
+	item->isLeaf = false;
+	item->caption = "全部水域设置 (仅限传承)";
+	item->value = -6;
 	menuItems.push_back(item);
 	
 	listItem = new SelectFromListMenuItem(WORLD_GRAVITY_LEVEL_CAPTIONS, onchange_gravity_level_index);
@@ -715,7 +802,274 @@ void process_world_menu()
 	togItem->toggleValue = &featureNoGameHintCameraLocking;
 	menuItems.push_back(togItem);
 
+	// 区域清理菜单入口
+	item = new MenuItem<int>();
+	item->isLeaf = false;
+	item->caption = "区域清理选项";
+	item->value = -7;
+	menuItems.push_back(item);
+
 	draw_generic_menu<int>(menuItems, &activeLineIndexWorld, caption, onconfirm_world_menu, NULL, NULL);
+}
+
+void process_ocean_menu()
+{
+	const std::string caption = "全部水域设置 (仅限传承)";
+
+	std::vector<MenuItem<int>*> menuItems;
+
+	ToggleMenuItem<int>* toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "禁用所有海洋河流";
+	toggleItem->toggleValue = &featureDisableOcean;
+	menuItems.push_back(toggleItem);
+
+	SelectFromListMenuItem* listItem = new SelectFromListMenuItem(OCEAN_OPACITY_CAPTIONS, onchange_ocean_opacity_index);
+	listItem->wrap = false;
+	listItem->caption = "海洋河流的透明度";
+	listItem->value = OceanOpacityIndex;
+	menuItems.push_back(listItem);
+
+	draw_generic_menu<int>(menuItems, NULL, caption, NULL, NULL, NULL);
+}
+
+// 区域清理范围改变回调
+void onchange_cleararea_range_index(int value, SelectFromListMenuItem* source) {
+	ClearAreaRangeIndex = value;
+	ClearAreaRangeChanged = true;
+}
+
+// 区域清理菜单每帧回调 - 用于绘制红圈
+// 参考MenyooSP的实现：在菜单绘制阶段持续调用，确保红圈不闪烁
+void cleararea_menu_per_frame() {
+	// 红圈显示逻辑：
+	// 1. 如果红圈开关打开，一直显示
+	// 2. 如果红圈开关关闭，只有当区域范围列表被锁定时（用户按下确认键调整范围）才显示
+	bool shouldShowCircle = ClearAreaShowCircle;
+	if (!shouldShowCircle && ClearAreaRangeListItem != NULL) {
+		shouldShowCircle = ClearAreaRangeListItem->locked; // 检查列表是否被锁定
+	}
+	
+	if (shouldShowCircle) {
+		Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), 1);
+		float radius = CLEARAREA_RANGE_VALUES[ClearAreaRangeIndex];
+		
+		// 绘制红色半透明球体标记（DebugSphere类型：28）
+		// 参考MenyooSP: DrawRadiusDisplayingMarker，持续每帧绘制确保丝滑显示
+		GRAPHICS::DRAW_MARKER(28, playerPos.x, playerPos.y, playerPos.z, 
+			0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 
+			radius, radius, radius, 
+			255, 0, 0, 100, 
+			false, false, 2, false, 0, 0, false);
+	}
+}
+
+// 区域清理菜单退出回调 - 清除每帧回调
+void onexit_cleararea_menu(bool returnValue) {
+	clear_menu_per_frame_call();
+	ClearAreaRangeListItem = NULL; // 清除指针
+}
+
+// 区域清理菜单确认回调
+bool onconfirm_cleararea_menu(MenuItem<int> choice)
+{
+	Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), 1);
+	float radius = CLEARAREA_RANGE_VALUES[ClearAreaRangeIndex];
+	
+	switch (choice.value)
+	{
+	case 1: // 清理车辆
+		GAMEPLAY::CLEAR_AREA_OF_VEHICLES(playerPos.x, playerPos.y, playerPos.z, radius, 0, 0, 0, 0, 0);
+		set_status_text("已清理车辆！");
+		break;
+	case 2: // 清理人物
+		GAMEPLAY::CLEAR_AREA_OF_PEDS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+		set_status_text("已清理人物！");
+		break;
+	case 3: // 清理物体
+		{
+			GAMEPLAY::CLEAR_AREA_OF_OBJECTS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+			int spawnedPropsCount = delete_spawned_props_in_radius(playerPos, radius);
+			set_status_text("已清理物体！");
+			if (spawnedPropsCount > 0)
+			{
+				std::ostringstream ss;
+				ss << "包含 ENT 已生成物体 " << spawnedPropsCount << " 个。";
+				set_status_text(ss.str());
+			}
+			break;
+		}
+	case 4: // 清理全部
+		{
+			GAMEPLAY::CLEAR_AREA_OF_VEHICLES(playerPos.x, playerPos.y, playerPos.z, radius, 0, 0, 0, 0, 0);
+			GAMEPLAY::CLEAR_AREA_OF_PEDS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+			GAMEPLAY::CLEAR_AREA_OF_OBJECTS(playerPos.x, playerPos.y, playerPos.z, radius, 0);
+			int spawnedPropsCount = delete_spawned_props_in_radius(playerPos, radius);
+			set_status_text("已清理全部！");
+			if (spawnedPropsCount > 0)
+			{
+				std::ostringstream ss;
+				ss << "包含 ENT 已生成物体 " << spawnedPropsCount << " 个。";
+				set_status_text(ss.str());
+			}
+			break;
+		}
+	}
+
+	return false;
+}
+
+void process_cleararea_menu()
+{
+	// 初始化区域范围数组
+	init_cleararea_range_arrays();
+	
+	const std::string caption = "区域清理选项";
+
+	std::vector<MenuItem<int>*> menuItems;
+	ToggleMenuItem<int>* toggleItem;
+	MenuItem<int>* item;
+
+	// 红圈显示开关
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "红圈显示";
+	toggleItem->value = 0;
+	toggleItem->toggleValue = &ClearAreaShowCircle;
+	menuItems.push_back(toggleItem);
+
+	// 区域范围选项（保存指针以便检查锁定状态）
+	ClearAreaRangeListItem = new SelectFromListMenuItem(CLEARAREA_RANGE_CAPTIONS, onchange_cleararea_range_index);
+	ClearAreaRangeListItem->wrap = false;
+	ClearAreaRangeListItem->caption = "区域范围";
+	ClearAreaRangeListItem->value = ClearAreaRangeIndex;
+	menuItems.push_back(ClearAreaRangeListItem);
+
+	// 清理车辆
+	item = new MenuItem<int>();
+	item->caption = "清理车辆";
+	item->value = 1;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
+	// 清理人物
+	item = new MenuItem<int>();
+	item->caption = "清理人物";
+	item->value = 2;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
+	// 清理物体
+	item = new MenuItem<int>();
+	item->caption = "清理物体";
+	item->value = 3;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
+	// 清理全部
+	item = new MenuItem<int>();
+	item->caption = "清理全部";
+	item->value = 4;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
+	// 设置每帧回调函数，用于绘制红圈
+	set_menu_per_frame_call(cleararea_menu_per_frame);
+	
+	// 调用菜单，传入退出回调以清除每帧回调
+	draw_generic_menu<int>(menuItems, &activeLineIndexClearArea, caption, onconfirm_cleararea_menu, NULL, onexit_cleararea_menu, NULL);
+}
+
+// 初始化海洋功能（完全参照YimMenu的实现）
+void init_ocean_features()
+{
+	if (!ocean_initialized) {
+		// 使用YimMenu的精确模式: "74 41 4C 8B 05 ? ? ?"
+		intptr_t ocean_quads_addr = FindPatternJACCO("\x74\x41\x4C\x8B\x05\x00\x00\x00", "xxxxx???");
+		if (ocean_quads_addr) {
+			// 参照YimMenu: ptr.add(5).rip()
+			// add(5) 跳过 "74 41 4C 8B 05" 到达 disp32 位置
+			intptr_t disp_addr = ocean_quads_addr + 5;
+			int32_t disp32 = *reinterpret_cast<int32_t*>(disp_addr);
+			
+			// RIP相对地址计算: 指令结束位置 + disp32
+			// 指令结束位置 = disp_addr + 4 (disp32的大小)
+			intptr_t rip_target = disp_addr + 4 + disp32;
+			
+			// rip_target指向的是ocean_quads的地址，直接读取
+			g_ocean_quads = reinterpret_cast<quad_info*>(rip_target);
+
+			// 保存原始高度（完全参照YimMenu的逻辑）
+			if (g_ocean_quads && g_ocean_quads->m_quad_count > 0) {
+				original_ocean_heights.clear();
+				for (uint64_t i = 0; i < g_ocean_quads->m_quad_count; i++) {
+					const auto index = g_ocean_quads->m_quad_pool + (i * 0x1C);
+					const auto quad = reinterpret_cast<ocean_quad*>(index);
+					if (quad) {
+						original_ocean_heights.push_back(quad->m_height);
+					}
+				}
+				ocean_initialized = true;
+			}
+		}
+	}
+}
+
+// 更新海洋功能（完全参照YimMenu的 ocean.cpp 实现）
+void update_ocean_features()
+{
+	// 确保已初始化
+	if (!ocean_initialized) {
+		init_ocean_features();
+	}
+
+	// 当功能处于“关闭”状态时，彻底不写内存，避免与其他修改器冲突
+	static bool ocean_feature_last_active = false;
+	const bool opacity_is_default = (OceanOpacityIndex == 0);
+	const bool ocean_feature_active = featureDisableOcean || !opacity_is_default;
+
+	// 如果当前不活跃且之前是活跃状态：执行一次性恢复，然后退出
+	if (!ocean_feature_active) {
+		if (ocean_feature_last_active) {
+			if (auto ocean_quads = g_ocean_quads) {
+				for (uint64_t i = 0; i < ocean_quads->m_quad_count; i++) {
+					const auto index = ocean_quads->m_quad_pool + (i * 0x1C);
+					const auto quad = reinterpret_cast<ocean_quad*>(index);
+					if (i < original_ocean_heights.size())
+						quad->m_height = original_ocean_heights[i];
+					// 恢复默认不透明（不再强制覆盖，让其他修改器接管）
+					quad->m_opacity = 0x1A1A1A1A;
+				}
+			}
+			ocean_feature_last_active = false;
+		}
+		return;
+	}
+
+	// 标记为活跃并执行更新（参考YimMenu的逻辑）
+	ocean_feature_last_active = true;
+	if (auto ocean_quads = g_ocean_quads) {
+		for (uint64_t i = 0; i < ocean_quads->m_quad_count; i++) {
+			const auto index = ocean_quads->m_quad_pool + (i * 0x1C);
+			const auto quad = reinterpret_cast<ocean_quad*>(index);
+
+			// 禁用海洋：降低高度（参考YimMenu）
+			if (featureDisableOcean)
+				quad->m_height = -10000.f;
+			else if (i < original_ocean_heights.size())
+				quad->m_height = original_ocean_heights[i];
+
+			// 改变海洋透明度（0%不透明，100%全透明；按预设列表映射）
+			int ocean_opacity_percent = 0;
+			if (OceanOpacityIndex >= 0 && OceanOpacityIndex < (int)(sizeof(OCEAN_OPACITY_VALUES)/sizeof(OCEAN_OPACITY_VALUES[0])))
+				ocean_opacity_percent = OCEAN_OPACITY_VALUES[OceanOpacityIndex];
+
+			if (ocean_opacity_percent == 0)
+				quad->m_opacity = 0x1A1A1A1A;
+			else if (ocean_opacity_percent == 100)
+				quad->m_opacity = 0x01010101;
+			else
+				quad->m_opacity = (int)(255 * (float)((100 - ocean_opacity_percent) / 100.f));
+		}
+	}
 }
 
 void reset_world_globals()
@@ -723,6 +1077,8 @@ void reset_world_globals()
 	activeLineIndexWorld = 0;
 	activeLineIndexWeather = 0;
 	activeLineIndexClouds = 0;
+	activeLineIndexClearArea = 0;
+	ClearAreaShowCircle = true; // 红圈显示默认打开
 	RadarMapIndexN = 0;
 	WorldWavesIndex = 0;
 	featureLightIntensityIndex = 0;
@@ -737,6 +1093,8 @@ void reset_world_globals()
 	WeatherChangeIndex = 0;
 	WeatherMethodIndexN = 0;
 	WindStrengthIndex = 0;
+	ClearAreaRangeIndex = 49; // 默认50米（索引49对应50米）
+	ClearAreaShowCircle = true; // 红圈显示默认打开
 	lastWeather.clear();
 	lastWeatherName.clear();
 	lastClouds.clear();
@@ -885,6 +1243,10 @@ void update_world_features()
 		featurePenitentiaryMapUpdated = false;
 	}
 	if (featureCayoPericoMapUpdated) {
+		// 当开启“佩里科岛显示”时，提示开启“解锁迷雾显示完整地图”以获得更清晰的显示
+		if (featureCayoPericoMap) {
+			set_status_text("~y~提示: ~b~为清晰显示佩里科岛!\n~y~需要: ~p~解锁迷雾显示完整地图!");
+		}
 		featurePenitentiaryMap = false;
 		featureCayoPericoMapUpdated = false;
 	}
@@ -1144,6 +1506,9 @@ void update_world_features()
 	if (wavesstrength_changed != WORLD_WAVES_VALUES[WorldWavesIndex]) wavesstrength_toggle = false;
 	if (WORLD_WAVES_VALUES[WorldWavesIndex] != -1 && WORLD_WAVES_VALUES[WorldWavesIndex] != -2) WATER::_SET_WAVES_INTENSITY(WORLD_WAVES_VALUES[WorldWavesIndex]);
 	if (WORLD_WAVES_VALUES[WorldWavesIndex] != -1 && WORLD_WAVES_VALUES[WorldWavesIndex] == -2) GAMEPLAY::WATER_OVERRIDE_SET_STRENGTH(1.0f);
+
+	// 海洋控制（基于YimMenu的quad操作方式）
+	update_ocean_features();
 	
 	// 闪电强度
 	if (WORLD_LIGHTNING_INTENSITY_VALUES[featureLightIntensityIndex] > -2 && (GAMEPLAY::GET_PREV_WEATHER_TYPE_HASH_NAME() == 3061285535 || GAMEPLAY::GET_PREV_WEATHER_TYPE_HASH_NAME() == 3373937154)) { // GET_NEXT_WEATHER_TYPE_HASH_NAME
@@ -1968,6 +2333,8 @@ void add_world_feature_enablements2(std::vector<StringPairSettingDBRow>* results
 	results->push_back(StringPairSettingDBRow{ "featureGravityLevelIndex", std::to_string(featureGravityLevelIndex) });
 	results->push_back(StringPairSettingDBRow{ "WeatherChangeIndex", std::to_string(WeatherChangeIndex) });
 	results->push_back(StringPairSettingDBRow{ "WeatherMethodIndexN", std::to_string(WeatherMethodIndexN) });
+	results->push_back(StringPairSettingDBRow{ "ClearAreaRangeIndex", std::to_string(ClearAreaRangeIndex) });
+	results->push_back(StringPairSettingDBRow{ "ClearAreaShowCircle", std::to_string(ClearAreaShowCircle) });
 }
 
 void handle_generic_settings_world(std::vector<StringPairSettingDBRow>* settings)
@@ -2054,6 +2421,14 @@ void handle_generic_settings_world(std::vector<StringPairSettingDBRow>* settings
 		else if (setting.name.compare("WeatherMethodIndexN") == 0) 
 		{
 			WeatherMethodIndexN = stoi(setting.value);
+		}
+		else if (setting.name.compare("ClearAreaRangeIndex") == 0)
+		{
+			ClearAreaRangeIndex = stoi(setting.value);
+		}
+		else if (setting.name.compare("ClearAreaShowCircle") == 0)
+		{
+			ClearAreaShowCircle = (stoi(setting.value) != 0);
 		}
 	}
 }

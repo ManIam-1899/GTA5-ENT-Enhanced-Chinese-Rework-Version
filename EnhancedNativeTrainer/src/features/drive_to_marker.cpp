@@ -51,24 +51,27 @@ int TelChauffeur_drivingstyles_Index = 0;
 bool TelChauffeur_drivingstyles_Changed = true;
 
 ////////////////////////////////// 驾驶到标记点 ////////////////////////////////////
+// 优先级1优化：优化导航点获取逻辑（参考 YimMenu）
 Vector3 get_blip_marker() {
 	static Vector3 zero;
-	Vector3 coords;
-
+	
 	blipFound = false;
-	// 搜索标记点
+	
+	// 直接遍历导航点类型的 Blip
 	int blipIterator = UI::_GET_BLIP_INFO_ID_ITERATOR();
-	for (Blip i = UI::GET_FIRST_BLIP_INFO_ID(blipIterator); UI::DOES_BLIP_EXIST(i) != 0; i = UI::GET_NEXT_BLIP_INFO_ID(blipIterator)) {
-		if (UI::GET_BLIP_INFO_ID_TYPE(i) == 4) {
-			coords = UI::GET_BLIP_INFO_ID_COORD(i);
+	for (Blip blip = UI::GET_FIRST_BLIP_INFO_ID(blipIterator); 
+	     UI::DOES_BLIP_EXIST(blip) != 0; 
+	     blip = UI::GET_NEXT_BLIP_INFO_ID(blipIterator)) {
+		
+		if (UI::GET_BLIP_INFO_ID_TYPE(blip) == 4) {
+			// 使用 GET_BLIP_COORDS 替代 GET_BLIP_INFO_ID_COORD
+			Vector3 coords = UI::GET_BLIP_COORDS(blip);
 			blipFound = true;
-			break;
+			return coords;
 		}
 	}
-	if (blipFound) {
-		return coords;
-	}
-
+	
+	// 未找到导航点
 	set_status_text("您还没有设置导航点！");
 	return zero;
 }

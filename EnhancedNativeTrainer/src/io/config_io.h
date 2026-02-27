@@ -23,6 +23,8 @@ class KeyConfig{
 
 	static const std::string KEY_TOGGLE_MAIN_MENU;
 	static const std::string KEY_TOGGLE_AIRBRAKE;
+	static const std::string KEY_FREECAM_TOGGLE;
+	static const std::string KEY_SCREENSHOT;
 
 	static const std::string KEY_MENU_UP;
 	static const std::string KEY_MENU_DOWN;

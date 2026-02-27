@@ -121,10 +121,14 @@ bool featureNoVehFallOff = false;
 bool featureVehSteerAngle = false;
 bool featureRollWhenShoot = false;
 bool featureTractionControl = false;
+bool featureVehDriveOnWater = false;
+static bool prevVehDriveOnWater = false; // 防止每帧重复提示，记录上次状态
 bool featureSticktoground = false;
 bool featureDropSpikes = false;
 bool featureAirStrike = false;
 bool featureReverseWhenBraking = false;
+bool featureInstantBrake = false;
+static bool prevInstantBrake = false; // 瞬间刹停开启时提示一次，避免重复提醒
 bool featureDisableIgnition = false;
 bool featureEngineRunning = false;
 bool featureNoVehFlip = false;
@@ -135,7 +139,16 @@ bool featureVehMassMult = false;
 bool featureVehSpawnInto = false;
 bool featureVehSpawnTuned = false;
 bool featureVehSpawnOptic = false;
+bool featureVehSpawnDeleteOld = false; // 生成时删除旧车辆功能
 bool featureVehicleDoorInstant = false;
+
+// 存储上次生成的车辆，用于删除旧车辆功能
+static Vehicle g_lastSpawnedVehicle = 0;
+// 标记一个待删除的车辆：玩家离车后再删除
+static Vehicle g_pendingDeleteVehicle = 0;
+static bool g_deleteOnExitVehicle = false;
+// 延迟删除计数器，避免玩家下车动画未完成就删除车辆
+static int g_deleteDelayCounter = 0;
 bool featureLockVehicleDoors = false;
 bool featureLockVehicleDoorsUpdated = false;
 bool featureWearHelmetOff = false;
@@ -181,6 +194,17 @@ Vehicle alarmed_veh = -1;
 bool near_enough = false;
 int a_counter_tick = 0;
 
+// 车辆标记管理功能变量
+bool featureVehicleMarkersEnabled = false;  // 开启地图车辆标记总开关
+struct MarkedVehicleInfo {
+	Vehicle vehicle;        // 车辆实体
+	Blip blip;             // 地图标记
+	int vehicleClass;      // 车辆类别（用于显示对应图标）
+	Hash modelHash;        // 车辆模型哈希
+};
+std::vector<MarkedVehicleInfo> MARKED_VEHICLES;  // 标记的车辆列表
+Vehicle lastMarkedVehicle = 0;  // 最后标记的车辆
+
 int Shut_seconds = -1; 
 
 bool tracked_being_restored = false;
@@ -188,9 +212,13 @@ bool tracked_being_restored = false;
 int nitrous_m = -2;
 
 int sheshark_light_toogle = 1;
+Object vehWaterPlatform = NULL;
 
 bool featureDespawnScriptDisabled = false;
 bool featureDespawnScriptDisabledUpdated = false;
+
+// 冻结车辆：记录车辆冻结前速度，用于解冻恢复
+static std::unordered_map<Vehicle, float> FROZEN_VEHICLE_PREV_SPEED;
 
 int activeLineIndexVeh = 0;
 int activeSavedVehicleIndex = -1;
@@ -210,6 +238,16 @@ int lastKnownSavedVehicleCount = 0;
 static std::map<std::string, std::vector<std::pair<std::string, std::string>>> g_CustomVehicles; // 分类 -> [(model, title)]
 static std::vector<std::string> g_CustomVehicleCategories; // 分类顺序
 static FILETIME g_LastXmlModifyTime = {0}; // XML文件最后修改时间
+
+// 内置车辆名称映射（用于游戏内没有本地化翻译的车辆）
+static const std::map<std::string, std::string> BUILTIN_VEHICLE_NAME_MAPPING = {
+	//{"模型名称", "显示名称"},
+	{"GRAINTRAILE", "绿色货箱拖挂"},
+	{"DOCKTRAILER", "集装箱拖挂"},
+	{"TANKER", "黄色油罐车"},
+	{"FREIGHTTRAI", "平板拖挂"},
+	{"proptrailer", "集装箱房车"},
+};
 
 static std::string BstrToUtf8(BSTR b)
 {
@@ -517,14 +555,16 @@ bool create_sample_vehicle_previews_xml(const char* xmlPath)
 	file << "  <!-- model: 车辆模型名称（大写或小写都行） -->\n";
 	file << "  <!-- dict: 预览图存放位置，默认 ENT_vehicle_previews.ytd 里-->\n";
 	file << "  <!-- dict: 这项不能修改，默认 ENT_vehicle_previews -->\n";
-	file << "  <!-- image: 图片名称 （随你喜欢修改）-->\n";
+	file << "  <!-- dict: 预览图存放位置，支持多个 ytd 文件 -->\n";
+	file << "  <!-- ENT_vehicle_previews_1.ytd 对应 ENT_vehicle_previews_1 -->\n";
+	file << "  <!-- ENT_vehicle_previews_2.ytd 对应 ENT_vehicle_previews_2 -->\n";
+	file << "  <!-- ENT_vehicle_previews_3.ytd 对应 ENT_vehicle_previews_3 -->\n";
+	file << "  <!-- image: 图片名称（随你喜欢修改） -->\n";
 	file << "  <!-- 原先存在的预览图，你可以在这里再次添加，会自动覆盖游戏内置的预览图 -->\n";
 	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
-	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews\" image=\"图片名称\" />\n";
+	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews_1\" image=\"图片名称\" />\n";
+	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews_2\" image=\"图片名称\" />\n";
+	file << "  <vehicle model=\"模型名称\" dict=\"ENT_vehicle_previews_3\" image=\"图片名称\" />\n";
 	file << "</vehicle_previews>\n";
 
 	file.close();
@@ -1126,7 +1166,24 @@ void PopulateVehicleModelsArray()
 	// 遍历哈希列表并对其进行排序。
 	for (auto& hlist : vHashLists)
 	{
-		std::sort(hlist->begin(), hlist->end(), [](const Hash& a, const Hash& b) -> bool { return (get_vehicle_make_and_model(a)) < get_vehicle_make_and_model(b); });
+		// 中文注释：为排序缓存车辆显示名称，避免在比较器中重复调用 get_vehicle_make_and_model 提高性能
+		std::map<Hash, std::string> nameCache;
+		auto get_cached_name = [&nameCache](Hash hash) -> const std::string&
+		{
+			auto it = nameCache.find(hash);
+			if (it != nameCache.end())
+			{
+				return it->second;
+			}
+			// 中文注释：第一次访问时计算并缓存车辆名称
+			auto inserted = nameCache.emplace(hash, get_vehicle_make_and_model(hash));
+			return inserted.first->second;
+		};
+
+		std::sort(hlist->begin(), hlist->end(), [&get_cached_name](const Hash& a, const Hash& b) -> bool
+		{
+			return get_cached_name(a) < get_cached_name(b);
+		});
 	}
 
 	std::stringstream ss;
@@ -1137,22 +1194,22 @@ void PopulateVehicleModelsArray()
 char* GetVehicleModelName(int modelHash)
 {
 	int index = 0xFFFF;
-	auto pGetModelInfo = ResolveFunction<FunctionID::GetModelInfo>();
-	if (!pGetModelInfo) {
-		return nullptr;
+	uint64_t modelInfo = GetModelInfo(modelHash, &index);
+	// 添加空指针检查，防止访问无效模型时崩溃
+	if (modelInfo == 0 || modelInfo == NULL) {
+		return (char*)"";
 	}
-	uint64_t modelInfo = pGetModelInfo(modelHash, &index);
 	return (char*)(modelInfo + 0x298);
 }
 
 char* GetVehicleMakeName(int modelHash)
 {
 	int index = 0xFFFF;
-	auto pGetModelInfo = ResolveFunction<FunctionID::GetModelInfo>();
-	if (!pGetModelInfo) {
-		return nullptr;
+	uint64_t modelInfo = GetModelInfo(modelHash, &index);
+	// 添加空指针检查，防止访问无效模型时崩溃
+	if (modelInfo == 0 || modelInfo == NULL) {
+		return (char*)"";
 	}
-	uint64_t modelInfo = pGetModelInfo(modelHash, &index);
 	return (char*)(modelInfo + 0x2A4);
 }
 
@@ -1217,52 +1274,57 @@ std::vector<Hash> get_vehicles_from_category(int category)
 	}
 }
 
+// 用于生成车辆菜单：游戏本地化翻译 > 内置映射 > XML的title > 模型名
 std::string get_vehicle_make_and_model(int modelHash)
 {
 	// 原始模型标签（兜底）
 	const char* modelNameC = VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(modelHash);
 	std::string modelNameStr = modelNameC ? modelNameC : "";
 
-	// 1) 先查外置 XML
-	for (const auto& cat : g_CustomVehicleCategories) {
-		auto it = g_CustomVehicles.find(cat);
-		if (it == g_CustomVehicles.end()) continue;
-		for (const auto& entry : it->second) {
-			if (GAMEPLAY::GET_HASH_KEY((char*)entry.first.c_str()) == modelHash && !entry.second.empty()) {
-				return entry.second; // XML 命名优先
-			}
-		}
-	}
-
-	// 2) 再查游戏内置 make / model
-
-	std::string model;
-	char* vehicle_model_name = GetVehicleModelName(modelHash);
-	if (vehicle_model_name) {
-		model = std::string(UI::_GET_LABEL_TEXT(vehicle_model_name));
-	}
-	else {
-		model = std::string("未知");
-	}
-
-	std::string make;
-	char* vehicle_make_name = GetVehicleMakeName(modelHash);
-	if (vehicle_make_name) {
-		make = std::string(UI::_GET_LABEL_TEXT(vehicle_make_name));
-	}
-	else {
-		make = std::string("未知");
-	}
+	// 优先级1: 游戏内置本地化翻译 (make + model)
+	std::string make  = std::string(UI::_GET_LABEL_TEXT(GetVehicleMakeName(modelHash)));
+	std::string model = std::string(UI::_GET_LABEL_TEXT(GetVehicleModelName(modelHash)));
 
 	auto is_valid = [](const std::string& s){
 		return !s.empty() && s != "NULL";
-		};
+	};
 
 	if (is_valid(make) && is_valid(model)) return make + " " + model;
 	if (is_valid(model))                 return model;
 	if (is_valid(make))                  return make;
 
-	// 3) 兜底：返回模型标签
+	// 优先级2: 查内置名称映射（支持大小写不敏感查找）
+	if (!modelNameStr.empty()) {
+		// 将模型名转换为大写进行查找（内置映射表的键都是大写）
+		std::string upperModelName = modelNameStr;
+		std::transform(upperModelName.begin(), upperModelName.end(), upperModelName.begin(), ::toupper);
+		
+		auto it = BUILTIN_VEHICLE_NAME_MAPPING.find(upperModelName);
+		if (it != BUILTIN_VEHICLE_NAME_MAPPING.end()) {
+			return it->second; // 返回内置映射名称
+		}
+		
+		// 如果大写查找失败，尝试原始大小写（以防映射表中有非大写键）
+		if (modelNameStr != upperModelName) {
+			auto it2 = BUILTIN_VEHICLE_NAME_MAPPING.find(modelNameStr);
+			if (it2 != BUILTIN_VEHICLE_NAME_MAPPING.end()) {
+				return it2->second;
+			}
+		}
+	}
+
+	// 优先级3: 查外置 XML 的 title 属性
+	for (const auto& cat : g_CustomVehicleCategories) {
+		auto it = g_CustomVehicles.find(cat);
+		if (it == g_CustomVehicles.end()) continue;
+		for (const auto& entry : it->second) {
+			if (GAMEPLAY::GET_HASH_KEY((char*)entry.first.c_str()) == modelHash && !entry.second.empty()) {
+				return entry.second; // 返回 XML title
+			}
+		}
+	}
+
+	// 优先级4: 兜底返回模型标签
 	return modelNameStr;
 }
 
@@ -1601,6 +1663,408 @@ void save_tracked_veh() {
 	}
 }
 
+// ==================== 车辆标记管理功能实现 ====================
+
+// 根据车辆类别获取对应的Blip图标（简化版）
+static int get_blip_sprite_for_vehicle_class(int vehicleClass) {
+	// 仅保留特定图标，其余统一使用轿车图标 (225)
+	switch (vehicleClass) {
+		case 8:  return 348;  // VC_MOTORCYCLE - 摩托车
+		case 13: return 348;  // VC_CYCLE - 自行车 (使用摩托车图标)
+		case 14: return 427;  // VC_BOAT - 船只
+		case 15: return 64;   // VC_HELICOPTER - 直升机
+		case 16: return 423;  // VC_PLANE - 飞机
+		default: return 225;  // 其他所有车辆统一使用轿车图标
+	}
+}
+
+// 标记当前驾驶的车辆
+void mark_current_vehicle() {
+	if (!featureVehicleMarkersEnabled) {
+		set_status_text("请先开启地图车辆标记功能！");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		set_status_text("您没有驾驶任何车辆！");
+		return;
+	}
+
+	Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	if (!ENTITY::DOES_ENTITY_EXIST(currentVehicle)) {
+		set_status_text("~r~无法获取当前车辆！");
+		return;
+	}
+
+	// 检查该车辆是否已经被标记
+	for (const auto& markedVeh : MARKED_VEHICLES) {
+		if (markedVeh.vehicle == currentVehicle) {
+			set_status_text("该车辆已经被标记！");
+			return;
+		}
+	}
+
+	// 获取车辆信息
+	Hash modelHash = ENTITY::GET_ENTITY_MODEL(currentVehicle);
+	int vehicleClass = VEHICLE::GET_VEHICLE_CLASS(currentVehicle);
+	
+	// 创建地图标记
+	Blip blip = UI::ADD_BLIP_FOR_ENTITY(currentVehicle);
+	UI::SET_BLIP_AS_FRIENDLY(blip, true);
+	
+	// 根据车辆类别设置对应图标
+	int blipSprite = get_blip_sprite_for_vehicle_class(vehicleClass);
+	UI::SET_BLIP_SPRITE(blip, blipSprite);
+	
+	UI::SET_BLIP_COLOUR(blip, 34);   // 粉红色
+	UI::SET_BLIP_SCALE(blip, 1.0f); // 略微大点 (原 0.85f)
+	UI::SET_BLIP_AS_SHORT_RANGE(blip, false);  // 远距离可见
+	
+	// 设置标记名称
+	std::string vehicleName = get_vehicle_make_and_model(modelHash);
+	UI::BEGIN_TEXT_COMMAND_SET_BLIP_NAME("STRING");
+	UI::_ADD_TEXT_COMPONENT_STRING((char*)vehicleName.c_str());
+	UI::END_TEXT_COMMAND_SET_BLIP_NAME(blip);
+
+	// 保存标记信息
+	MarkedVehicleInfo markedInfo;
+	markedInfo.vehicle = currentVehicle;
+	markedInfo.blip = blip;
+	markedInfo.vehicleClass = vehicleClass;
+	markedInfo.modelHash = modelHash;
+	MARKED_VEHICLES.push_back(markedInfo);
+
+	// 记录为最后标记的车辆
+	lastMarkedVehicle = currentVehicle;
+	ENTITY::SET_ENTITY_AS_MISSION_ENTITY(currentVehicle, true, true);
+
+	set_status_text(std::string("已标记车辆:  ") + vehicleName);
+
+	std::ostringstream ss;
+	ss << "已标记总数: " << MARKED_VEHICLES.size() << " 辆";
+	set_status_text(ss.str());
+}
+
+// 清除当前驾驶车辆的标记
+void unmark_current_vehicle() {
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		set_status_text("您没有驾驶任何车辆！");
+		return;
+	}
+
+	Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	
+	// 查找并删除该车辆的标记
+	for (auto it = MARKED_VEHICLES.begin(); it != MARKED_VEHICLES.end(); ++it) {
+		if (it->vehicle == currentVehicle) {
+			// 删除地图标记
+			if (UI::DOES_BLIP_EXIST(it->blip)) {
+				UI::REMOVE_BLIP(&it->blip);
+			}
+			
+			// 如果清除的是最后标记的车辆，更新lastMarkedVehicle
+			if (lastMarkedVehicle == currentVehicle) {
+				// 从列表中移除当前车辆
+				MARKED_VEHICLES.erase(it);
+				
+				// 如果还有其他标记车辆，将最后一个设为lastMarkedVehicle
+				if (!MARKED_VEHICLES.empty()) {
+					lastMarkedVehicle = MARKED_VEHICLES.back().vehicle;
+				} else {
+					lastMarkedVehicle = 0;  // 没有标记车辆了
+				}
+			} else {
+				// 不是最后标记的车辆，直接移除
+				MARKED_VEHICLES.erase(it);
+			}
+			
+			set_status_text("已清除当前车辆标记！");
+			return;
+		}
+	}
+	
+	set_status_text("当前车辆没有标记！");
+}
+
+// 清除所有车辆标记
+void clear_all_vehicle_markers() {
+	for (auto& markedVeh : MARKED_VEHICLES) {
+		if (UI::DOES_BLIP_EXIST(markedVeh.blip)) {
+			UI::REMOVE_BLIP(&markedVeh.blip);
+		}
+	}
+	MARKED_VEHICLES.clear();
+	lastMarkedVehicle = 0;
+	set_status_text("已清除所有车辆标记！");
+}
+
+// 传送到最后标记的车辆
+void teleport_to_last_marked_vehicle() {
+	if (lastMarkedVehicle == 0 || !ENTITY::DOES_ENTITY_EXIST(lastMarkedVehicle)) {
+		set_status_text("您没有标记的车辆，或车辆已不存在！");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	
+	// 检查玩家是否已经在标记的车辆中
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		if (currentVehicle == lastMarkedVehicle) {
+			set_status_text("~r~您已在标记车辆, 勿重复传送!");
+			return;
+		}
+	}
+	
+	Vector3 vehCoords = ENTITY::GET_ENTITY_COORDS(lastMarkedVehicle, true);
+	
+	// 传送到车辆位置
+	ENTITY::SET_ENTITY_COORDS(playerPed, vehCoords.x, vehCoords.y, vehCoords.z, 0, 0, 0, 1);
+	
+	// 如果车辆有空座位，让玩家进入
+	if (VEHICLE::ARE_ANY_VEHICLE_SEATS_FREE(lastMarkedVehicle)) {
+		AI::TASK_WARP_PED_INTO_VEHICLE(playerPed, lastMarkedVehicle, -1);
+	}
+	
+	set_status_text("已传送到标记的车辆！");
+}
+
+// 标记车辆传送到玩家身边（直接传送到玩家位置并让玩家进入）
+void teleport_last_marked_vehicle_to_player() {
+	if (lastMarkedVehicle == 0 || !ENTITY::DOES_ENTITY_EXIST(lastMarkedVehicle)) {
+		set_status_text("您没有标记的车辆，或车辆已不存在！");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	
+	// 检查玩家是否已经在标记的车辆中
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		if (currentVehicle == lastMarkedVehicle) {
+			set_status_text("~r~您已在标记车辆, 勿重复传送!");
+			return;
+		}
+	}
+	
+	Vector3 playerCoords = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+	float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+	
+	// 将车辆直接传送到玩家位置
+	ENTITY::SET_ENTITY_COORDS(lastMarkedVehicle, playerCoords.x, playerCoords.y, playerCoords.z, 0, 0, 0, 1);
+	ENTITY::SET_ENTITY_HEADING(lastMarkedVehicle, playerHeading);
+	
+	// 让玩家自动进入车辆
+	if (VEHICLE::ARE_ANY_VEHICLE_SEATS_FREE(lastMarkedVehicle)) {
+		AI::TASK_WARP_PED_INTO_VEHICLE(playerPed, lastMarkedVehicle, -1);
+		set_status_text("标记车辆, 已传至身边并驾驶!");
+	} else {
+		set_status_text("标记车辆, 已传送到您的身边!");
+	}
+}
+
+// 更新车辆标记（清理已删除的车辆，并绘制车顶3D标记）
+void update_vehicle_markers() {
+	if (!featureVehicleMarkersEnabled) {
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vehicle playerVehicle = 0;
+	if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) {
+		playerVehicle = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	}
+
+	// 清理已删除的车辆，并更新车顶标记
+	for (auto it = MARKED_VEHICLES.begin(); it != MARKED_VEHICLES.end();) {
+		if (!ENTITY::DOES_ENTITY_EXIST(it->vehicle)) {
+			// 车辆已被删除，移除标记
+			if (UI::DOES_BLIP_EXIST(it->blip)) {
+				UI::REMOVE_BLIP(&it->blip);
+			}
+			
+			// 如果删除的是最后标记的车辆，需要更新lastMarkedVehicle
+			if (it->vehicle == lastMarkedVehicle) {
+				lastMarkedVehicle = 0;  // 重置，因为车辆已不存在
+			}
+			
+			it = MARKED_VEHICLES.erase(it);
+		} else {
+			// --- 玩家进入标记车辆时隐藏玩家地图标记 (这里实现为隐藏车辆Blip,避免重叠) ---
+			// 解释：用户要求"进入车辆时隐藏玩家地图标记"。通常这意味着地图上只显示一个点。
+			// 因为玩家箭头无法完全隐藏（除非隐藏整个HUD），最佳实践是：
+			// 当玩家在标记车辆里时，隐藏【车辆的黄色Blip】，因为玩家箭头就在那个位置。
+			// 这样地图上就只剩下一个点（玩家箭头），达到了"不重叠"和"清晰"的效果。
+			// 离开车辆后，恢复显示车辆黄色Blip。
+			
+			if (playerVehicle == it->vehicle) {
+				// 玩家正在驾驶这辆标记车辆 -> 隐藏车辆标记 (Alpha = 0)
+				// 此时地图上只显示玩家箭头
+				if (UI::DOES_BLIP_EXIST(it->blip)) {
+					UI::SET_BLIP_ALPHA(it->blip, 0);
+				}
+			} else {
+				// 玩家不在车里 -> 恢复显示车辆标记
+				if (UI::DOES_BLIP_EXIST(it->blip)) {
+					UI::SET_BLIP_ALPHA(it->blip, 255);
+				}
+				
+				// --- 绘制车顶3D标记 (双层旋转黄色箭头) ---
+				// 仅当玩家不在车里时绘制，避免遮挡视线
+				Vector3 vehCoords = ENTITY::GET_ENTITY_COORDS(it->vehicle, true);
+				// 获取车辆高度以正确放置标记
+				Vector3 minDim, maxDim;
+				GAMEPLAY::GET_MODEL_DIMENSIONS(ENTITY::GET_ENTITY_MODEL(it->vehicle), &minDim, &maxDim);
+				float markerZ = vehCoords.z + maxDim.z + 1.0f; // 基础高度：车顶上方1.0米
+				
+				// 箭头参数
+				int markerType = 20; // 倒V箭头 (UpsideDownChevron)
+				float scale = 0.75f; // 略微放大 (原0.5)
+				int r = 255, g = 255, b = 0, a = 200; // 黄色
+				
+				// 绘制第一层箭头 (下层)
+				GRAPHICS::DRAW_MARKER(
+					markerType,
+					vehCoords.x, vehCoords.y, markerZ,
+					0.0f, 0.0f, 0.0f,   // dir
+					0.0f, 180.0f, 0.0f, // rot (180度翻转使其向下)
+					scale, scale, scale,
+					r, g, b, a,
+					true,               // bobUpAndDown
+					false,              // faceCamera
+					2,                  // p19 (2=旋转)
+					true,               // rotate
+					NULL, NULL, false
+				);
+
+				// 绘制第二层箭头 (中层，偏移0.8米)
+				GRAPHICS::DRAW_MARKER(
+					markerType,
+					vehCoords.x, vehCoords.y, markerZ + 0.8f,
+					0.0f, 0.0f, 0.0f,
+					0.0f, 180.0f, 0.0f,
+					scale, scale, scale,
+					r, g, b, a,
+					true,
+					false,
+					2,
+					true,
+					NULL, NULL, false
+				);
+
+				// 绘制第三层箭头 (上层，偏移1.6米)
+				GRAPHICS::DRAW_MARKER(
+					markerType,
+					vehCoords.x, vehCoords.y, markerZ + 1.6f,
+					0.0f, 0.0f, 0.0f,
+					0.0f, 180.0f, 0.0f,
+					scale, scale, scale,
+					r, g, b, a,
+					true,
+					false,
+					2,
+					true,
+					NULL, NULL, false
+				);
+			}
+			++it;
+		}
+	}
+}
+
+void toggle_vehicle_markers(bool enabled) {
+	featureVehicleMarkersEnabled = enabled;
+
+	if (!enabled) {
+		clear_all_vehicle_markers();
+		set_status_text("已关闭-地图车辆标记功能");
+	} else {
+		set_status_text("已开启-地图车辆标记功能");
+	}
+}
+
+static bool get_vehicle_markers_toggle_state(std::vector<int> extras) {
+	(void)extras;
+	return featureVehicleMarkersEnabled;
+}
+
+static void set_vehicle_markers_toggle_state(bool enabled, std::vector<int> extras) {
+	(void)extras;
+	toggle_vehicle_markers(enabled);
+}
+
+// ==================== 车辆标记管理菜单 ====================
+
+bool onconfirm_vehicle_markers_menu(MenuItem<int> choice) {
+	switch (choice.value) {
+		case 1: // 标记当前驾驶车辆
+			mark_current_vehicle();
+			break;
+		case 2: // 清除驾驶车辆标记
+			unmark_current_vehicle();
+			break;
+		case 3: // 传送到最后标记车辆
+			teleport_to_last_marked_vehicle();
+			break;
+		case 4: // 标记车辆传送到身边
+			teleport_last_marked_vehicle_to_player();
+			break;
+	}
+	return false;
+}
+
+void process_vehicle_markers_menu() {
+	const std::string caption = "车辆标记选项";
+	
+	std::vector<MenuItem<int>*> menuItems;
+	MenuItem<int> *item;
+	FunctionDrivenToggleMenuItem<int>* toggleItem;
+	
+	int i = 0;
+	
+	// 开启地图车辆标记（复选框）
+	toggleItem = new FunctionDrivenToggleMenuItem<int>();
+	toggleItem->caption = "启用地图车辆标记";
+	toggleItem->value = i++;
+	toggleItem->getter_call = get_vehicle_markers_toggle_state;
+	toggleItem->setter_call = set_vehicle_markers_toggle_state;
+	menuItems.push_back(toggleItem);
+	
+	// 标记当前驾驶车辆
+	item = new MenuItem<int>();
+	item->caption = "标记当前驾驶车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 清除驾驶车辆标记
+	item = new MenuItem<int>();
+	item->caption = "清除驾驶车辆标记";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 传送到最后标记车辆
+	item = new MenuItem<int>();
+	item->caption = "传送到最后标记车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	// 标记车辆传送到身边
+	item = new MenuItem<int>();
+	item->caption = "标记车辆传送到身边";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+	
+	draw_generic_menu<int>(menuItems, 0, caption, onconfirm_vehicle_markers_menu, NULL, NULL);
+}
+
+// ==================== 结束车辆标记管理功能 ====================
+
 bool onconfirm_vehdoor_menu(MenuItem<int> choice){
 
 	if(choice.value == -1) {
@@ -1930,13 +2394,14 @@ bool process_veh_seat_menu()
 			item->caption = SEAT_NAMES[i];
 			menuItems.push_back(item);
 		}
+		
+		return draw_generic_menu<int>(menuItems, &vehSeatIndexMenuIndex, "车辆座位选项", onconfirm_seat_menu, NULL, NULL);
 	}
 	else 
 	{
 		set_status_text("玩家不在载具中！");
+		return false;
 	}
-
-	return draw_generic_menu<int>(menuItems, &vehSeatIndexMenuIndex, "车辆座位选项", onconfirm_seat_menu, NULL, NULL);
 }
 
 bool onconfirm_colours_menu(MenuItem<int> choice)
@@ -1951,6 +2416,10 @@ bool onconfirm_colours2_menu(MenuItem<int> choice)
 
 bool onconfirm_speed_menu(MenuItem<int> choice)
 {
+	// 打开“模拟速度表”子菜单（用固定值判断，避免依赖文字）
+	if (choice.value == -35769) {
+		process_analog_speedometer_menu();
+	}
 	return false;
 }
 
@@ -1963,35 +2432,46 @@ void process_speed_menu(){
 	ToggleMenuItem<int>* toggleItem;
 
 	int i = 0;
+
+	// 总开关：控制传统速度/高度显示（与模拟速度表互斥）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "速度/高度 显示开启";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureSpeedAltitudeMaster;
+	toggleItem->toggleValueUpdated = &featureSpeedAltitudeMasterUpdated;
+	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "单位: KM/H";
+	toggleItem->caption = "单位: KM/H或MPH";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureKMH;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "显示: 高度";
+	toggleItem->caption = "显示: 海拔高度";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureAltitude;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "步行";
+	toggleItem->caption = "步行速度显示";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSpeedOnFoot;
+	toggleItem->toggleValueUpdated = &featureSpeedOnFootUpdated;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "所有地面载具";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSpeedOnGround;
+	toggleItem->toggleValueUpdated = &featureSpeedOnGroundUpdated;
 	menuItems.push_back(toggleItem);
 	
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "所有飞行载具";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSpeedInAir;
+	toggleItem->toggleValueUpdated = &featureSpeedInAirUpdated;
 	menuItems.push_back(toggleItem);
 
 	listItem = new SelectFromListMenuItem(VEH_BLIPSIZE_CAPTIONS, onchange_speed_size_index);
@@ -2005,6 +2485,12 @@ void process_speed_menu(){
 	listItem->caption = "显示位置";
 	listItem->value = SpeedPositionIndexN;
 	menuItems.push_back(listItem);
+
+	MenuItem<int>* item = new MenuItem<int>();
+	item->caption = "模拟速度表 (显示圆形表盘)";
+	item->value = -35769; // 固定识别值，避免标题改动导致无法进入
+	item->isLeaf = false;
+	menuItems.push_back(item);
 
 	draw_generic_menu<int>(menuItems, &activeLineIndexSpeed, caption, onconfirm_speed_menu, NULL, NULL);
 }
@@ -2810,50 +3296,104 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 		case 8: // 模组
 			if(process_vehmod_menu()) return false;
 			break;
-		case 21: // 速度和高度菜单
+		case 23: // 速度和高度菜单
 			process_speed_menu();
 			break;
-		case 22: // 速度限制
+		case 24: // 速度限制
 			process_speedlimit_menu();
 			break;
-		case 23: // 车门菜单
+		case 25: // 车门菜单
 			if(process_veh_door_menu()) return false;
 			break;
-		case 24: // 座位菜单
-			if (PED::IS_PED_SITTING_IN_ANY_VEHICLE(playerPed))
-				if(process_veh_seat_menu()) return false;
+		case 26: // 座位菜单
+			if(process_veh_seat_menu()) return false;// 始终调用座位菜单，让其内部负责显示“玩家不在载具中！”提示并阻止菜单
 			break;
-		case 25: // 车辆转向灯菜单
+		case 27: // 车辆转向灯菜单
 			process_visualize_menu();
 			break;
-		case 28: // 燃油菜单
+		case 30: // 燃油菜单
 			process_fuel_menu();
 			break;
-		case 29: // 保存车辆菜单
+		case 31: // 车辆跟踪菜单
 			process_remember_vehicles_menu();
 			break;
-		case 30: // 交通法规菜单
+		case 32: // 交通法规菜单
 			process_road_laws_menu();
 			break;
-		case 31: // 引擎可能会损耗
+		case 33: // 引擎可能会损耗
 			process_engine_degrade_menu();
 			break;
-		case 48: // 飞机炸弹
+		case 50: // 飞机炸弹
 		{
 			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
 				set_status_text("~r~玩家不在载具中！");
-				//返回 true;
+				break;
 			}
 			Hash currVehModel = ENTITY::GET_ENTITY_MODEL(PED::GET_VEHICLE_PED_IS_USING(playerPed));
 			if (GAMEPLAY::GET_HASH_KEY("CUBAN800") == currVehModel) {
 				if (process_veh_weapons_menu()) return false;
 			}
-			else set_status_text("~r~错误: 开启弹仓投弹, 需要古邦800飞机！");
+			else {
+				set_status_text("~r~错误: 开启弹仓投弹, 需要古邦800飞机！");
+			}
 		}
 			break;
-		case 52: // 车辆盗窃
+		case 54: // 车辆盗窃
 			process_routine_of_ringer_menu();
 			break;
+		case 55: // 冻结车辆
+			vehicle_freeze_toggle();
+			break;
+		case 56: // 删除车辆
+		{
+			if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+				set_status_text("~r~玩家不在载具中, 无法删除车辆!");
+				break;
+			}
+
+			Vehicle vcur = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+			if (!ENTITY::DOES_ENTITY_EXIST(vcur)) {
+				set_status_text("~y~未检测到有效载具！");
+				break;
+			}
+
+			// 让玩家先离车
+			AI::TASK_LEAVE_VEHICLE(playerPed, vcur, 16);
+			
+			// 让所有其他乘员离车
+			int maxSeats = VEHICLE::GET_VEHICLE_MAX_NUMBER_OF_PASSENGERS(vcur);
+			for (int seat = -1; seat <= maxSeats; ++seat) {
+				if (seat == -1) continue; // 跳过驾驶座，玩家已处理
+				Ped occ = VEHICLE::GET_PED_IN_VEHICLE_SEAT(vcur, seat);
+				if (occ != 0 && ENTITY::DOES_ENTITY_EXIST(occ)) {
+					AI::TASK_LEAVE_VEHICLE(occ, vcur, 16);
+				}
+			}
+
+			// 等待足够时间让乘员离开
+			WAIT(150);
+
+			// 清理冻结记录
+			auto it = FROZEN_VEHICLE_PREV_SPEED.find(vcur);
+			if (it != FROZEN_VEHICLE_PREV_SPEED.end()) {
+				FROZEN_VEHICLE_PREV_SPEED.erase(it);
+			}
+
+			// 设为任务实体并删除
+			ENTITY::SET_ENTITY_AS_MISSION_ENTITY(vcur, true, true);
+			VEHICLE::DELETE_VEHICLE(&vcur);
+
+			// 验证删除结果
+			if (ENTITY::DOES_ENTITY_EXIST(vcur)) {
+				set_status_text("~r~车辆删除失败！");
+			} else {
+				set_status_text("车辆已成功删除！");
+			}
+		}
+			break;
+		case 58: // 车辆标记管理
+			process_vehicle_markers_menu();
+			return false;
 		default:
 			break;
 	}
@@ -2951,6 +3491,12 @@ void process_veh_menu(){
 	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "生成时删除旧车辆";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureVehSpawnDeleteOld;
+	menuItems.push_back(toggleItem);
+
+	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "生成最佳性能改装车辆";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureVehSpawnTuned; 
@@ -2990,6 +3536,12 @@ void process_veh_menu(){
 	listItem->wrap = false;
 	listItem->caption = "无限火箭助推";
 	listItem->value = InfiniteBoostIndex;
+	menuItems.push_back(listItem);
+
+	listItem = new SelectFromListMenuItem(FUEL_COLOURS_R_CAPTIONS, onchange_veh_invisibility_index);
+	listItem->wrap = false;
+	listItem->caption = "车辆隐形";
+	listItem->value = VehInvisIndexN;
 	menuItems.push_back(listItem);
 
 	listItem = new SelectFromListMenuItem(LIMP_IF_INJURED_CAPTIONS, onchange_veh_nitrous_index);
@@ -3138,7 +3690,7 @@ void process_veh_menu(){
 	menuItems.push_back(listItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "永远不会翻车";
+	toggleItem->caption = "自动扶正车辆";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureSticktoground;
 	menuItems.push_back(toggleItem);
@@ -3179,20 +3731,45 @@ void process_veh_menu(){
 	toggleItem->toggleValue = &featureReverseWhenBraking;
 	menuItems.push_back(toggleItem);
 
-	listItem = new SelectFromListMenuItem(FUEL_COLOURS_R_CAPTIONS, onchange_veh_invisibility_index);
-	listItem->wrap = false;
-	listItem->caption = "车辆隐形";
-	listItem->value = VehInvisIndexN;
-	menuItems.push_back(listItem);
+	// 瞬间刹停（类似 YimMenu Instant Brake）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "瞬间刹停";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureInstantBrake;
+	menuItems.push_back(toggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "禁用车辆点火";
+	toggleItem->caption = "禁用上车点火";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featureDisableIgnition;
 	menuItems.push_back(toggleItem);
 
 	item = new MenuItem<int>();
 	item->caption = "盗窃车辆";
+	item->value = i++;
+	item->isLeaf = false;
+	menuItems.push_back(item);
+
+	item = new MenuItem<int>();
+	item->caption = "冻结车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
+	item = new MenuItem<int>();
+	item->caption = "删除车辆";
+	item->value = i++;
+	item->isLeaf = true;
+	menuItems.push_back(item);
+
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "水上驾驶";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featureVehDriveOnWater;
+	menuItems.push_back(toggleItem);
+
+	item = new MenuItem<int>();
+	item->caption = "车辆标记选项";
 	item->value = i++;
 	item->isLeaf = false;
 	menuItems.push_back(item);
@@ -3207,8 +3784,97 @@ void speedlimiter_switching(){
 	WAIT(100);
 }
 
+// 触发：冻结/解冻 当前驾驶车辆
+void vehicle_freeze_toggle(){
+    Ped playerPed = PLAYER::PLAYER_PED_ID();
+    if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+        set_status_text("~r~玩家不在载具中, 无法冻结车辆!");
+        return;
+    }
+    Vehicle vcur = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+    if (!ENTITY::DOES_ENTITY_EXIST(vcur)) {
+        set_status_text("~y~未检测到有效载具！");
+        return;
+    }
+
+    bool isFrozen = FROZEN_VEHICLE_PREV_SPEED.find(vcur) != FROZEN_VEHICLE_PREV_SPEED.end();
+    if (!isFrozen) {
+        float prevSpeed = ENTITY::GET_ENTITY_SPEED(vcur);
+        FROZEN_VEHICLE_PREV_SPEED[vcur] = prevSpeed;
+        VEHICLE::SET_VEHICLE_FORWARD_SPEED(vcur, 0.0f);
+        ENTITY::FREEZE_ENTITY_POSITION(vcur, true);
+        set_status_text("当前车辆 已冻结！");
+    } else {
+        ENTITY::FREEZE_ENTITY_POSITION(vcur, false);
+        float restoreSpeed = 0.0f;
+        auto it = FROZEN_VEHICLE_PREV_SPEED.find(vcur);
+        if (it != FROZEN_VEHICLE_PREV_SPEED.end()) {
+            restoreSpeed = it->second;
+            FROZEN_VEHICLE_PREV_SPEED.erase(it);
+        }
+        if (restoreSpeed > 0.0f) {
+            VEHICLE::SET_VEHICLE_FORWARD_SPEED(vcur, restoreSpeed);
+        }
+        set_status_text("当前车辆 已解冻！");
+    }
+    WAIT(150);
+}
+
 void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 	Vehicle veh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+
+	// 特殊模式：未开启"生成并进入" + 开启"删除上次生成车辆" -> 持续追踪上次生成的车辆
+	if (!featureVehSpawnInto && featureVehSpawnDeleteOld) {
+		bool playerInVehicleNow = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false);
+
+		// 如果玩家当前在车里，检查是否是上次生成的车辆
+		if (playerInVehicleNow) {
+			Vehicle currentVeh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+			// 只追踪上次生成的车辆，避免误删NPC车辆
+			// 但不覆盖已设置的待删除车辆（由do_spawn_vehicle设置）
+			if (ENTITY::DOES_ENTITY_EXIST(currentVeh) && currentVeh == g_lastSpawnedVehicle) {
+				// 只有在没有待删除车辆或待删除车辆已不存在时，才设置新的待删除目标
+				if (g_pendingDeleteVehicle == 0 || !ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+					g_pendingDeleteVehicle = currentVeh;
+					g_deleteOnExitVehicle = true;
+				}
+			}
+			// 只有当玩家在待删除车辆里时才重置计数器，避免干扰已设置的删除计划
+			if (g_pendingDeleteVehicle != 0 && currentVeh == g_pendingDeleteVehicle) {
+				g_deleteDelayCounter = 0;
+			}
+		}
+		// 如果玩家不在车里，开始计数延迟删除
+		else if (!playerInVehicleNow && g_pendingDeleteVehicle != 0 && ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+			g_deleteDelayCounter++;
+
+			// 延迟约（100帧/秒）后删除车辆，确保玩家下车动画完成
+			if (g_deleteDelayCounter >= 100) {
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(g_pendingDeleteVehicle, false, true);
+				ENTITY::DELETE_ENTITY(&g_pendingDeleteVehicle);
+				// 验证删除结果并显示提示
+				if (!ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+					set_status_text("~r~上次生成的旧车辆已删除！");
+				}
+				g_pendingDeleteVehicle = 0;
+				g_deleteOnExitVehicle = false;
+				g_deleteDelayCounter = 0;
+			}
+		}
+
+		// 如果车辆不存在了，清理标记
+		if (g_pendingDeleteVehicle != 0 && !ENTITY::DOES_ENTITY_EXIST(g_pendingDeleteVehicle)) {
+			g_pendingDeleteVehicle = 0;
+			g_deleteOnExitVehicle = false;
+			g_deleteDelayCounter = 0;
+		}
+	}
+	// 如果条件不满足或功能被关闭，清理延迟删除状态
+	else if (g_deleteOnExitVehicle || g_pendingDeleteVehicle != 0) {
+		g_pendingDeleteVehicle = 0;
+		g_deleteOnExitVehicle = false;
+		g_deleteDelayCounter = 0;
+	}
 
 	eGameVersion version = getGameVersion();
 
@@ -3430,6 +4096,25 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 					VEHICLE::SET_VEHICLE_FIXED(veh);
 				}
 			}
+
+			// 水淹保护（统一应用于三种无敌模式）：避免车辆因落水变为无法驾驶/熄火
+			// 非船/潜艇且在水中或低于水面高度时，强制保持可驾驶与引擎运行
+			if (!is_this_a_boat_or_sub(veh)) {
+				if (ENTITY::IS_ENTITY_IN_WATER(veh)) {
+					VEHICLE::SET_VEHICLE_UNDRIVEABLE(veh, false);
+					VEHICLE::SET_VEHICLE_ENGINE_ON(veh, true, true, false);
+				}
+				else {
+					Vector3 vpos = ENTITY::GET_ENTITY_COORDS(veh, true);
+					float wHeight = -1000.0f;
+					if (WATER::GET_WATER_HEIGHT(vpos.x, vpos.y, vpos.z, &wHeight)) {
+						if (vpos.z < (wHeight - 0.10f)) {
+							VEHICLE::SET_VEHICLE_UNDRIVEABLE(veh, false);
+							VEHICLE::SET_VEHICLE_ENGINE_ON(veh, true, true, false);
+						}
+					}
+				}
+			}
 		}
 		featureVehInvincibleUpdated = true;
 	}
@@ -3598,26 +4283,129 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 		
 	// 牵引力控制
 	if (featureTractionControl && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
-		Vector3 vehspeed = ENTITY::GET_ENTITY_VELOCITY(PED::GET_VEHICLE_PED_IS_IN(playerPed, false));
-		if (vehspeed.x < 0) vehspeed.x = (vehspeed.x * -1);
-		if (vehspeed.y < 0) vehspeed.y = (vehspeed.y * -1);
-		if (!CONTROLS::IS_CONTROL_PRESSED(2, 71) && !CONTROLS::IS_CONTROL_PRESSED(2, 62) && !CONTROLS::IS_CONTROL_PRESSED(2, 72) && vehspeed.x < 3 && vehspeed.y < 3) traction_tick = 0;
-		if (CONTROLS::IS_CONTROL_PRESSED(2, 71) || CONTROLS::IS_CONTROL_PRESSED(2, 62) || CONTROLS::IS_CONTROL_PRESSED(2, 72)) {
-			engine_secs_passed = clock() / CLOCKS_PER_SEC;
-			if (((clock() / (CLOCKS_PER_SEC / 1000)) - engine_secs_curr) != 0) {
-				traction_tick = traction_tick + 1;
-				engine_secs_curr = engine_secs_passed;
+		// 使用标量速度与稳定的毫秒节拍，避免单位不一致导致计数异常
+		Vehicle veh = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		float speed = ENTITY::GET_ENTITY_SPEED(veh);
+		bool accel = CONTROLS::IS_CONTROL_PRESSED(2, 71);
+		bool handbrake = CONTROLS::IS_CONTROL_PRESSED(2, 76);
+		bool brake = CONTROLS::IS_CONTROL_PRESSED(2, 72);
+		static unsigned long long tc_last_ms = 0;
+		static int traction_tick = 0;
+
+		unsigned long long now = GetTickCount64();
+
+		// 松键且低速时复位计数，并恢复正常扭矩
+		if (!accel && !handbrake && !brake && speed < 3.0f) {
+			traction_tick = 0;
+			tc_last_ms = now;
+			VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 1.0f);
+		}
+		// 持续按键期间按固定毫秒步长递增计数并分段限制扭矩
+		else if (accel || handbrake || brake) {
+			if (tc_last_ms == 0) tc_last_ms = now;
+			if (now - tc_last_ms >= 10) { // 每 10ms 增加一次计数，平滑干预
+				traction_tick++;
+				tc_last_ms = now;
+			}
+
+			// 限制 traction_tick 上限，防止无限增长
+			if (traction_tick > 1000) traction_tick = 1000;
+
+			// 可选：根据速度缩放抑制强度（低速时更强）
+			float lowSpeedFactor = (speed < 10.0f) ? 1.0f : 0.5f;
+
+			if (traction_tick < 50) {
+				VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 0.2f * lowSpeedFactor);
+			} else if (traction_tick < 100) {
+				VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 0.6f * lowSpeedFactor);
+			} else {
+				// 计数达到后恢复正常扭矩，避免长时间低扭矩导致驾驶失效
+				VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(veh, 1.0f);
+				// 将计数固定在阈值，避免重复恢复
+				if (traction_tick > 100) traction_tick = 100;
 			}
 		}
-		if (traction_tick < 100) {
-			if (traction_tick < 50) VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 0.2);
-			if (traction_tick > 49 && traction_tick < 100) VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 0.6);
-		}
-		else
-		if (traction_tick > 99 && traction_tick < 109) {
-			VEHICLE::_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(PED::GET_VEHICLE_PED_IS_IN(playerPed, false), 1.0);
+	}
+
+	// 水上驾驶状态提示（一次性）
+	bool driveOnWaterJustEnabled = (featureVehDriveOnWater && !prevVehDriveOnWater);
+	bool driveOnWaterJustDisabled = (!featureVehDriveOnWater && prevVehDriveOnWater);
+	if (driveOnWaterJustEnabled) {
+		set_status_text("水上驾驶 已启用！");
+	}
+	else if (driveOnWaterJustDisabled) {
+		set_status_text("水上驾驶 已关闭！");
+	}
+
+// 瞬间刹停：开启时提示一次（左下角），非常驻、非进车触发
+if (featureInstantBrake && !prevInstantBrake) {
+	set_status_text("短按空格刹停, 短按S刹停!\n长按空格持续刹停, 长按S倒车!");
+}
+
+	// 水上驾车：为载具在水面上提供隐形承托平台
+	// 与水上行走保持一致，加入玩家存在判断，避免极端情况下空引用
+	if (featureVehDriveOnWater && bPlayerExists && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+		Vehicle veh = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+		Vector3 vehPos = ENTITY::GET_ENTITY_COORDS(veh, true);
+		float waterHeight = GetWaterHeight(vehPos);
+
+		if (waterHeight > -1000.0f && vehPos.z <= waterHeight + 2.0f) {
+			if (!ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+				Hash platformModel = GAMEPLAY::GET_HASH_KEY("prop_huge_display_02");//此物体和水上行走的一样
+				STREAMING::REQUEST_MODEL(platformModel);
+				while (!STREAMING::HAS_MODEL_LOADED(platformModel)) {
+					WAIT(0);
+				}
+				vehWaterPlatform = OBJECT::CREATE_OBJECT(platformModel, vehPos.x, vehPos.y, waterHeight - 0.10f, true, false, false);
+				if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+					ENTITY::SET_ENTITY_VISIBLE(vehWaterPlatform, false);
+					ENTITY::SET_ENTITY_COLLISION(vehWaterPlatform, true, true);
+					ENTITY::FREEZE_ENTITY_POSITION(vehWaterPlatform, true);
+					ENTITY::SET_ENTITY_INVINCIBLE(vehWaterPlatform, true);
+					ENTITY::SET_ENTITY_ROTATION(vehWaterPlatform, 270.0f, 0.0f, 0.0f, 2, true);
+				}
+				STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(platformModel);
+			} else {
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(vehWaterPlatform, vehPos.x, vehPos.y, waterHeight - 0.10f, false, false, true);
+			}
+
+			// 刚开启时：若载具低于水面 0.5 米，轻微上浮至水面（与水上行走一致）
+			if (driveOnWaterJustEnabled && vehPos.z < waterHeight - 0.5f) {
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(veh, vehPos.x, vehPos.y, waterHeight + 0.10f, false, false, true);
+			}
+
+			// 启用期间：若载具在水里或水底超过 0.5 米，自动上浮至水面
+			if (vehPos.z < waterHeight - 0.5f) {
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(veh, vehPos.x, vehPos.y, waterHeight + 0.10f, false, false, true);
+			}
+
+			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+				WATER::_SET_WAVES_INTENSITY(0.1f);
+			}
 		}
 	}
+
+	else if (!featureVehDriveOnWater && ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+		OBJECT::DELETE_OBJECT(&vehWaterPlatform);
+		vehWaterPlatform = NULL;
+		if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+			WATER::_RESET_WAVES_INTENSITY();
+		}
+	}
+
+	if (featureVehDriveOnWater && (!bPlayerExists || ENTITY::IS_ENTITY_DEAD(playerPed) || !PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0))) {
+		if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+			OBJECT::DELETE_OBJECT(&vehWaterPlatform);
+			vehWaterPlatform = NULL;
+			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+				WATER::_RESET_WAVES_INTENSITY();
+			}
+		}
+	}
+
+// 更新状态记录，防止提示重复
+prevVehDriveOnWater = featureVehDriveOnWater;
+prevInstantBrake = featureInstantBrake;
 
 	// 车辆隐形
 	if (FUEL_COLOURS_R_VALUES[VehInvisIndexN] > 0 && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
@@ -3665,6 +4453,31 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 			if (CONTROLS::IS_DISABLED_CONTROL_JUST_RELEASED(2, 72)) {
 				accelerating_c = false;
 				reversing_c = false;
+			}
+		}
+	}
+
+	// 瞬间刹停：参照 YimMenu 逻辑并修正键盘空格（手刹）输入组
+	// 放在“刹车禁止倒车”逻辑之后，以便该逻辑先记录状态，再由瞬间刹停将速度归零，实现共存。
+	if (featureInstantBrake && PED::IS_PED_IN_ANY_VEHICLE(playerPed, 0)) {
+		// 功能开启时的一次性按键提示已在开关触发处通过 set_status_text 显示，：72=刹车(S)，76=手刹(空格)
+		Vehicle curVeh = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+		if (ENTITY::DOES_ENTITY_EXIST(curVeh)) {
+			Vector3 speedVec = ENTITY::GET_ENTITY_SPEED_VECTOR(curVeh, true);
+			bool eligible = (speedVec.y >= 1.0f) && VEHICLE::IS_VEHICLE_ON_ALL_WHEELS(curVeh);
+			if (eligible) {
+				// 同时检测输入组 0 和 2，确保键盘空格（手刹）生效
+				// 修正：手刹控制 ID 应为 76（INPUT_VEH_HANDBRAKE），原为 62 导致空格不触发
+				bool brakePressed =
+					CONTROLS::IS_CONTROL_PRESSED(0, 72) ||
+					CONTROLS::IS_CONTROL_PRESSED(0, 76) ||
+					CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, 72) ||
+					CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, 76) ||
+					CONTROLS::IS_CONTROL_PRESSED(2, 72) ||
+					CONTROLS::IS_CONTROL_PRESSED(2, 76);
+				if (brakePressed) {
+					VEHICLE::SET_VEHICLE_FORWARD_SPEED(curVeh, 0.0f);
+				}
 			}
 		}
 	}
@@ -5280,6 +6093,9 @@ void update_vehicle_features(BOOL bPlayerExists, Ped playerPed){
 
 		//ofs.close();
 	//}
+
+	// 更新车辆标记功能
+	update_vehicle_markers();
 }
 
 bool did_player_just_enter_vehicle(Ped playerPed){
@@ -5426,6 +6242,7 @@ void reset_vehicle_globals() {
 		featureVehicleDoorInstant =
 		featureLockVehicleDoors =
 		featureVehSpawnInto = 
+		featureVehSpawnDeleteOld =
 		featureNoVehFallOff =
 		featureWearHelmetOff =
 		featureEngineDegrade = 
@@ -5440,6 +6257,11 @@ void reset_vehicle_globals() {
 		featureRoutineOfRinger =
 		featureShowPedCons =
 		featureVehLightsOn = false;
+
+	featureVehDriveOnWater = false;
+
+	// 重置：默认关闭瞬间刹停
+	featureInstantBrake = false;
 
 	featureLockVehicleDoorsUpdated = false;
 	featureRoutineAnimations = true;
@@ -5469,6 +6291,43 @@ void reset_vehicle_globals() {
 
 	featureDespawnScriptDisabled = false;
 	featureDespawnScriptDisabledUpdated = false;
+
+	// 清理：重置上次生成的车辆记录与延迟删除状态
+	g_lastSpawnedVehicle = 0;
+	g_pendingDeleteVehicle = 0;
+	g_deleteOnExitVehicle = false;
+	g_deleteDelayCounter = 0;
+
+	// 清理：删除水上驾车平台并恢复波浪强度
+	if (ENTITY::DOES_ENTITY_EXIST(vehWaterPlatform)) {
+		OBJECT::DELETE_OBJECT(&vehWaterPlatform);
+		vehWaterPlatform = NULL;
+	}
+	if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+		WATER::_RESET_WAVES_INTENSITY();
+	}
+
+	// 清理：解除所有已冻结车辆并恢复速度（与“重置所有”保持一致）
+	if (!FROZEN_VEHICLE_PREV_SPEED.empty()) {
+		for (auto& kv : FROZEN_VEHICLE_PREV_SPEED) {
+			Vehicle veh = kv.first;
+			if (ENTITY::DOES_ENTITY_EXIST(veh)) {
+				ENTITY::FREEZE_ENTITY_POSITION(veh, false);
+				float restoreSpeed = kv.second;
+				if (restoreSpeed > 0.0f) {
+					VEHICLE::SET_VEHICLE_FORWARD_SPEED(veh, restoreSpeed);
+				}
+			}
+		}
+		FROZEN_VEHICLE_PREV_SPEED.clear();
+	}
+
+	// 清理：重置车辆标记功能
+	if (featureVehicleMarkersEnabled) {
+		clear_all_vehicle_markers();
+	}
+	featureVehicleMarkersEnabled = false;
+	lastMarkedVehicle = 0;
 }
 
 void keyboard_tip_message(char* curr_message_s) {
@@ -5486,12 +6345,82 @@ void keyboard_tip_message(char* curr_message_s) {
 	UI::_DRAW_TEXT(0.5f, 0.37f);
 }
 
+// 中文注释：返回用于"生成随机车辆"的 14 个分类在 vHashLists 中的索引
+// 索引对应：小型汽车(9)、轿车(8)、SUV(7)、轿跑车(4)、肌肉车(5)、经典跑车(3)、跑车(2)、超级跑车(1)、摩托车(17)、越野车(6)、开轮式(22)、特种/Emergency(16)、厢型车(11)、自行车(18)
+static const std::vector<int>& get_random_vehicle_category_indices_vhash() {
+	static const std::vector<int> kCats = { 9, 8, 7, 4, 5, 3, 2, 1, 17, 6, 22, 16, 11, 18 };
+	return kCats;
+}
+
+// 中文注释：在指定的 14 个分类中随机选择一辆车
+// 使用加权随机算法：先按车辆数量加权选择分类，再从分类中随机选择车辆，确保每辆车被选中的概率相等
+// 分类集合：小型汽车、轿车、SUV、轿跑车、肌肉车、经典跑车、跑车、超级跑车、摩托车、越野车、开轮式、特种车、厢型车、自行车
+static bool spawn_random_vehicle_feature_test_option() {
+	const std::vector<int>& cats = get_random_vehicle_category_indices_vhash();
+	const int kCatCount = (int)cats.size();
+	if (kCatCount <= 0) {
+		set_status_text("~r~错误: 车辆分类列表不存在！");
+		return false;
+	}
+
+	// 中文注释：构建候选分类及其车辆数量，用于加权随机
+	std::vector<std::pair<int, size_t>> candidateCats;	// <catIndex, vehicleCount>
+	candidateCats.reserve(kCatCount);
+	size_t totalVehicleCount = 0;
+	for (int i = 0; i < kCatCount; ++i) {
+		const int catIndex = cats[i];
+		if (catIndex < 0 || catIndex >= (int)vHashLists.size()) {
+			continue;
+		}
+		std::vector<Hash>* catListPtr = vHashLists[catIndex];
+		if (catListPtr == nullptr || catListPtr->empty()) {
+			continue;
+		}
+		const size_t sz = catListPtr->size();
+		candidateCats.emplace_back(catIndex, sz);
+		totalVehicleCount += sz;
+	}
+
+	if (candidateCats.empty() || totalVehicleCount == 0) {
+		set_status_text("~r~错误: 选定分类中没有车辆！");
+		return false;
+	}
+
+	// 中文注释：允许重复分类，直接进行一次加权随机选择
+	const int kTotalVehicleCount = (int)totalVehicleCount;
+	size_t r = (size_t)(rand() % kTotalVehicleCount);
+	int chosenCatIndex = candidateCats.back().first;
+	for (const auto& p : candidateCats) {
+		if (r < p.second) {
+			chosenCatIndex = p.first;
+			break;
+		}
+		r -= p.second;
+	}
+
+	// 中文注释：从选中分类中随机挑选车辆并生成
+	std::vector<Hash>* catListPtr = vHashLists[chosenCatIndex];
+	Hash vh = catListPtr->at(rand() % catListPtr->size());
+	do_spawn_vehicle_hash(vh, get_vehicle_make_and_model(vh));
+	set_status_text("~g~随机车辆生成完成！");
+	return true;
+}
+
 //创建分类子菜单，并移交到与该分类相关的子子菜单
 bool process_carspawn_menu() {
 	// 刷新读取外置XML文件（与process_custom_carspawn_menu保持一致）
 	ensure_custom_vehicles_loaded();
 	
 	std::vector<MenuItem<int>*> menuItems;
+
+	// 中文注释：在子菜单第一项加入“生成随机车辆”
+	{
+		MenuItem<int>* item = new MenuItem<int>();
+		item->caption = "生成随机车辆";
+		item->value = -10;		// 特殊值，用于在确认回调中分支处理
+		item->isLeaf = true;	// 直接触发生成动作
+		menuItems.push_back(item);
+	}
 
 	for (int i = 0; i < vHashLists.size(); i++)
 	{
@@ -5505,6 +6434,7 @@ bool process_carspawn_menu() {
 			MenuItem<int>* item = new MenuItem<int>();
 			item->caption = "其他";
 			item->value = i;
+			item->isLeaf = false;
 			menuItems.push_back(item);
 			break;
 		}
@@ -5512,6 +6442,7 @@ bool process_carspawn_menu() {
 		MenuItem<int>* item = new MenuItem<int>();
 		item->caption = get_class_label(i);
 		item->value = i;
+		item->isLeaf = false;
 		menuItems.push_back(item);
 	}
 
@@ -5547,27 +6478,24 @@ void spawn_veh_manually() {
 		}
 		if (lastCustomVehicleSpawn == "random" || lastCustomVehicleSpawn == "Random" || lastCustomVehicleSpawn == "RANDOM" || 
 			lastCustomVehicleSpawn == "随机" || lastCustomVehicleSpawn == "SJ" || lastCustomVehicleSpawn == "sj") {
-			if (vHashLists.size() <= 2) {
-				set_status_text("~r~错误: 没有足够的车辆类别！");
-			} else {
-				int random_category = (rand() % (vHashLists.size() - 2) + 1);
-				std::vector<Hash> tmp_amount = get_vehicles_from_category(random_category);
-				if (tmp_amount.empty()) {
-					set_status_text("~r~错误: 选定类别中没有车辆！");
-				} else {
-					int random_veh = rand() % tmp_amount.size();
-					do_spawn_vehicle_hash(tmp_amount[random_veh], get_vehicle_make_and_model(tmp_amount[random_veh]));
-					set_status_text("随机车辆生成完成！");
-				}
-			}
+			// 中文注释：统一使用14个分类的随机车辆生成函数，而不是从所有分类中随机
+			spawn_random_vehicle_feature_test_option();
 		} else if (STREAMING::IS_MODEL_IN_CDIMAGE(hash) && STREAMING::IS_MODEL_A_VEHICLE(hash)) {
-			do_spawn_vehicle_hash(hash, result);
-			set_status_text("载具 [~y~ " + result + " ~s~] 生成完成！");
+			// 使用 get_vehicle_make_and_model 获取正确的显示名称
+			std::string displayName = get_vehicle_make_and_model(hash);
+			do_spawn_vehicle_hash(hash, displayName);
+			set_status_text("载具 [~y~ " + displayName + " ~s~] 生成完成！");
 		}
 	}
 }
 
 bool onconfirm_spawn_menu_cars(MenuItem<int> choice){
+	// 中文注释：处理“生成随机车辆”分支
+	if (choice.value == -10) {
+		spawn_random_vehicle_feature_test_option();
+		return false;
+	}
+
     std::string caption = get_class_label(choice.value);
 	std::vector<MenuItem<int>*> menuItems;
 	std::vector<Hash> selectedCat = get_vehicles_from_category(choice.value);
@@ -5578,17 +6506,13 @@ bool onconfirm_spawn_menu_cars(MenuItem<int> choice){
 		itemIndex++;
 		MenuItem<int>* item = new MenuItem<int>();
 		
-		if (get_vehicle_make_and_model(hash).compare("NULL") == 0 || get_vehicle_make_and_model(hash).compare("") == 0) {
+		// 中文注释：缓存本次循环的车辆显示名称，避免重复调用 get_vehicle_make_and_model
+		std::string displayName = get_vehicle_make_and_model(hash);
+		if (displayName.compare("NULL") == 0 || displayName.compare("") == 0)
 			//item->caption = "Item " + std::to_string(itemIndex);
-			char *model = GetVehicleModelName(hash);
-			if (model) {
-				item->caption = model;
-			}
-			else {
-				item->caption = "未知";
-			}
-		} else
-			item->caption = get_vehicle_make_and_model(hash);
+			item->caption = GetVehicleModelName(hash);
+		else
+			item->caption = displayName;
 		item->value = hash;
 		menuItems.push_back(item);
 	}
@@ -5602,6 +6526,14 @@ bool onconfirm_spawn_menu_cars(MenuItem<int> choice){
 	params.menuSelectionPtr = 0;
 	params.onConfirmation = onconfirm_vehlist_menu;
 	params.lineImageProvider = vehicle_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<int> item) -> std::string {
+		// 获取车辆的原模型名称，如果找不到则显示未知
+		char* modelName = GetVehicleModelName(item.value);
+		if(modelName && strlen(modelName) > 0) {//生成车辆
+			return std::string("模型: ") + std::string(modelName);
+		}
+		return "模型: 未知";
+	};
 
 	if (choice.value == tmp_menuindex) params.menuSelectionPtr = &curr_c_pos;
 	if (choice.value != tmp_menuindex) {
@@ -5635,10 +6567,24 @@ bool process_custom_carspawn_menu()
         MenuItem<int>* item = new MenuItem<int>();
         item->caption = cat;
         item->value = cidx++;
+        item->isLeaf = false;
         menuItems.push_back(item);
     }
 
     return draw_generic_menu<int>(menuItems, &activeLineIndexCustomCarSpawnMenu, "新增车辆 - 类型", onconfirm_custom_spawn_menu_cars, nullptr, nullptr, nullptr);
+}
+
+// 全局变量用于存储当前分类的 hash -> model 映射（供 cornerInfoProvider 使用）
+static std::vector<std::pair<Hash, std::string>> g_CurrentCustomVehicleHashModelPairs;
+
+// cornerInfoProvider 函数：显示新增车辆的 XML model 名称
+std::string get_custom_vehicle_corner_info(MenuItem<int> item) {
+    for (const auto& p : g_CurrentCustomVehicleHashModelPairs) {
+        if (p.first == item.value && !p.second.empty()) {
+            return std::string("模型: ") + p.second;
+        }
+    }
+    return "模型: 未知";
 }
 
 // 自定义外置 XML 车型菜单与生成
@@ -5649,12 +6595,18 @@ bool onconfirm_custom_spawn_menu_cars(MenuItem<int> choice)
     const auto it = g_CustomVehicles.find(cat);
     if (it == g_CustomVehicles.end()) return false;
 
+    // 清空全局映射表，准备为当前分类重新填充
+    g_CurrentCustomVehicleHashModelPairs.clear();
+
     std::vector<MenuItem<int>*> menuItems;
     for (const auto& entry : it->second)
     {
         const std::string& model = entry.first;
         const std::string& title = entry.second;
         Hash hash = GAMEPLAY::GET_HASH_KEY((char*)model.c_str());
+
+        // 存储到全局映射表，供 cornerInfoProvider 使用
+        g_CurrentCustomVehicleHashModelPairs.emplace_back(hash, model);
 
         MenuItem<int>* item = new MenuItem<int>();
         // 菜单系统采用 UTF-8 文本，直接传入 UTF-8 字符串
@@ -5673,6 +6625,7 @@ bool onconfirm_custom_spawn_menu_cars(MenuItem<int> choice)
     params.menuSelectionPtr = 0;
     params.onConfirmation = onconfirm_custom_vehlist_menu;
     params.lineImageProvider = vehicle_image_preview_finder;
+    params.cornerInfoProvider = get_custom_vehicle_corner_info;
     return draw_generic_menu<int>(params);
 }
 
@@ -5717,17 +6670,63 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 			WAIT(0);
 		}
 
+		// 获取新车辆的尺寸，用于计算生成距离
 		Vector3 minDimens, maxDimens;
 		GAMEPLAY::GET_MODEL_DIMENSIONS(model, &minDimens, &maxDimens);
-		float spawnOffY = max(5.0f, 2.0f + 0.5f * (maxDimens.y - minDimens.y));
+		float newVehicleLength = maxDimens.y - minDimens.y;
 
-		float lookDir = ENTITY::GET_ENTITY_HEADING(PLAYER::PLAYER_PED_ID());
-		Vector3 coords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(PLAYER::PLAYER_PED_ID(), 0.0, spawnOffY, 0.0);
+		// 记录上次生成的车辆句柄，用于在本次生成后删除或延迟删除
+		Vehicle previousVehicle = 0;
+		if (featureVehSpawnDeleteOld && g_lastSpawnedVehicle != 0 && ENTITY::DOES_ENTITY_EXIST(g_lastSpawnedVehicle)) {
+			previousVehicle = g_lastSpawnedVehicle;
+		}
+
+		// 记录玩家当前所在车辆的速度和引擎状态，用于换车时的平滑过渡
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		Vehicle currentVehicle = PED::GET_VEHICLE_PED_IS_USING(playerPed);
+		Vector3 currentVelocity = { 0, 0, 0 };
+		float currentSpeed = 0.0f;
+		bool currentEngineOn = false;
+		bool playerWasInVehicle = false;
+
+		if (PED::IS_PED_IN_ANY_VEHICLE(playerPed, false) && ENTITY::DOES_ENTITY_EXIST(currentVehicle)) {
+			currentVelocity = ENTITY::GET_ENTITY_VELOCITY(currentVehicle);
+			currentSpeed = ENTITY::GET_ENTITY_SPEED(currentVehicle);
+			currentEngineOn = VEHICLE::GET_IS_VEHICLE_ENGINE_RUNNING(currentVehicle);
+			playerWasInVehicle = true;
+		}
+
+		// 计算生成位置：如果玩家在车里，需要考虑当前车辆的长度以避免碰撞
+		float lookDir;
+		Vector3 coords;
+		if (playerWasInVehicle && ENTITY::DOES_ENTITY_EXIST(currentVehicle)) {
+			// 玩家在车里：计算当前车辆长度 + 新车辆长度，确保两车之间有足够距离
+			Vector3 minDimensCurrent, maxDimensCurrent;
+			GAMEPLAY::GET_MODEL_DIMENSIONS(ENTITY::GET_ENTITY_MODEL(currentVehicle), &minDimensCurrent, &maxDimensCurrent);
+			float currentVehicleLength = maxDimensCurrent.y - minDimensCurrent.y;
+			
+			// 生成距离 = 当前车辆长度的一半 + 新车辆长度的一半 + 1米额外间距
+			float spawnDistance = (currentVehicleLength * 0.5f) + (newVehicleLength * 0.5f) + 1.0f;
+			
+			// 基于当前车辆的位置和朝向生成
+			lookDir = ENTITY::GET_ENTITY_HEADING(currentVehicle);
+			coords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(currentVehicle, 0.0, spawnDistance, 0.0);
+		}
+		else {
+			// 玩家不在车里：基于玩家位置生成，使用默认距离
+			float spawnOffY = max(5.0f, 2.0f + 0.5f * newVehicleLength);
+			lookDir = ENTITY::GET_ENTITY_HEADING(playerPed);
+			coords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(playerPed, 0.0, spawnOffY, 0.0);
+		}
+
 		Vehicle veh = VEHICLE::CREATE_VEHICLE(model, coords.x, coords.y, coords.z, lookDir, true, false);
 
 		if (!ENTITY::IS_ENTITY_IN_AIR(PLAYER::PLAYER_PED_ID())) {
 			VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(veh);
 		}
+
+		// 设置新车辆属性（在删除旧车前）
+		VEHICLE::SET_VEHICLE_DIRT_LEVEL(veh, 0.0f);
 
 		if (featureVehSpawnTuned && !tracked_being_restored) {
 			fully_tune_vehicle(veh, featureVehSpawnOptic);
@@ -5750,7 +6749,48 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 			oldVehicleState = false;
 		}
 
-		VEHICLE::SET_VEHICLE_DIRT_LEVEL(veh, 0.0f);
+		// 如果玩家之前在车里，继承速度和引擎状态，确保行进中换车连贯（在玩家坐进新车后再设置，避免被传送进车的逻辑重置速度）
+		if (playerWasInVehicle) {
+			VEHICLE::SET_VEHICLE_ENGINE_ON(veh, currentEngineOn, true, false);
+			if (currentSpeed > 0.0f) {
+				// 使用旧车的速度，让新车沿自身朝向继续前进
+				Vector3 forward = ENTITY::GET_ENTITY_FORWARD_VECTOR(veh);
+				ENTITY::SET_ENTITY_VELOCITY(veh, forward.x * currentSpeed, forward.y * currentSpeed, forward.z * currentSpeed);
+				VEHICLE::SET_VEHICLE_FORWARD_SPEED(veh, currentSpeed);
+			}
+		}
+
+		// 删除上次生成的旧车辆（仅当功能开启时）
+		if (featureVehSpawnDeleteOld && previousVehicle != 0 && ENTITY::DOES_ENTITY_EXIST(previousVehicle) && previousVehicle != veh) {
+			bool playerInVehicleNow = PED::IS_PED_IN_ANY_VEHICLE(playerPed, false);
+
+			// 情况一：未开启"生成并进入车辆"且玩家当前在车里 -> 特殊处理
+			if (!featureVehSpawnInto && playerInVehicleNow) {
+				// 判断上次生成的车辆是否是玩家当前驾驶的车辆
+				if (previousVehicle == currentVehicle) {
+					// previousVehicle 是玩家当前驾驶的车辆 -> 设置为延迟删除目标
+					// 玩家下车后，update_vehicle_features 会删除它
+					g_pendingDeleteVehicle = previousVehicle;
+					g_deleteOnExitVehicle = true;
+					g_deleteDelayCounter = 0;
+				}
+				else {
+					// previousVehicle 是之前生成的车辆(A/B/C...) -> 立即删除
+					ENTITY::SET_ENTITY_AS_MISSION_ENTITY(previousVehicle, false, true);
+					ENTITY::DELETE_ENTITY(&previousVehicle);
+				}
+			}
+			// 情况二：未开启"生成并进入车辆"且玩家当前不在车里 -> 立即删除旧车
+			else if (!featureVehSpawnInto && !playerInVehicleNow) {
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(previousVehicle, false, true);
+				ENTITY::DELETE_ENTITY(&previousVehicle);
+			}
+			// 其他情况（开启"生成并进入车辆"等） -> 保持原有的立即删除行为
+			else {
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(previousVehicle, false, true);
+				ENTITY::DELETE_ENTITY(&previousVehicle);
+			}
+		}
 
 		if (DefaultPlateIndex != -1 && DefaultPlateIndex < VEHICLE::GET_NUMBER_OF_VEHICLE_NUMBER_PLATES()) {
 			VEHICLE::SET_VEHICLE_MOD_KIT(veh, 0);
@@ -5766,6 +6806,9 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 		}
 
 		ENTITY::RESET_ENTITY_ALPHA(veh);
+
+		// 存储新生成的车辆用于下次删除
+		g_lastSpawnedVehicle = veh;
 
 		WAIT(0);
 		STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
@@ -5794,13 +6837,16 @@ void add_vehicle_feature_enablements(std::vector<FeatureEnabledLocalDefinition>*
 	results->push_back(FeatureEnabledLocalDefinition{"featureNoVehFallOff", &featureNoVehFallOff}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehicleDoorInstant", &featureVehicleDoorInstant});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnInto", &featureVehSpawnInto});
+	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnDeleteOld", &featureVehSpawnDeleteOld});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSteerAngle", &featureVehSteerAngle});
 	results->push_back(FeatureEnabledLocalDefinition{"featureRollWhenShoot", &featureRollWhenShoot});
 	results->push_back(FeatureEnabledLocalDefinition{"featureTractionControl", &featureTractionControl});
+	results->push_back(FeatureEnabledLocalDefinition{"featureVehDriveOnWater", &featureVehDriveOnWater});
 	results->push_back(FeatureEnabledLocalDefinition{"featureSticktoground", &featureSticktoground});
 	results->push_back(FeatureEnabledLocalDefinition{"featureDropSpikes", &featureDropSpikes});
 	results->push_back(FeatureEnabledLocalDefinition{"featureAirStrike", &featureAirStrike});
 	results->push_back(FeatureEnabledLocalDefinition{"featureReverseWhenBraking", &featureReverseWhenBraking});
+	results->push_back(FeatureEnabledLocalDefinition{"featureInstantBrake", &featureInstantBrake});
 	results->push_back(FeatureEnabledLocalDefinition{"featureDisableIgnition", &featureDisableIgnition});
 	results->push_back(FeatureEnabledLocalDefinition{"featureEngineRunning", &featureEngineRunning});
 	results->push_back(FeatureEnabledLocalDefinition{"featureNoVehFlip", &featureNoVehFlip});
@@ -5839,6 +6885,7 @@ void add_vehicle_feature_enablements(std::vector<FeatureEnabledLocalDefinition>*
 	results->push_back(FeatureEnabledLocalDefinition{"featureAltitude", &featureAltitude });
 	results->push_back(FeatureEnabledLocalDefinition{"featureSpeedOnGround", &featureSpeedOnGround });
 	results->push_back(FeatureEnabledLocalDefinition{"featureSpeedInAir", &featureSpeedInAir });
+	results->push_back(FeatureEnabledLocalDefinition{"featureSpeedAltitudeMaster", &featureSpeedAltitudeMaster, &featureSpeedAltitudeMasterUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnTuned", &featureVehSpawnTuned});
 	results->push_back(FeatureEnabledLocalDefinition{"featureVehSpawnOptic", &featureVehSpawnOptic});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWearHelmetOff", &featureWearHelmetOff, &featureWearHelmetOffUpdated});
@@ -6279,37 +7326,8 @@ void save_current_vehicle(int slot){
 			
 			Hash currVehModelS = ENTITY::GET_ENTITY_MODEL(veh);
 			if (slot == -1 && STREAMING::IS_MODEL_IN_CDIMAGE(currVehModelS) && STREAMING::IS_MODEL_A_VEHICLE(currVehModelS) && STREAMING::IS_MODEL_VALID(currVehModelS)) {
-				// 获取车辆名称 - 优先级：XML名称 > 游戏内置名称 > 模型名称
-				std::string displayName;
-				
-				// 1. 尝试从XML获取名称
-				char* modelName = VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(currVehModelS);
-				std::string modelNameStr = modelName;
-				
-				// 检查此车辆是否来自外置XML
-				for (const auto& cat : g_CustomVehicleCategories) {
-					const auto it = g_CustomVehicles.find(cat);
-					if (it != g_CustomVehicles.end()) {
-						for (const auto& entry : it->second) {
-							if (GAMEPLAY::GET_HASH_KEY((char*)entry.first.c_str()) == currVehModelS && !entry.second.empty()) {
-								displayName = entry.second;
-								break;
-							}
-						}
-					}
-					if (!displayName.empty()) break;
-				}
-				
-				// 2. 如果XML中没有，尝试获取游戏内置名称
-				if (displayName.empty()) {
-					displayName = UI::_GET_LABEL_TEXT(modelName);
-				}
-				
-				// 3. 如果仍然没有，使用模型名称
-				if (displayName.empty() || displayName == "NULL") {
-					displayName = modelNameStr;
-				}
-				
+				// 使用 get_vehicle_make_and_model 获取车辆名称（游戏本地化翻译 > 内置映射 > XML的title > 模型名）
+				std::string displayName = get_vehicle_make_and_model(currVehModelS);
 				ss << displayName;
 			}
 			else if (slot == -1) {
@@ -6372,7 +7390,7 @@ bool process_savedveh_menu(){
 		std::vector<MenuItem<int>*> menuItems;
 
 		MenuItem<int> *item = new MenuItem<int>();
-		item->isLeaf = false;
+		item->isLeaf = true;
 		item->value = -1;
 		item->caption = "创建新的车辆存档";
 		item->sortval = -2;

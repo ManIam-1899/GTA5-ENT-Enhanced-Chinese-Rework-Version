@@ -123,6 +123,9 @@ static bool ensure_dir_tree(const std::string& fullPath);
 static bool load_custom_peds2_from_xml(const char* xmlPath);
 static bool is_peds_xml2_modified(const char* xmlPath);
 
+// 人物预览图相关前置声明
+static bool is_ped_preview_xml_modified(const char* xmlPath);
+
 // 新增: BSTR -> UTF-8 转换，避免 ANSI 代码页丢失中文
 static std::string bstr_to_utf8(BSTR bs){
     if(!bs) return "";
@@ -628,7 +631,22 @@ static bool process_custom_peds_category_menu(const std::string& category){
         }
         return false;
     };
-    return draw_generic_menu<std::string>(items, &selectedPed, category, onconfirm, NULL, NULL);
+    
+    // 确保人物预览图已加载
+    ensure_custom_ped_previews_loaded();
+    
+    MenuParameters<std::string> params(items, category);
+    params.menuSelectionPtr = &selectedPed;
+    params.onConfirmation = onconfirm;
+    params.lineImageProvider = ped_image_preview_finder;
+    params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+        // 显示角色模型的原模型名称
+        if(!item.value.empty()) {//新增角色模型 1
+            return std::string("模型: ") + item.value;
+        }
+		return "模型: 未知";
+    };
+    return draw_generic_menu<std::string>(params);
 }
 
 bool process_custom_peds_menu(){
@@ -681,7 +699,22 @@ static bool process_custom_peds2_category_menu(const std::string& category){
         }
         return false;
     };
-    return draw_generic_menu<std::string>(items, &selectedPed2, category, onconfirm, NULL, NULL);
+    
+    // 确保人物预览图已加载
+    ensure_custom_ped_previews_loaded();
+    
+    MenuParameters<std::string> params(items, category);
+    params.menuSelectionPtr = &selectedPed2;
+    params.onConfirmation = onconfirm;
+    params.lineImageProvider = ped_image_preview_finder;
+    params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+        // 显示角色模型的原模型名称
+        if(!item.value.empty()) {//新增角色模型 2
+            return std::string("模型: ") + item.value;
+        }
+		return "模型: 未知";
+    };
+    return draw_generic_menu<std::string>(params);
 }
 
 bool process_custom_peds2_menu(){
@@ -1224,7 +1257,21 @@ bool process_skinchanger_choices_players()
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesMenuPositionMemory[0], "主角模型", onconfirm_skinchanger_choices_players, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+
+	MenuParameters<std::string> params(menuItems, "主角模型");
+	params.menuSelectionPtr = &skinTypesMenuPositionMemory[0];
+	params.onConfirmation = onconfirm_skinchanger_choices_players;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//主角
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 /*
@@ -1253,7 +1300,21 @@ bool process_skinchanger_choices_online_npc()
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesMenuPositionMemory[0], "在线 NPC 角色", onconfirm_skinchanger_choices_online_npc, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+
+	MenuParameters<std::string> params(menuItems, "在线 NPC 角色");
+	params.menuSelectionPtr = &skinTypesMenuPositionMemory[0];
+	params.onConfirmation = onconfirm_skinchanger_choices_online_npc;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//在线 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 
@@ -1304,7 +1365,21 @@ bool process_skinchanger_choices_animals()
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesMenuPositionMemory[1], "动物模型", onconfirm_skinchanger_choices_animals, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+
+	MenuParameters<std::string> params(menuItems, "动物模型");
+	params.menuSelectionPtr = &skinTypesMenuPositionMemory[1];
+	params.onConfirmation = onconfirm_skinchanger_choices_animals;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//动物
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 /*
@@ -1333,7 +1408,21 @@ bool process_skinchanger_choices_misc()
 		menuItems.push_back(item);
 	}
 
-	return draw_generic_menu<std::string>(menuItems, &skinTypesMenuPositionMemory[2], "普通 NPC 角色", onconfirm_skinchanger_choices_misc, NULL, NULL);
+	// 确保人物预览图已加载
+	ensure_custom_ped_previews_loaded();
+
+	MenuParameters<std::string> params(menuItems, "普通 NPC 角色");
+	params.menuSelectionPtr = &skinTypesMenuPositionMemory[2];
+	params.onConfirmation = onconfirm_skinchanger_choices_misc;
+	params.lineImageProvider = ped_image_preview_finder;
+	params.cornerInfoProvider = [](MenuItem<std::string> item) -> std::string {
+		// 显示角色模型的原模型名称
+		if(!item.value.empty()) {//普通 NPC
+			return std::string("模型: ") + item.value;
+		}
+		return "模型: 未知";
+	};
+	return draw_generic_menu<std::string>(params);
 }
 
 bool onconfirm_skinchanger_choices_test(MenuItem<std::string> choice)
@@ -2051,3 +2140,242 @@ void handle_generic_settings_skin(std::vector<StringPairSettingDBRow>* settings)
 	}
 }
 
+/***
+* 人物预览图相关实现
+*/
+
+// 检查人物预览图是否启用
+// 定义在 misc.cpp 中，这里只使用声明
+extern bool is_ped_preview_enabled();
+
+// 检查人物预览图XML文件是否被修改
+static bool is_ped_preview_xml_modified(const char* xmlPath) {
+	WIN32_FIND_DATAA fd;
+	HANDLE h = FindFirstFileA(xmlPath, &fd);
+	if (h == INVALID_HANDLE_VALUE) return false;
+	FindClose(h);
+	
+	if (CompareFileTime(&fd.ftLastWriteTime, &g_LastPedPreviewXmlModifyTime) > 0) {
+		g_LastPedPreviewXmlModifyTime = fd.ftLastWriteTime;
+		return true;
+	}
+	return false;
+}
+
+// 创建示例人物预览图XML文件
+bool create_sample_ped_previews_xml(const char* xmlPath) {
+	// 创建目录（如果不存在）
+	std::string pathStr(xmlPath);
+	size_t lastSlash = pathStr.find_last_of("/\\");
+	if (lastSlash != std::string::npos) {
+		std::string dirPath = pathStr.substr(0, lastSlash);
+		CreateDirectoryA(dirPath.c_str(), NULL);
+	}
+
+	// 创建示例XML文件
+	std::ofstream file(xmlPath, std::ios::out | std::ios::trunc);
+	if (!file.is_open()) {
+		return false;
+	}
+
+	file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	file << "<ped_previews>\n";
+	file << "  <!-- 示例人物预览图配置 -->\n";
+	file << "  <!-- model: 人物模型名称（大写或小写都行） -->\n";
+	file << "  <!-- dict: 预览图存放位置，默认 ENT_ped_previews.ytd 里-->\n";
+	file << "  <!-- dict: 这项不能修改，默认 ENT_ped_previews -->\n";
+	file << "  <!-- dict: 预览图存放位置，支持多个 ytd 文件 -->\n";
+	file << "  <!-- ENT_ped_previews.ytd 对应 ENT_ped_previews -->\n";
+	file << "  <!-- ENT_ped_previews_1.ytd 对应 ENT_ped_previews_1 -->\n";
+	file << "  <!-- ENT_ped_previews_2.ytd 对应 ENT_ped_previews_2 -->\n";
+	file << "  <!-- ENT_ped_previews_3.ytd 对应 ENT_ped_previews_3 -->\n";
+	file << "  <!-- image: 图片名称（随你喜欢修改） -->\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews\" image=\"图片名称\" />\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews_1\" image=\"图片名称\" />\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews_2\" image=\"图片名称\" />\n";
+	file << "  <ped model=\"人物模型名称\" dict=\"ENT_ped_previews_3\" image=\"图片名称\" />\n";
+	file << "</ped_previews>\n";
+
+	file.close();
+	return true;
+}
+
+// 从XML加载自定义人物预览图
+bool load_custom_ped_previews_from_xml(const char* xmlPath) {
+	g_CustomPedImages.clear();
+
+	// 更新文件修改时间戳
+	WIN32_FIND_DATAA findData;
+	HANDLE hFind = FindFirstFileA(xmlPath, &findData);
+	if (hFind != INVALID_HANDLE_VALUE) {
+		FindClose(hFind);
+		g_LastPedPreviewXmlModifyTime = findData.ftLastWriteTime;
+	}
+
+	// 安全的 COM 初始化
+	HRESULT hr = CoInitialize(NULL);
+	// 仅在 S_OK / S_FALSE 时需要 CoUninitialize
+	const bool needUninit = (hr == S_OK || hr == S_FALSE);
+	if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) {
+		write_text_to_log_file("COM 初始化失败，错误码: " + std::to_string(hr));
+		return false;
+	}
+
+	MSXML2::IXMLDOMDocumentPtr spXMLDoc;
+	spXMLDoc.CreateInstance(__uuidof(MSXML2::DOMDocument60));
+	// 使用 _variant_t 传入路径
+	if (!spXMLDoc->load(_variant_t(xmlPath))) {
+		write_text_to_log_file("未找到人物预览图 XML，路径: " + std::string(xmlPath));
+		spXMLDoc.Release();
+		if (needUninit) CoUninitialize();
+		return false;
+	}
+
+	IXMLDOMNodeListPtr peds = spXMLDoc->selectNodes(L"//ped_previews/ped");
+	long length = 0;
+	peds->get_length(&length);
+	for (long i = 0; i < length; i++) {
+		IXMLDOMNode* pedNode = nullptr;
+		peds->get_item(i, &pedNode);
+		if (!pedNode) continue;
+
+		IXMLDOMNamedNodeMap* attribs = nullptr;
+		pedNode->get_attributes(&attribs);
+
+		std::string modelName;
+		std::string dictName;
+		std::string imageName;
+
+		if (attribs) {
+			long length_attribs = 0;
+			attribs->get_length(&length_attribs);
+			for (long j = 0; j < length_attribs; j++) {
+				IXMLDOMNode* attribNode = nullptr;
+				attribs->get_item(j, &attribNode);
+				if (!attribNode) continue;
+
+				BSTR nameBstr = nullptr;
+				attribNode->get_nodeName(&nameBstr);
+				if (nameBstr && wcscmp(nameBstr, L"model") == 0) {
+					VARIANT var; VariantInit(&var);
+					attribNode->get_nodeValue(&var);
+					modelName = bstr_to_utf8(V_BSTR(&var));
+					VariantClear(&var);
+				}
+				else if (nameBstr && wcscmp(nameBstr, L"dict") == 0) {
+					VARIANT var; VariantInit(&var);
+					attribNode->get_nodeValue(&var);
+					dictName = bstr_to_utf8(V_BSTR(&var));
+					VariantClear(&var);
+				}
+				else if (nameBstr && wcscmp(nameBstr, L"image") == 0) {
+					VARIANT var; VariantInit(&var);
+					attribNode->get_nodeValue(&var);
+					imageName = bstr_to_utf8(V_BSTR(&var));
+					VariantClear(&var);
+				}
+				if (nameBstr) SysFreeString(nameBstr);
+				attribNode->Release();
+			}
+			attribs->Release();
+		}
+
+		if (!modelName.empty() && !dictName.empty() && !imageName.empty()) {
+			// 将模型名称转换为哈希值
+			Hash modelHash = rage::joaat(modelName.c_str());
+			g_CustomPedImages[modelHash] = std::make_pair(dictName, imageName);
+		}
+
+		pedNode->Release();
+	}
+
+	spXMLDoc.Release();
+	if (needUninit) CoUninitialize();
+
+	return !g_CustomPedImages.empty();
+}
+
+// 确保自定义人物预览图已加载
+bool ensure_custom_ped_previews_loaded() {
+	const char* xmlPath = "Enhanced Native Trainer/Peds/ent-ped-previews.xml";
+
+	// 检查XML文件是否存在
+	WIN32_FIND_DATAA fd;
+	HANDLE h = FindFirstFileA(xmlPath, &fd);
+	bool needCreate = (h == INVALID_HANDLE_VALUE);
+	if (!needCreate) {
+		FindClose(h);
+	}
+
+	if (needCreate) {
+		// 创建示例XML文件
+		if (!create_sample_ped_previews_xml(xmlPath)) {
+			write_text_to_log_file("创建示例文件后仍无法加载 ent-ped-previews.xml");
+			return false;
+		}
+
+		// 加载新创建的文件
+		if (!load_custom_ped_previews_from_xml(xmlPath)) {
+			write_text_to_log_file("首次加载 ent-ped-previews.xml 失败");
+			return false;
+		}
+		return true;
+	}
+
+	// 文件存在：如首次缓存为空或文件有更新则重载
+	if (g_CustomPedImages.empty() || is_ped_preview_xml_modified(xmlPath)) {
+		if (!load_custom_ped_previews_from_xml(xmlPath)) {
+			write_text_to_log_file("读取 ent-ped-previews.xml 失败");
+			return false;
+		}
+	}
+	return true;
+}
+
+// 人物预览图查找器
+MenuItemImage* ped_image_preview_finder(MenuItem<std::string> choice) {
+	if (!is_ped_preview_enabled()) {
+		return NULL;
+	}
+
+	// 将字符串模型名转换为哈希值
+	Hash modelHash = rage::joaat(choice.value.c_str());
+
+	// 首先检查自定义预览图（从XML加载）
+	auto it = g_CustomPedImages.find(modelHash);
+	if (it != g_CustomPedImages.end()) {
+		MenuItemImage* image = new MenuItemImage();
+		image->dict = const_cast<char*>(it->second.first.c_str());
+		image->name = const_cast<char*>(it->second.second.c_str());
+		return image;
+	}
+
+	// 然后检查内置预览图
+	for (const PedImage& pimg : ALL_PED_IMAGES) {
+		if (pimg.modelName == modelHash) {
+			MenuItemImage* image = new MenuItemImage();
+			image->dict = pimg.dict;
+			if (image->is_local()) {
+				image->localID = pimg.localID;
+			} else {
+				image->name = pimg.imgName;
+			}
+			return image;
+		}
+	}
+
+	// 获取模型原始名称（不本地化）
+	std::ostringstream ss;
+	ss << "找不到人物预览图, 模型名： " << choice.value;
+	write_text_to_log_file(ss.str());
+	return NULL;
+}
+
+// 初始化人物预览图功能
+void init_ped_feature() {
+	// 复制所有游戏内置人物预览图到全局数组
+	ALL_PED_IMAGES.insert(ALL_PED_IMAGES.end(), INGAME_PED_IMAGES.begin(), INGAME_PED_IMAGES.end());
+	
+	// 加载外部XML文件中的自定义人物预览图（如果有）
+	ensure_custom_ped_previews_loaded();
+}

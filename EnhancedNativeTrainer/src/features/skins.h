@@ -15,6 +15,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\..\inc\enums.h"
 #include "..\..\inc\main.h"
 #include "..\ui_support\menu_functions.h"
+#include "..\joaat.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -92,3 +93,37 @@ bool process_custom_peds2_menu();
 bool ensure_custom_peds2_loaded();
 std::map<std::string, std::vector<std::pair<std::string, std::string>>> get_custom_peds2_map();
 std::vector<std::string> get_custom_ped_categories2();
+
+// 人物预览图相关结构体和函数声明
+struct PedImage {
+	Hash modelName;
+	char* dict;
+	char* imgName;
+	int localID;
+};
+
+static std::vector<PedImage> ALL_PED_IMAGES;
+
+// 内部人物预览图映射（源码内置）
+// 格式：人物模型名称, 字典名, 图片名
+const std::vector<PedImage> INGAME_PED_IMAGES = {
+	//{ RAGE_JOAAT("人物模型名称"), "字典名(YTD文件名)", "图片名" },
+	//{ RAGE_JOAAT("人物模型名称"), "ENT_ped_previews", "图片名" },
+	//{ RAGE_JOAAT("人物模型名称"), "ENT_ped_previews_1", "图片名" },
+	//{ RAGE_JOAAT("人物模型名称"), "ENT_ped_previews_2", "图片名" },
+	//{ RAGE_JOAAT("人物模型名称"), "ENT_ped_previews_3", "图片名" },
+};
+
+// 自定义人物预览图（外置 XML）缓存
+static std::map<Hash, std::pair<std::string, std::string>> g_CustomPedImages; // 模型哈希 -> (字典名, 图片名)
+static FILETIME g_LastPedPreviewXmlModifyTime = {0}; // 预览图XML文件最后修改时间
+
+// 人物预览图相关函数声明
+bool is_ped_preview_enabled();
+bool create_sample_ped_previews_xml(const char* xmlPath);
+bool load_custom_ped_previews_from_xml(const char* xmlPath);
+bool ensure_custom_ped_previews_loaded();
+MenuItemImage* ped_image_preview_finder(MenuItem<std::string> choice);
+
+// 初始化人物预览图功能
+void init_ped_feature();

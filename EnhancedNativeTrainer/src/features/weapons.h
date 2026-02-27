@@ -16,12 +16,54 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\..\inc\main.h"
 #include "..\ui_support\menu_functions.h"
 #include "..\storage\database.h"
+#include <string>
+#include <unordered_map>
+
+inline constexpr size_t WEAPON_CATEGORY_COUNT = 8; // 近战/手枪/冲锋枪/步枪/霰弹枪/狙击/重型/投掷
+
+// 统一的武器标签本地化回退：当 UI::_GET_LABEL_TEXT 返回空或 "NULL" 时，使用自定义映射
+inline std::string get_weapon_label_with_fallback(const std::string& key) {
+	std::string localized;
+	if (UI::DOES_TEXT_LABEL_EXIST(const_cast<char*>(key.c_str()))) {
+		localized = UI::_GET_LABEL_TEXT(const_cast<char*>(key.c_str()));
+	}
+
+	if (localized.empty() || localized == "NULL") {
+		static const std::unordered_map<std::string, std::string> kWeaponLabelFallback = {
+			{"WT_DIGI", "数字扫描仪"},
+			{"WT_BRIEFCASE", "公文包 1"},
+			{"WT_BRIEFCASE_02", "公文包 2"},
+			{"WT_BRIEFCASE_03", "公文包 3"},
+		};
+		auto it = kWeaponLabelFallback.find(key);
+		if (it != kWeaponLabelFallback.end()) return it->second;
+		return key;
+	}
+	return localized;
+}
+
+// 将类似 "\"WEAPON_PISTOL\"" 的字符串规范化为 WEAPON_PISTOL
+inline std::string normalize_weapon_model_key(const std::string& in) {
+	std::string s = in;	// 复制输入字符串，避免直接修改原始数据
+
+	// 去掉首尾空格或制表符，防止配置文件或输入中存在多余空白字符
+	while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(s.begin());
+	while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+
+	// 去掉包裹字符串的双引号，例如从 "WEAPON_PISTOL" 变成 WEAPON_PISTOL
+	if (!s.empty() && s.front() == '"') s.erase(s.begin());
+	if (!s.empty() && s.back() == '"') s.pop_back();
+
+	return s;	// 返回处理后的规范化字符串
+}
+
+// 注意：依赖 VOV_WEAPON_* 的辅助函数在文件后半段定义，以避免前置声明造成外部链接问题
 
 const std::vector<std::string> MENU_WEAPON_CATEGORIES{ "近战武器", "手枪", " 冲锋枪", " 突击步枪", "霰弹枪", " 狙击步枪", "重型武器", "投掷武器" };
 
 // 计数: 20
-const std::vector<std::string> CAPTIONS_MELEE{ "WT_KNIFE", "WT_NGTSTK", "WT_HAMMER", "WT_BAT", "WT_BALL", "WT_DIGI", "WT_GOLFCLUB", "WT_CROWBAR", "WT_BOTTLE", "WT_DAGGER", "WT_HATCHET", "WT_KNUCKLE", "WT_MACHETE", "WT_FLASHLIGHT", "WT_SWBLADE", "WT_BATTLEAXE", "WT_WRENCH", "WT_POOLCUE", "WT_SHATCHET", "WT_METALDETECT", "WT_HACKDEVICE", "WT_CANDYCANE", "WT_STUNROD" };
-const std::vector<std::string> VALUES_MELEE{ "WEAPON_KNIFE", "WEAPON_NIGHTSTICK", "WEAPON_HAMMER", "WEAPON_BAT", "WEAPON_BALL", "WEAPON_DIGISCANNER", "WEAPON_GOLFCLUB", "WEAPON_CROWBAR", "WEAPON_BOTTLE", "WEAPON_DAGGER", "WEAPON_HATCHET", "WEAPON_KNUCKLE", "WEAPON_MACHETE", "WEAPON_FLASHLIGHT", "WEAPON_SWITCHBLADE", "WEAPON_BATTLEAXE", "WEAPON_WRENCH", "WEAPON_POOLCUE", "WEAPON_STONE_HATCHET", "WEAPON_METALDETECTOR", "WEAPON_HACKINGDEVICE", "WEAPON_CANDYCANE", "WEAPON_STUNROD"};
+const std::vector<std::string> CAPTIONS_MELEE{ "WT_KNIFE", "WT_NGTSTK", "WT_HAMMER", "WT_BAT", "WT_BALL", "WT_DIGI", "WT_GOLFCLUB", "WT_CROWBAR", "WT_BOTTLE", "WT_DAGGER", "WT_HATCHET", "WT_KNUCKLE", "WT_MACHETE", "WT_FLASHLIGHT", "WT_SWBLADE", "WT_BATTLEAXE", "WT_WRENCH", "WT_POOLCUE", "WT_SHATCHET", "WT_METALDETECT", "WT_HACKDEVICE", "WT_CANDYCANE", "WT_STUNROD", "WT_BRIEFCASE", "WT_BRIEFCASE_02", "WT_BRIEFCASE_03" };
+const std::vector<std::string> VALUES_MELEE{ "WEAPON_KNIFE", "WEAPON_NIGHTSTICK", "WEAPON_HAMMER", "WEAPON_BAT", "WEAPON_BALL", "WEAPON_DIGISCANNER", "WEAPON_GOLFCLUB", "WEAPON_CROWBAR", "WEAPON_BOTTLE", "WEAPON_DAGGER", "WEAPON_HATCHET", "WEAPON_KNUCKLE", "WEAPON_MACHETE", "WEAPON_FLASHLIGHT", "WEAPON_SWITCHBLADE", "WEAPON_BATTLEAXE", "WEAPON_WRENCH", "WEAPON_POOLCUE", "WEAPON_STONE_HATCHET", "WEAPON_METALDETECTOR", "WEAPON_HACKINGDEVICE", "WEAPON_CANDYCANE", "WEAPON_STUNROD", "WEAPON_BRIEFCASE", "WEAPON_BRIEFCASE_02", "WEAPON_BRIEFCASE_03"};
 // 计数: 18
 const std::vector<std::string> CAPTIONS_HANDGUN{ "WT_PIST", "WT_PIST2", "WT_PIST_CBT", "WT_PIST_AP", "WT_PIST_50", "WT_SNSPISTOL", "WT_SNSPISTOL2", "WT_HEAVYPSTL", "WT_VPISTOL", "WT_STUN", "WT_FLAREGUN", "WT_MKPISTOL", "WT_REVOLVER", "WT_REVOLVER2", "WT_REV_DA", "WT_RAYPISTOL", "WT_CERPST", "WT_REV_NV", "WT_GDGTPST", "WT_PISTOLXM3" };
 const std::vector<std::string> VALUES_HANDGUN{ "WEAPON_PISTOL", "WEAPON_PISTOL_MK2", "WEAPON_COMBATPISTOL", "WEAPON_APPISTOL", "WEAPON_PISTOL50", "WEAPON_SNSPISTOL", "WEAPON_SNSPISTOL_MK2", "WEAPON_HEAVYPISTOL", "WEAPON_VINTAGEPISTOL", "WEAPON_STUNGUN", "WEAPON_FLAREGUN", "WEAPON_MARKSMANPISTOL", "WEAPON_REVOLVER", "WEAPON_REVOLVER_MK2", "WEAPON_DOUBLEACTION", "WEAPON_RAYPISTOL", "WEAPON_CERAMICPISTOL", "WEAPON_NAVYREVOLVER", "WEAPON_GADGETPISTOL", "WEAPON_PISTOLXM3" };
@@ -47,6 +89,65 @@ const std::vector<std::string> VALUES_THROWN{ "WEAPON_GRENADE", "WEAPON_STICKYBO
 
 const std::vector<std::string> VOV_WEAPON_CAPTIONS[] = {CAPTIONS_MELEE, CAPTIONS_HANDGUN, CAPTIONS_SUBMACHINE, CAPTIONS_ASSAULT, CAPTIONS_SHOTGUN, CAPTIONS_SNIPER, CAPTIONS_HEAVY, CAPTIONS_THROWN};
 const std::vector<std::string> VOV_WEAPON_VALUES[] = {VALUES_MELEE, VALUES_HANDGUN, VALUES_SUBMACHINE, VALUES_ASSAULT, VALUES_SHOTGUN, VALUES_SNIPER, VALUES_HEAVY, VALUES_THROWN};
+
+// 全局静态映射（只初始化一次，兼容原 VOV_WEAPON_VALUES / VOV_WEAPON_CAPTIONS）
+inline const std::unordered_map<std::string, std::string>& get_weapon_caption_map() {
+	static std::unordered_map<std::string, std::string> map;
+	if (map.empty()) {
+		// 1. 遍历原项目的武器表
+		for (size_t cat = 0; cat < WEAPON_CATEGORY_COUNT; ++cat) {
+			const auto& values = VOV_WEAPON_VALUES[cat];
+			const auto& captions = VOV_WEAPON_CAPTIONS[cat];
+			for (size_t i = 0; i < values.size(); ++i) {
+				if (i < captions.size()) {
+					map[values[i]] = captions[i];
+				} else {
+					map[values[i]] = ""; // 数据不一致时留空
+				}
+			}
+		}
+
+		// 2. 添加车辆武器/特殊武器映射
+		static const std::unordered_map<std::string, std::string> kVehicleWeaponDisplay = {
+			{"VEHICLE_WEAPON_MINE_KINETIC", "动能地雷"},
+			{"VEHICLE_WEAPON_MINE_SPIKE", "钉刺地雷"},
+			{"VEHICLE_WEAPON_MINE_EMP", "电磁脉冲地雷"},
+			{"VEHICLE_WEAPON_MINE", "地雷"},
+			{"VEHICLE_WEAPON_MINE_SLICK", "滑油地雷"},
+			{"VEHICLE_WEAPON_MINE_TAR", "沥青地雷"},
+			{"VEHICLE_WEAPON_PLAYER_BULLET", "车载重机枪"},
+			{"VEHICLE_WEAPON_PLAYER_LAZER", "超能激光炮"},
+			{"WEAPON_UNARMED", "徒手/拳头"},
+		};
+		map.insert(kVehicleWeaponDisplay.begin(), kVehicleWeaponDisplay.end());
+	}
+	return map;
+}
+
+// 根据模型名获取本地化标题
+inline std::string localized_caption_from_model(const std::string& modelIn) {
+	std::string m = normalize_weapon_model_key(modelIn);
+	if (m == "关") return m;
+	const auto& map = get_weapon_caption_map();
+	auto it = map.find(m);
+	if (it != map.end()) {
+		if (!it->second.empty()) {
+			return get_weapon_label_with_fallback(it->second);
+		}
+		return m; // 映射为空，返回原模型名
+	}
+	return m;// 都没找到，返回原模型名
+}
+
+// 批量本地化（与原列表顺序一致）
+inline std::vector<std::string> localize_weapon_models(const std::vector<std::string>& models) {
+	std::vector<std::string> out;
+	out.reserve(models.size());
+	for (const auto& s : models) {
+		out.push_back(localized_caption_from_model(s));
+	}
+	return out;
+}
 
 // 武器涂装
 const std::vector<std::string> CAPTIONS_TINT{ "正常", "绿色", "金色", "粉色", "军绿色", "洛圣都警察局", "橙色", "铂金色" };
@@ -363,3 +464,64 @@ void fire_mode_hotkey();
 void add_all_weapons_attachments(Ped choice);
 
 extern Ped equip_ped;
+
+// 全局屏幕准星相关常量和变量
+extern bool featureWeaponsCrosshair; // 屏幕准星开关
+
+const std::vector<std::string> WEAPONS_CROSSHAIR_STYLE_CAPTIONS{"实线十字", "虚线十字", "空心方形", "实心方形"};
+const int WEAPONS_CROSSHAIR_STYLE_VALUES[] = { 1, 2, 3, 4 }; // 1=实线,2=虚线,3=空心方块,4=实心方块
+
+const std::vector<std::string> WEAPONS_CROSSHAIR_COLOR_CAPTIONS{ "白色", "红色", "粉红色", "绿色", "蓝色", "黄色", "橙色", "紫色", "黑色", "灰色" };
+const int WEAPONS_CROSSHAIR_COLOR_COUNT = 10; // 颜色数量
+
+extern int WeaponsCrosshairStyleIndex; // 默认1 实线
+extern bool WeaponsCrosshairStyleChanged;
+extern int WeaponsCrosshairColorIndex; // 默认0 白色
+extern bool WeaponsCrosshairColorChanged;
+
+// 屏幕准星相关函数声明
+void draw_weapons_crosshair();
+void onchange_weapons_crosshair_style_index(int value, SelectFromListMenuItem* source);
+void onchange_weapons_crosshair_color_index(int value, SelectFromListMenuItem* source);
+bool process_weapons_crosshair_menu();
+
+// 载具模型枪相关常量和变量
+extern bool featureVehicleModelGun; // 载具模型枪开关
+extern bool featureVehicleModelGunUpdated; // 载具模型枪状态更新标志
+extern bool featurePedModelGun; // 角色模型枪开关
+extern bool featurePedModelGunUpdated; // 角色模型枪状态更新标志
+
+const std::vector<std::string> VEHICLE_MODEL_GUN_CATEGORIES{ "小型汽车", "轿车", "SUV", "轿跑车", "肌肉车", "经典跑车", "跑车", "超级跑车", "摩托车", "越野车", "开轮式", "特种车", "厢型车", "自行车", "直升机", "飞机", "船只" };
+
+const std::vector<std::string> PED_MODEL_GUN_CATEGORIES{ "环境女性", "环境男性", "过场动画", "帮派女性", "帮派男性", "故事模式", "线上模式", "场景女性", "场景男性", "剧情场景女性", "剧情场景男性", "其他角色", "动物" };
+
+const std::vector<std::string> MODEL_GUN_SPEED_CAPTIONS{ "最慢 [10]", "很慢 [20]", "慢速 [50]", "中低速 [100]", "默认速度 [200]", "中速 [300]", "中高速 [400]", "快速 [500]", "很快 [600]", "极快 [700]", "超快 [800]", "最快 [1000]" };
+const float MODEL_GUN_SPEED_VALUES[] = { 10.0f, 20.0f, 50.0f, 100.0f, 200.0f, 300.0f, 400.0f, 500.0f, 600.0f, 700.0f, 800.0f, 1000.0f };
+
+extern int VehicleModelGunCategoryIndex; // 载具分类索引
+extern bool VehicleModelGunCategoryChanged; // 用于配置加载
+extern int VehicleModelGunSpeedIndex; // 载具发射速度索引
+extern bool VehicleModelGunSpeedChanged; // 用于配置加载
+extern bool featureVehicleModelGunInvincible; // 载具无敌开关
+
+extern int PedModelGunCategoryIndex; // 角色分类索引
+extern bool PedModelGunCategoryChanged; // 用于配置加载
+extern int PedModelGunSpeedIndex; // 角色发射速度索引
+extern bool PedModelGunSpeedChanged; // 用于配置加载
+extern bool featurePedModelGunInvincible; // 角色无敌开关
+
+// 载具模型枪和角色模型枪函数声明
+void onchange_vehicle_model_gun_category_index(int value, SelectFromListMenuItem* source);
+void onchange_vehicle_model_gun_speed_index(int value, SelectFromListMenuItem* source);
+void onchange_ped_model_gun_category_index(int value, SelectFromListMenuItem* source);
+void onchange_ped_model_gun_speed_index(int value, SelectFromListMenuItem* source);
+bool process_vehicle_model_gun_menu();
+bool process_ped_model_gun_menu();
+void fire_vehicle_model_gun();
+void fire_ped_model_gun();
+Hash get_random_vehicle_hash_by_category(int categoryIndex);
+Hash get_random_ped_hash_by_category(int categoryIndex);
+
+// 辅助函数声明
+Vector3 DegreeToRadian(Vector3 angles);
+Vector3 get_coords_from_gameplay_cam(float distance);

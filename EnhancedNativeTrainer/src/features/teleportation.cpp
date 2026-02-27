@@ -12,13 +12,20 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "drive_to_marker.h"
 #include "misc.h"
 #include "vehicles.h"
+#include "airbrake.h"
+#include "propplacement.h"
 #include "..\ui_support\menu_functions.h"
 #include "..\debug\debuglog.h"
 #include "..\ent-enums.h"
 #include "interior_props.h"
 #include "script.h"
+#include "..\storage\database.h"
+#include "..\io\io.h"
 #include <iostream>   // std::cout
 #include <string>     // std::string, std::stof
+#include <sstream>    // std::ostringstream
+#include <iomanip>    // std::fixed, std::setprecision
+#include <cmath>    // std::fabs
 
 bool featureEnableMpMaps = false;
 bool feature3dmarker = false;
@@ -60,6 +67,23 @@ int lastMenuChoiceInCategories[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 int activeLineIndexChauffeur = 0;
 int activeLineIndex3dmarker = 0;
 
+// 自定义坐标保存相关变量
+bool requireRefreshOfLocationSaveSlots = false;
+bool requireRefreshOfLocationSlotMenu = false;
+int lastKnownSavedLocationCount = 0;
+
+// 自定义坐标编辑器相关变量
+Vector3 customEditCoords = { 0.0f, 0.0f, 0.0f };
+bool customCoordsInitialized = false;
+const float COORD_STEP = 0.11f;   // 坐标步进 0.11（更快调整）
+const float COORD_RANGE = 10.0f; // 坐标可调范围 ±10.0（更大范围）
+bool editCoordsMenuNeedsRefresh = false;
+
+// 自定义朝向/航向编辑相关变量
+float customEditYaw = 0.0f;
+const float ANGLE_STEP = 2.0f;   // 角度步进 2 度
+const float ANGLE_RANGE = 90.0f; // 角度可调范围 ±90 度
+
 const std::vector<tele_location> LOCATIONS_SAFE = {
 	{ "迈克尔的房屋 1 门口", -827.138f, 176.368f, 70.5999f },
 	{ "迈克尔的房屋 1 室内", -813.603f, 179.474f, 72.1548f },
@@ -79,16 +103,16 @@ const std::vector<tele_location> LOCATIONS_LANDMARKS = {
 	{ "废弃汽车旅馆", 1567.35f, 3566.76f, 35.4367f },
 	{ "空中缆车站", -740.235f, 5594.81f, 41.6546f },
 	{ "飞机坟场", 2395.096f, 3049.616f, 60.053f },
-	{ "利他邪教营地", -1006.24f, 4869.75f, 270.681f },
-	{ "阿卡迪斯停车场", -164.38220000f, -619.08840000f, 33.33181000f},
+	{ "利他邪教营地", -1006.309f, 4869.9326f, 267.9606f },
+	{ "阿卡迪斯停车场", -166.5262f, -625.1674f, 32.4244f},
 	{ "海狸灌木护林站", 389.712f, 791.305f, 190.41f },
-	{ "悬崖塔停车场", -1526.45900000f, -581.92970000f, 25.99675000f},
+	{ "悬崖塔停车场", -1526.466f, -581.7343f, 23.2749f},
 	{ "博林布鲁克监狱入口", 1879.45f, 2604.83f, 45.672f },
 	{ "卡利菲亚火车桥", -517.869f, 4425.284f, 89.795f },
 	{ "鲶鱼角码头", 3866.41f, 4463.61f, 2.72762f },
 	{ "赌场", 926.407f, 46.392f, 80.9041f },
-	{ "佩里科岛", 4046.79f, -4673.69f, 5.16383f, IPLS_CAYO_PERICO, {}, {}, false }, // 4360.31f, -4561.3f, 5.16383f
-	{ "非法改装货船", -399.00000000f, -4115.00000000f, 31.00000000f, { "m23_2_cargoship" }, {}, {}, false },
+	{ "佩里科岛", 4051.6404f, -4673.724f, 4.1846f, IPLS_CAYO_PERICO, {}, {}, false }, // 4360.31f, -4561.3f, 5.16383f
+	{ "非法改装货船", -396.2948f, -4120.459f, 29.6891f, { "m23_2_cargoship" }, {}, {}, false },
 	{ "丘马什历史家族码头", -3426.683f, 967.738f, 8.347f },
 	{ "戴维斯消防局", 203.00000000f, -1655.57000000f, 28.80310000f},
 	{ "德尔佩罗码头", -1850.127f, -1231.751f, 13.017f },
@@ -97,8 +121,8 @@ const std::vector<tele_location> LOCATIONS_LANDMARKS = {
 	{ "埃尔伯罗高地", 1384.0f, -2057.1f, 52.0f },
 	{ "伊普西隆大楼入口", -698.472f, 46.3927f, 44.0338f },
 	{ "圣安地列斯极北之地", 24.775f, 7644.102f, 19.055f },
-	{ "联邦调查局停车场", 141.20440000f, -717.21670000f, 34.76831000f},
-	{ "桑库多堡垒航母", -3244.62100000f, 3937.22100000f, 16.64630100f, IPLS_M24_CARRIER, {}, {}, false },
+	{ "联邦调查局停车场", 164.0243f, -721.2911f, 33.1321f},
+	{ "桑库多堡垒航母", -3244.776f, 3937.2665f, 15.2613f, IPLS_M24_CARRIER, {}, {}, false },
 	{ "加利利码头", 1299.17f, 4216.22f, 33.9087f },
 	{ "高尔夫俱乐部", -1373.22f, 50.4852f, 53.7018f },
 	{ "格罗夫街", 117.11f, -1951.27f, 20.7498f },
@@ -106,12 +130,12 @@ const std::vector<tele_location> LOCATIONS_LANDMARKS = {
 	{ "流浪汉营地", 1476.47f, 6373.92f, 23.5239f },
 	{ "岛屿小屋", -2167.28f, 5187.76f, 15.9392f },
 	{ "乔琳·克兰利-埃文斯鬼魂", 3059.620f, 5564.246f, 197.091f },
-	{ "废车场/坦克区", -445.022f, -1715.71f, 25.0233f },
-	{ "隆班克停车场", -676.295f, -589.195f, 25.4536f},
-	{ "洛圣都消防局", 1201.39500000f, -1478.45300000f, 33.85941000f},
+	{ "废车场/坦克区", -442.7976f, -1716.208f, 22.0233f },
+	{ "隆班克停车场", -674.3890f, -592.0610f, 25.3080f},
+	{ "洛圣都消防局", 1204.1841f, -1469.856f, 34.8595f},
 	{ "洛圣都水电局", 738.286f, 132.192f, 80.5797f },
 	{ "马洛葡萄园", -1868.971f, 2095.674f, 139.115f },
-	{ "迷宫银行停车场", -84.13106000f, -821.34520000f, 36.71491000f},
+	{ "迷宫银行停车场", -81.7169f, -812.0015f, 36.2817f},
 	{ "矿洞", -595.342f, 2086.008f, 131.412f },
 	{ "镜湖公园", 1071.34f, -712.241f, 58.4852f },
 	{ "特种部队总部", 2535.243f, -383.799f, 92.993f },
@@ -124,7 +148,7 @@ const std::vector<tele_location> LOCATIONS_LANDMARKS = {
 	{ "拉顿峡谷观景台", -840.581f, 4182.65f, 215.29f },
 	{ "西西弗斯剧院舞台", 208.714f, 1167.75f, 227.005f },
 	{ "声呐收集码头", -1611.26f, 5261.74f, 3.9741f },
-	{ "刺刀城", 126.845f, 3714.25f, 48.9273f },
+	{ "刺刀城", 114.5466f, 3711.5488f, 39.7549f },
 	{ "伯顿地铁站", -297.004f, -358.18f, 10.0631f },
 	{ "德尔佩罗地铁站", -1363.85f, -439.754f, 15.0453f },
 	{ "小首尔地铁站", -529.163f, -671.127f, 11.809f },
@@ -133,11 +157,11 @@ const std::vector<tele_location> LOCATIONS_LANDMARKS = {
 	{ "波托拉大道地铁站", -791.0f, -125.857f, 19.9503f },
 	{ "双鸣瀑布", -1575.9f, 2104.26f, 67.4264f },
 	{ "地下入口", -66.5357f, -538.862f, 31.7796f },
-	{ "地下出口", 1032.85f, -276.936f, 50.1025f },
+	{ "地下出口", 1034.2924f, -272.9367f, 50.8457f },
 	{ "圣安地列斯大学", -1644.09f, 218.244f, 60.6411f },
 	{ "厄休拉母亲之墓", 3200.96f, 4730.4f, 193.284f },
 	{ "葡萄籽碗剧院舞台", 686.245f, 577.950f, 130.461f },
-	{ "风车农场拖车公园", 2353.21f, 2549.4f, 55.7455f },
+	{ "风车农场拖车公园", 2339.0298f, 2556.4368f, 46.6677f },
 	{ "黄杰克酒馆", 1991.74f, 3058.86f, 47.0568f },
 };
 
@@ -146,7 +170,7 @@ const std::vector<tele_location> LOCATIONS_LANDMARKS = {
 const std::vector<tele_location> LOCATIONS_HIGH = {
 	{ "一号州际公路指示牌", 1430.13f, 716.454f, 85.0183f },
 	{ "机场入口塔楼屋顶", -912.523f, -2529.81f, 41.96f },
-	{ "机场雷达塔屋顶", -1273.64f, -2456.1f, 77.3999f },
+	{ "机场雷达塔屋顶", -1278.342f, -2453.618f, 73.0441f },
 	{ "机场控制塔屋顶", -982.67f, -2638.2f, 89.522f },
 	{ "博林布鲁克监狱塔顶", 1597.72f, 2599.34f, 93.0648f },
 	{ "大桥信号塔顶", -279.242f, -2438.71f, 124.004f },
@@ -156,9 +180,9 @@ const std::vector<tele_location> LOCATIONS_HIGH = {
 	{ "CNT 大厦屋顶", 744.686f, 223.028f, 150.497f },
 	{ "水坝屋顶", 1665.2f, -28.1639f, 196.936f },
 	{ "吊桥顶端", 215.681f, -2345.98f, 77.4659f },
-	{ "日蚀大楼屋顶", -782.235f, 331.659f, 244.673f },
+	{ "日蚀大楼屋顶", -783.3745f, 312.3942f, 230.6370f },
 	{ "埃尔伯罗高地储油罐顶", 1610.86f, -2242.01f, 132.794f }, 
-	{ "极乐岛高处", 338.21f, -2758.38f, 44.6318f },
+	{ "极乐岛高处", 338.2181f, -2758.480f, 43.6319f },
 	{ "联邦调查局大厦屋顶", 150.126f, -754.591f, 262.865f },
 	{ "桑库多堡垒空管塔顶楼", -2358.132f, 3249.754f, 101.451f },
 	{ "伽利略天文台屋顶", -438.804f, 1076.097f, 352.411f },
@@ -170,7 +194,7 @@ const std::vector<tele_location> LOCATIONS_HIGH = {
 	{ "迷宫银行竞技场屋顶", -324.300f, -1968.545f, 67.002f },
 	{ "迷宫银行屋顶", -75.015f, -818.215f, 326.176f },
 	{ "梅利威瑟码头屋顶", 526.604f, -3290.37f, 46.3142f },
-	{ "高空俱乐部屋顶", -168.221f, -974.687f, 275.222f },
+	{ "高空俱乐部屋顶", -150.5725f, -961.2589f, 269.1353f },
 	{ "奇力耶德山山顶", 450.718f, 5566.614f, 806.183f },
 	{ "北扬克顿高压电塔顶", 3836.8f, -4875.12f, 154.079f, IPLS_NORTH_YANKTON, {}, {}, false },
 	{ "北扬克顿波洛克影院屋顶", 3157.23f, -4816.72f, 138.143f, IPLS_NORTH_YANKTON, {}, {}, false },
@@ -178,14 +202,14 @@ const std::vector<tele_location> LOCATIONS_HIGH = {
 	{ "帕默-泰勒发电站烟囱", 2723.01f, 1540.68f, 89.4314f },
 	{ "叛逆电台塔顶", 753.214f, 2581.43f, 158.363f },
 	{ "红色大桥顶端", 796.735f, -2626.74f, 87.9404f },
-	{ "理查兹尊爵水塔", -1159.98f, -604.803f, 69.0802f },
+	{ "理查兹尊爵水塔", -1160.018f, -604.8969f, 68.0232f },
 	{ "沙漠建筑工地起重机", 1051.209f, 2280.452f, 89.727f },
 	{ "卫星天线", 2034.988f, 2953.105f, 74.602f },
 	{ "塔塔维姆山脉顶峰", 1758.23f, 682.072f, 269.991f },
 	{ "空中极高处", -75.015f, -818.215f, 1500.176f },
 	{ "极高极高处", -129.964f, 8130.873f, 2699.999f },
 	{ "葡萄籽广告牌", 711.577f, 1197.91f, 348.527f },
-	{ "威兹尔广场公寓屋顶", -894.349f, -454.021f, 174.811f },
+	{ "威兹尔广场公寓屋顶", -897.3040f, -450.0585f, 171.8141f },
 	{ "风车顶端", 2026.677f, 1842.684f, 136.213f },
 };
 
@@ -231,11 +255,11 @@ const std::vector<tele_location> LOCATIONS_UNDERWATER = {
 const std::vector<tele_location> LOCATIONS_INTERIORS = {
 	{ "机场设施室内 1", -1588.56f, -3228.38f, 26.3362f, {}, {}, {}, false },
 	{ "机场设施室内 2", -1144.38f, -2803.47f, 34.4773f, {}, {}, {}, false },
-	{ "机场设施室内 3", -1042.93f, -2865.61f, 35.4773f, {}, {}, {}, false },
+	{ "机场设施室内 3", -1043.031f, -2865.604f, 34.4765f, {}, {}, {}, false },
 	{ "武装国度射击场", 22.153f, -1072.854f, 29.797f },
 	{ "巴哈马妈妈餐厅", -1387.08f, -588.4f, 30.3195f },
 	{ "布莱恩郡储蓄银行", -109.299f, 6464.035f, 31.627f },
-	{ "电影院", -1435.8f, -256.866f, 18.7795f, { "hei_hw1_02_interior_v_cinema_milo_" }, {}, {}, false },
+	{ "电影院", -1435.8f, -256.866f, 16.7795f,  { "hei_hw1_02_interior_v_cinema_milo_" }, {}, {}, false },
 	{ "咯咯鸡农场仓库", -70.0624f, 6263.53f, 31.0909f, { "CS1_02_cf_onmission1", "CS1_02_cf_onmission2", "CS1_02_cf_onmission3", "CS1_02_cf_onmission4" }, { "CS1_02_cf_offmission" }, {}, false },
 	{ "德文的车库", 482.027f, -1317.96f, 29.2021f },
 	{ "弗里德兰德医生办公室", -1902.39f, -572.832f, 19.0972f },
@@ -246,8 +270,8 @@ const std::vector<tele_location> LOCATIONS_INTERIORS = {
 	{ "联邦调查局大楼大厅", 110.4f, -744.2f, 45.7f, { "FIBlobby" }, { "FIBlobbyfake" }, {}, false },
 	{ "联邦调查局大楼顶层", 135.733f, -749.216f, 258.152f },
 	{ "铸造厂", 1082.32f, -1975.65f, 31.4724f },
-	{ "服装工厂", 718.162f, -974.51f, 25.9142f, { "id2_14_during1" }, {}, {}, false },
-	{ "服装工厂（空）", 718.162f, -974.51f, 25.9142f, { "id2_14_during2" }, {}, {}, false },
+	{ "服装工厂", 718.162f, -974.51f, 24.9141f, { "id2_14_during1" }, {}, {}, false },
+	{ "服装工厂（空）", 718.162f, -974.51f, 24.9141f, { "id2_14_during2" }, {}, {}, false },
 	{ "劫案警察局", 445.488f, -983.779f, 30.6896f, {}, {}, {}, false },
 	{ "医院（损毁）", 302.651f, -586.293f, 43.3129f, { "RC12B_Destroyed", "RC12B_HospitalInterior" }, { "RC12B_Default", "RC12B_Fixed" }, {}, false },
 	{ "豪伊茨汽车旅馆房间", 152.2943f, -1004.391f, -100.0f, { "hei_hw1_blimp_interior_v_motel_mp_milo_" }, {}, {}, false },
@@ -261,7 +285,7 @@ const std::vector<tele_location> LOCATIONS_INTERIORS = {
 	{ "马克斯·伦达改装店", -583.1606f, -282.3967f, 35.394f, { "refit_unload" }, {}, {}, false }, // "bh1_16_doors_open" 
 	{ "停尸房", 275.446f, -1361.11f, 24.5378f, { "Coroner_Int_on" }, { "Coroner_Int_off" }, {}, false },
 	{ "北扬克顿银行", 5309.519f, -5212.375f, 83.522f, IPLS_NORTH_YANKTON, {}, {}, false },
-	{ "欧米茄的拖车内部", 2330.38000000f, 2572.53100000f, 45.67811000f},
+	{ "欧米茄的拖车内部", 2330.4055f, 2572.4819f, 46.6796f},
 	{ "奥尼尔农场", 2454.78f, 4971.92f, 46.8103f, { "farm", "farm_props", "farmint" }, { "farm_burnt", "farm_burnt_props", "farmint_cap" }, {}, false },
 	{ "太平洋标准银行金库", 255.851f, 217.030f, 101.683f },
 	{ "帕莱托湾警局", -446.135f, 6012.91f, 31.7164f },
@@ -272,11 +296,11 @@ const std::vector<tele_location> LOCATIONS_INTERIORS = {
 	{ "所罗门办公室", -1002.89f, -478.003f, 50.0271f },
 	{ "太空船内部", 41.64376000f, -779.93910000f, 832.40240000f, { "spaceinterior" }, {}, {}, false },
 	{ "分裂分子西喜剧俱乐部", -453.8519f, 280.5149f, 77.52148f, { "apa_ss1_12_interior_v_comedy_milo_" }, {}, {}, false },
-	{ "体育场", -248.4916f, -2010.509f, 34.5743f, { "SP1_10_real_interior" }, { "SP1_10_fake_interior" }, {}, false },
+	{ "体育场", -251.8059f, -2005.924f, 30.1456f, { "SP1_10_real_interior" }, { "SP1_10_fake_interior" }, {}, false },
 	{ "脱衣舞俱乐部 DJ控制台", 126.135f, -1278.583f, 29.270f },
 	{ "提基酒吧", -564.518f, 277.754f, 83.1363f }, 
 	{ "刑讯仓库", 136.514f, -2203.15f, 7.30914f },
-	{ "联邦储蓄所走廊", -8.78971f, -656.287f, 35.4514f, { "Finbank" }, { "DT1_03_Shutter" }, {}, false },
+	{ "联邦储蓄所走廊", -8.78971f, -656.287f, 33.4514f, { "Finbank" }, { "DT1_03_Shutter" }, {}, false },
 	{ "联邦储蓄所金库", 2.69689322f, -667.0166f, 16.1306286f, { "Finbank" }, {}, {}, false },
 	{ "梵赫尼可珠宝店", -630.07f, -236.332f, 38.0571f, { "post_hiest_unload" }, { "jewel2fake", "bh1_16_refurb" }, {}, false },
 };
@@ -284,10 +308,10 @@ const std::vector<tele_location> LOCATIONS_INTERIORS = {
 /* 名称, 坐标, IPL名称, 所需场景（道具）, 需移除的场景, 是否已加载 */
 const std::vector<tele_location> LOCATIONS_REQSCEN = {
 	{ "航空母舰", 3069.330f, -4632.4f, 15.043f, IPLS_CARRIER, {}, {}, false },
-	{ "自由坠落（无飞机）", 2814.7000f, 4758.5000f, 48.000f, { "Plane_crash_trench" }, {}, {}, false },
+	{ "自由坠落（无飞机）", 2814.7000f, 4758.5000f, 47.000f, { "Plane_crash_trench" }, {}, {}, false },
 	{ "好莱坞红地毯", 293.314f, 180.388f, 104.297f, { "redCarpet" }, {}, {}, false },
 	{ "集装箱货轮（完好）", -163.749f, -2377.94f, 9.3192f, { "cargoship" }, { "sunkcargoship" }, {}, false },
-	{ "集装箱货轮（沉没）", -162.8918f, -2365.769f, 0.0f, { "sunkcargoship" }, { "cargoship" }, {}, false },
+	{ "集装箱货轮（沉没）", -155.7379f, -2341.098f, 11.2803f, { "sunkcargoship" }, { "cargoship" }, {}, false },
 	{ "火车事故桥梁", -532.1309f, 4526.187f, 88.7955f, { "canyonriver01_traincrash", "railing_end" }, { "railing_start", "canyonriver01" }, {}, false },
 	{ "沙漠 UFO", 2490.0f, 3774.73f, 2449.0f, {}, {}, {}, false },
 	{ "桑库多堡垒 UFO", -2052.000f, 3237.000f, 1456.973f, { /*"ufo", "ufo_lod", "ufo_eye"*/ }, {}, {}, false },
@@ -297,97 +321,97 @@ const std::vector<tele_location> LOCATIONS_REQSCEN = {
 /* 名称, 坐标, IPL名称, 所需场景（道具）, 需移除的场景, 是否已加载 */
 const std::vector<tele_location> LOCATIONS_ONLINE = {
 	{ "2 车位车库", 173.1176f, -1003.279f, -99.000f, { "hw1_blimp_interior_v_garages_milo_" }, {}, {}, false },
-	{ "诚信路 4号 10号 公寓", -32.17249000f, -579.01830000f, 82.90740000f, { "hei_hw1_blimp_interior_10_dlc_apart_high_new_milo_" }, {}, {}, false },
+	{ "诚信路 4号 10号 公寓", -32.17249000f, -579.01830000f, 83.50740000f, { "hei_hw1_blimp_interior_10_dlc_apart_high_new_milo_" }, {}, {}, false },
 	{ "诚信路 4号 28号 公寓", -14.7964f, -581.709f, 79.4307f, {}, {}, {}, false },
 	{ "6 车位车库", 199.9716f, -999.6678f, -99.000f, { "hw1_blimp_interior_v_garagem_milo_" }, {}, {}, false },
-	{ "圣安地列斯大道 7302号 6号 公寓", -460.61330000f, -691.55620000f, 69.87947000f, { "hw1_blimp_interior_v_apartment_high_milo__6" }, {}, {}, false },
+	{ "圣安地列斯大道 7302号 6号 公寓", -460.61330000f, -691.55620000f, 70.87947000f, { "hw1_blimp_interior_v_apartment_high_milo__6" }, {}, {}, false },
 	{ "10 车位车库", 228.135f, -995.350f, -99.000f, { "hw1_blimp_interior_v_garagel_milo_" }, {}, {}, false },
-	{ "阿卡迪乌斯商业中心办公室：风格 1", -139.53950000f, -629.07570000f, 167.82040000f, { "ex_dt1_02_office_01a" }, {}, {}, false },
-	{ "本尼的改装铺", -209.759f, -1319.617f, 30.08367f }, 
-	{ "摩托帮俱乐部车库 1号", 1005.861f, -3156.162f, -39.90727f, { "bkr_biker_interior_placement_interior_1_biker_dlc_int_02_milo_" }, {}, { IPL_PROPS_BIKER_CLUBHOUSE }, false },
-	{ "摩托帮 ‘迷失’ 安全屋", 981.211f, -101.864f, 75.8451f, { "bkr_bi_hw1_13_int" }, {}, {}, false },
-	{ "摩托帮伪造厂 2号 仓库", 1165.001f, -3196.597f, -39.99353f, { "bkr_biker_interior_placement_interior_6_biker_dlc_int_ware05_milo_" }, {}, { IPL_PROPS_BIKER_FORGERY_WAREHOUSE }, false },
-	{ "摩托帮假钞厂 1号 仓库", 1009.545f, -3196.597f, -39.99353f, { "bkr_biker_interior_placement_interior_2_biker_dlc_int_ware01_milo_" }, {}, {}, false },
-	{ "摩托帮假钞厂 2号 仓库", 1124.734f, -3196.597f, -39.99353f, { "bkr_biker_interior_placement_interior_5_biker_dlc_int_ware04_milo_" }, {}, { IPL_PROPS_BIKER_FAKE_CASH_WAREHOUSE }, false },
-	{ "摩托帮大麻农场", 1059.028f, -3201.89f, -39.99353f, { "bkr_biker_interior_placement_interior_3_biker_dlc_int_ware02_milo_" }, {}, { IPL_PROPS_BIKER_WEED_WAREHOUSE }, false },
-	{ "布里凯德酸实验室", 485.0f, -2625.0f, -49.0f, { "xm3_int_placement_xm3_interior_0_dlc_int_01_xm3_milo_" }, {}, {}, false },
-	{ "赌场后台", 2523.36100000f, -270.00000000f, -59.72315000f, { "ch_int_placement_ch_interior_3_dlc_casino_back_milo_" }, {}, {}, false },
-	{ "赌场停车场", 1380.0000, 200.0000, -50.0000f, { "vw_casino_carpark" }, {}, {}, false },
-	{ "赌场车库", 1295.0000, 230.0000, -50.0000f, { "vw_casino_garage" }, {}, {}, false },
-	{ "赌场酒店", 2504.38600000f, -257.21960000f, -40.12296000f, { "ch_int_placement_ch_interior_4_dlc_casino_hotel_milo_" }, {}, {}, false },
+	{ "阿卡迪乌斯商业中心办公室：风格 1", -139.53950000f, -629.07570000f, 168.82040000f, { "ex_dt1_02_office_01a" }, {}, {}, false },
+	{ "本尼的改装铺", -209.759f, -1319.617f, 30.58367f }, 
+	{ "摩托帮俱乐部车库 1号", 1005.861f, -3156.162f, -38.9076f, { "bkr_biker_interior_placement_interior_1_biker_dlc_int_02_milo_" }, {}, { IPL_PROPS_BIKER_CLUBHOUSE }, false },
+	{ "摩托帮 ‘迷失’ 安全屋", 981.211f, -101.864f, 74.8449f, { "bkr_bi_hw1_13_int" }, {}, {}, false },
+	{ "摩托帮伪造厂 2号 仓库", 1172.0411f, -3195.990f, -39.0080f, { "bkr_biker_interior_placement_interior_6_biker_dlc_int_ware05_milo_" }, {}, { IPL_PROPS_BIKER_FORGERY_WAREHOUSE }, false },
+	{ "摩托帮假钞厂 1号 仓库", 1009.545f, -3196.597f, -38.99353f, { "bkr_biker_interior_placement_interior_2_biker_dlc_int_ware01_milo_" }, {}, {}, false },
+	{ "摩托帮假钞厂 2号 仓库", 1122.9346f, -3196.650f, -40.3976f, { "bkr_biker_interior_placement_interior_5_biker_dlc_int_ware04_milo_" }, {}, { IPL_PROPS_BIKER_FAKE_CASH_WAREHOUSE }, false },
+	{ "摩托帮大麻农场", 1049.7205f, -3202.877f, -39.1612f, { "bkr_biker_interior_placement_interior_3_biker_dlc_int_ware02_milo_" }, {}, { IPL_PROPS_BIKER_WEED_WAREHOUSE }, false },
+	{ "布里凯德酸实验室", 483.2276f, -2624.846f, -49.0641f, { "xm3_int_placement_xm3_interior_0_dlc_int_01_xm3_milo_" }, {}, {}, false },
+	{ "赌场后台", 2523.3611f, -270.1002f, -58.7272f, { "ch_int_placement_ch_interior_3_dlc_casino_back_milo_" }, {}, {}, false },
+	{ "赌场停车场", 1380.0000, 200.0000, -48.9983f, { "vw_casino_carpark" }, {}, {}, false },
+	{ "赌场车库", 1295.0000, 230.0000, -49.0612f, { "vw_casino_garage" }, {}, {}, false },
+	{ "赌场酒店", 2504.3860f, -257.2196f, -39.1264f, { "ch_int_placement_ch_interior_4_dlc_casino_hotel_milo_" }, {}, {}, false },
 	//{ "赌场装卸区", 2553.96300000f, -281.38050000f, -65.72305000f, { "ch_int_placement_ch_interior_5_dlc_casino_loading_milo_" }, {}, {}, false },
 	{ "赌场装卸区", 858.00000000f, -2275.00000000f, -49.00000000f, { "m23_2_int_placement_m23_2_interior_0_dlc_int_casinobase_milo_ " }, {}, {}, false },
-	{ "赌场主大厅", 1100.0000f, 220.0000f, -50.0000f, { "vw_casino_main" }, {}, {}, false },
-	{ "赌场顶层公寓", 976.6364f, 70.29476f, 115.1641f, { "vw_casino_penthouse" }, {}, { IPLS_CASINO_PENTHOUSE }, false },
-	{ "赌场电梯井", 2572.88800000f, -253.43860000f, -65.65990000f, { "ch_int_placement_ch_interior_9_dlc_casino_shaft_milo_" }, {}, {}, false },
-	{ "赌场设施间", 2519.87600000f, -255.30270000f, -25.11497000f, { "ch_int_placement_ch_interior_7_dlc_casino_utility_milo_" }, {}, {}, false },
-	{ "赌场金库", 2488.34800000f, -267.36370000f, -71.64563000f, { "ch_int_placement_ch_interior_6_dlc_casino_vault_milo_" }, {}, {}, false },
-	{ "佩里科岛豪宅", 5010.101f, -5753.549f, 27.8444f, { "h4_islandx_mansion_office" }, {}, {}, false }, // h4_dlc_island_office
+	{ "赌场主大厅", 1109.8962f, 213.6241f, -49.4401f, { "vw_casino_main" }, {}, {}, false },
+	{ "赌场顶层公寓", 976.6364f, 70.29476f, 116.1604f, { "vw_casino_penthouse" }, {}, { IPLS_CASINO_PENTHOUSE }, false },
+	{ "赌场电梯井", 2572.88800000f, -253.43860000f, -64.6627f, { "ch_int_placement_ch_interior_9_dlc_casino_shaft_milo_" }, {}, {}, false },
+	{ "赌场设施间", 2519.87600000f, -255.30270000f, -24.1184f, { "ch_int_placement_ch_interior_7_dlc_casino_utility_milo_" }, {}, {}, false },
+	{ "赌场金库", 2488.34800000f, -267.36370000f, -70.6978f, { "ch_int_placement_ch_interior_6_dlc_casino_vault_milo_" }, {}, {}, false },
+	{ "佩里科岛豪宅", 5010.101f, -5753.549f, 28.8416f, { "h4_islandx_mansion_office" }, {}, {}, false }, // h4_dlc_island_office
 	{ "首席执行官 车库改装铺", -77.42f, -827.27f, 285.00f, { "imp_dt1_11_modgarage" }, {}, {}, false }, // 730.0f, -2990.0f, -40.0f // imp_impexp_interior_placement_interior_2_imptexp_mod_int_01_milo_
-	{ "首席执行官 仓库", 800.00000000f, -3000.00000000f, -65.00000000f, { "reh_int_placement_sum2_interior_0_dlc_int_03_sum2_milo_" }, {}, { IPL_PROPS_BIKER_UNDERCOVER1 }, false },
-	{ "首席执行官 仓库地下室", 850.00000000f, -3000.00000000f, -48.00000000f, { "reh_int_placement_sum2_interior_1_dlc_int_04_sum2_milo_" }, {}, { IPL_PROPS_BIKER_UNDERCOVER1 }, false },
-	{ "改装店货船桥", -397.00000000f, -4121.00000000f, 28.00000000f, { "m23_2_cargoship_bridge" }, {}, {}, false },
-	{ "改装店仓库 1号", 930.00000000f, -2270.00000000f, -50.00000000f, { "m23_2_int_placement_m23_2_interior_1_int_counterfeit_milo_" }, {}, {}, false },
-	{ "改装店仓库 2号", 1220.00000000f, -2280.00000000f, -50.00000000f, { "m23_2_int_placement_m23_2_interior_3_int_warehouse_milo_" }, {}, {}, false },
-	{ "改装店仓库 3号", 1000.00000000f, -2200.00000000f, -50.00000000f, { "m23_2_int_placement_m23_2_interior_7_dlc_int_warehouse2_milo_" }, {}, {}, false },
-	{ "戴维斯保释办公室", 565.887f, -2688.762f, -50.000f, { "m24_1_bailoffice_davis" }, {}, {}, false },
-	{ "德尔佩罗高地公寓 27号", -1468.02100000f, -529.94370000f, 49.72156000f, { "hei_hw1_blimp_interior_27_dlc_apart_high_new_milo_" }, {}, {}, false },
+	{ "首席执行官 仓库", 800.00000000f, -3000.00000000f, -68.9999f, { "reh_int_placement_sum2_interior_0_dlc_int_03_sum2_milo_" }, {}, { IPL_PROPS_BIKER_UNDERCOVER1 }, false },
+	{ "首席执行官 仓库地下室", 850.00000000f, -3000.00000000f, -48.9999f, { "reh_int_placement_sum2_interior_1_dlc_int_04_sum2_milo_" }, {}, { IPL_PROPS_BIKER_UNDERCOVER1 }, false },
+	{ "改装店货船桥", -395.9234f, -4119.913f, 29.6891f, { "m23_2_cargoship_bridge" }, {}, {}, false },
+	{ "改装店仓库 1号", 930.000f, -2270.000f, -50.4084f, { "m23_2_int_placement_m23_2_interior_1_int_counterfeit_milo_" }, {}, {}, false },
+	{ "改装店仓库 2号", 1220.0000f, -2280.000f, -49.0035f, { "m23_2_int_placement_m23_2_interior_3_int_warehouse_milo_" }, {}, {}, false },
+	{ "改装店仓库 3号", 1000.0000f, -2200.000f, -49.0035f, { "m23_2_int_placement_m23_2_interior_7_dlc_int_warehouse2_milo_" }, {}, {}, false },
+	{ "戴维斯保释办公室", 565.887f, -2688.762f, -49.0031f, { "m24_1_bailoffice_davis" }, {}, {}, false },
+	{ "德尔佩罗高地公寓 27号", -1468.021f, -529.9437f, 50.7182f, { "hei_hw1_blimp_interior_27_dlc_apart_high_new_milo_" }, {}, {}, false },
 	{ "德尔佩罗高地公寓 28号", -1468.14f, -541.815f, 73.4442f, {}, {}, {}, false },
 	{ "日蚀大道车库", 520.0f, -2625.0f, -49.0f, { "xm3_int_placement_xm3_interior_1_dlc_int_02_xm3_milo_" }, {}, {}, false },
-	{ "日蚀大厦公寓 12号", -791.29410000f, 338.07100000f, 200.41350000f, { "hw1_blimp_interior_v_apartment_high_milo__12" }, {}, {}, false },
-	{ "日蚀大厦公寓 13号", -764.81310000f, 319.18510000f, 216.05030000f, { "hw1_blimp_interior_v_apartment_high_milo__13" }, {}, {}, false },
+	{ "日蚀大厦公寓 12号", -791.2941f, 338.0710f, 201.4101f, { "hw1_blimp_interior_v_apartment_high_milo__12" }, {}, {}, false },
+	{ "日蚀大厦公寓 13号", -764.8131f, 319.1851f, 217.0471f, { "hw1_blimp_interior_v_apartment_high_milo__13" }, {}, {}, false },
 	{ "日蚀大厦公寓 40号", -773.023f, 341.627f, 211.397f },
-	{ "首席执行官办公室：风格 1", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_01a" }, {}, {}, false }, //ex_dt1_11_office_01a[b, c....]
-	{ "首席执行官办公室：风格 2 (杂乱)", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_01b" }, {}, { IPL_PROPS_CEO_OFFICE }, false },
-	{ "首席执行官办公室：风格 3", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_01c" }, {}, {}, false },
-	{ "首席执行官办公室：风格 4", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_02a" }, {}, {}, false },
-	{ "首席执行官办公室：风格 5", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_02b" }, {}, {}, false },
-	{ "首席执行官办公室：风格 6", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_02c" }, {}, {}, false },
-	{ "首席执行官办公室：风格 7", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_03a" }, {}, {}, false },
-	{ "首席执行官办公室：风格 8", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_03b" }, {}, {}, false },
-	{ "首席执行官办公室：风格 9", -73.79922f, -818.958f, 242.3858f, { "ex_dt1_11_office_03c" }, {}, {}, false },
-	{ "首席执行官大型仓库", 1010.0f, -3100.0f, -40.0f, { "ex_exec_warehouse_placement_interior_2_int_warehouse_l_dlc_milo_" }, {}, {}, false },
-	{ "怪咖工作室厢型车车库", 570.0f, -415.0f, -69.0f, { "xm3_int_placement_xm3_interior_2_dlc_int_03_xm3_milo_" }, {}, {}, false },
-	{ "军火走私普通仓库", 938.3077f, -3196.1120f, -98.0000f, { "gr_grdlc_interior_placement_interior_1_grdlc_int_02_milo_" }, {}, {}, false },
-	{ "黑客地下室", 745.79560000f, -993.11920000f, -44.37674000f, { "m24_2_int_hacker_basement" }, {}, {}, false },
-	{ "黑客车库", 750.90050000f, -990.05500000f, -62.75383000f, { "m24_2_int_hacker_garage" }, {}, {}, false },
-	{ "黑客办公室", 2150.00000000f, 4787.00000000f, -44.37500000f, { "m24_2_int_office_gen" }, {}, {}, false },
+	{ "首席执行官办公室：风格 1", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_01a" }, {}, {}, false }, //ex_dt1_11_office_01a[b, c....]
+	{ "首席执行官办公室：风格 2 (杂乱)", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_01b" }, {}, { IPL_PROPS_CEO_OFFICE }, false },
+	{ "首席执行官办公室：风格 3", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_01c" }, {}, {}, false },
+	{ "首席执行官办公室：风格 4", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_02a" }, {}, {}, false },
+	{ "首席执行官办公室：风格 5", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_02b" }, {}, {}, false },
+	{ "首席执行官办公室：风格 6", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_02c" }, {}, {}, false },
+	{ "首席执行官办公室：风格 7", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_03a" }, {}, {}, false },
+	{ "首席执行官办公室：风格 8", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_03b" }, {}, {}, false },
+	{ "首席执行官办公室：风格 9", -73.79922f, -818.958f, 243.3824f, { "ex_dt1_11_office_03c" }, {}, {}, false },
+	{ "首席执行官大型仓库", 1010.0f, -3100.0f, -39.0039f, { "ex_exec_warehouse_placement_interior_2_int_warehouse_l_dlc_milo_" }, {}, {}, false },
+	{ "怪咖工作室厢型车车库", 570.0f, -415.0f, -69.6066f, { "xm3_int_placement_xm3_interior_2_dlc_int_03_xm3_milo_" }, {}, {}, false },
+	{ "军火走私普通仓库", 938.3077f, -3196.1120f, -98.2675f, { "gr_grdlc_interior_placement_interior_1_grdlc_int_02_milo_" }, {}, {}, false },
+	{ "黑客地下室", 745.7956f, -993.1192f, -46.3767f, { "m24_2_int_hacker_basement" }, {}, {}, false },
+	{ "黑客车库", 750.9005f, -990.0550f, -66.7500f, { "m24_2_int_hacker_garage" }, {}, {}, false },
+	{ "黑客办公室", 2149.8459f, 4787.1196f, -46.3750f, { "m24_2_int_office_gen" }, {}, {}, false },
 	{ "机库", -1292.45f, -3015.19f, -44.0864f, IPL_PROPS_DOOMSDAY_MAIN_BASE, {}, { IPL_PROPS_HANGAR }, false },
 	{ "人道实验室", 495.0f, -2560.0f, -49.0f, { "xm3_int_placement_xm3_interior_3_dlc_int_04_xm3_milo_" }, {}, {}, false },
-	{ "IAA 服务器中心", 2168.08900000f, 2920.89000000f, -85.80049000f, { "xm_x17dlc_int_placement_interior_5_x17dlc_int_facility2_milo_" }, {}, {}, false },
-	{ "IAA 地下设施中心", 2047.0f, 2942.0f, -62.90245f, { "xm_x17dlc_int_placement_interior_4_x17dlc_int_facility_milo_" }, {}, {}, false },
-	{ "隆银行办公室：风格 1", -1573.84900000f, -571.02540000f, 107.52290000f, { "ex_sm_13_office_01a" }, {}, {}, false },
-	{ "迷宫银行德尔佩罗办公室：风格 1", -1384.56400000f, -478.26990000f, 71.04205000f, { "ex_sm_15_office_01a" }, {}, {}, false },
-	{ "梅利威瑟研发中心", -1876.62100000f, 3750.00000000f, -100.00000000f, { "M23_1_int_placement_m23_1_interior_2_dlc_int_01_m23_1_milo_" }, {}, {}, false },
-	{ "任务分局地下胜利车库", 400.09610000f, -956.67870000f, -100.00000000f},
+	{ "IAA 服务器中心", 2168.08900000f, 2920.89000000f, -84.8038f, { "xm_x17dlc_int_placement_interior_5_x17dlc_int_facility2_milo_" }, {}, {}, false },
+	{ "IAA 地下设施中心", 2047.0f, 2942.0f, -61.9652f, { "xm_x17dlc_int_placement_interior_4_x17dlc_int_facility_milo_" }, {}, {}, false },
+	{ "隆银行办公室：风格 1", -1573.849f, -571.0254f, 108.5193f, { "ex_sm_13_office_01a" }, {}, {}, false },
+	{ "迷宫银行德尔佩罗办公室：风格 1", -1384.564f, -478.2699f, 72.0383f, { "ex_sm_15_office_01a" }, {}, {}, false },
+	{ "梅利威瑟研发中心", -1873.463f, 3751.5134f, -99.8484f, { "M23_1_int_placement_m23_1_interior_2_dlc_int_01_m23_1_milo_" }, {}, {}, false },
+	{ "任务分局地下胜利车库", 400.0961f, -956.6787f, -99.0073f},
 	{ "线上角色拍照室", 415.275f, -999.037f, -99.4041f, { "hw1_int_placement_interior_v_mugshot_milo_ " }, {}, {}, false },
-	{ "音乐储物柜", 1560.3f, 250.239f, -48.0f, { "h4_int_placement_h4_interior_1_dlc_int_02_h4_milo_" }, {}, { IPLS_MUSIC_LOCKER }, false },
+	{ "音乐储物柜", 1560.3f, 250.239f, -49.0061f, { "h4_int_placement_h4_interior_1_dlc_int_02_h4_milo_" }, {}, { IPLS_MUSIC_LOCKER }, false },
 	{ "顶层公寓：风格 1", -786.168f, 334.319f, 211.197f, { "apa_v_mp_h_01_a", "apa_v_mp_h_01_b", "apa_v_mp_h_01_c" }, {}, {}, false },
-	{ "顶层公寓：风格 2", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_02_a", "apa_v_mp_h_02_b", "apa_v_mp_h_02_c" }, {}, {}, false },
-	{ "顶层公寓：风格 3", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_03_a", "apa_v_mp_h_03_b", "apa_v_mp_h_03_c" }, {}, {}, false },
-	{ "顶层公寓：风格 4", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_04_a", "apa_v_mp_h_04_b", "apa_v_mp_h_04_c" }, {}, {}, false },
-	{ "顶层公寓：风格 5", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_05_a", "apa_v_mp_h_05_b", "apa_v_mp_h_05_c" }, {}, {}, false },
-	{ "顶层公寓：风格 6", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_06_a", "apa_v_mp_h_06_b", "apa_v_mp_h_06_c" }, {}, {}, false },
-	{ "顶层公寓：风格 7", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_07_a", "apa_v_mp_h_07_b", "apa_v_mp_h_07_c" }, {}, {}, false },
-	{ "顶层公寓：风格 8", -787.7805f, 334.9232f, 215.8384f, { "apa_v_mp_h_08_a", "apa_v_mp_h_08_b", "apa_v_mp_h_08_c" }, {}, {}, false },
-	{ "红牌零件拆车厂", 1088.00000000f, -2275.00000000f, -50.00000000f, { "m23_2_int_placement_m23_2_interior_2_dlc_int_salvage_milo_" }, {}, {}, false },
+	{ "顶层公寓：风格 2", -787.7805f, 334.9232f, 216.8384f, { "apa_v_mp_h_02_a", "apa_v_mp_h_02_b", "apa_v_mp_h_02_c" }, {}, {}, false },
+	{ "顶层公寓：风格 3", -787.7805f, 334.9232f, 216.8384f, { "apa_v_mp_h_03_a", "apa_v_mp_h_03_b", "apa_v_mp_h_03_c" }, {}, {}, false },
+	{ "顶层公寓：风格 4", -787.7805f, 334.9232f, 216.8304f, { "apa_v_mp_h_04_a", "apa_v_mp_h_04_b", "apa_v_mp_h_04_c" }, {}, {}, false },
+	{ "顶层公寓：风格 5", -787.7805f, 334.9232f, 216.8404f, { "apa_v_mp_h_05_a", "apa_v_mp_h_05_b", "apa_v_mp_h_05_c" }, {}, {}, false },
+	{ "顶层公寓：风格 6", -787.7805f, 334.9232f, 216.8454f, { "apa_v_mp_h_06_a", "apa_v_mp_h_06_b", "apa_v_mp_h_06_c" }, {}, {}, false },
+	{ "顶层公寓：风格 7", -787.7805f, 334.9232f, 216.8404f, { "apa_v_mp_h_07_a", "apa_v_mp_h_07_b", "apa_v_mp_h_07_c" }, {}, {}, false },
+	{ "顶层公寓：风格 8", -787.7805f, 334.9232f, 216.8404f, { "apa_v_mp_h_08_a", "apa_v_mp_h_08_b", "apa_v_mp_h_08_c" }, {}, {}, false },
+	{ "红牌零件拆车厂", 1088.0101f, -2275.0101f, -49.0040f, { "m23_2_int_placement_m23_2_interior_2_dlc_int_salvage_milo_" }, {}, {}, false },
 	{ "理查兹尊爵公寓 2号", -915.811f, -379.432f, 113.675f, {}, {}, {}, false },
-	{ "理查兹尊爵公寓 10号", -925.54970000f, -374.22030000f, 102.23290000f, { "hw1_blimp_interior_v_apartment_high_milo__10" }, {}, {}, false },
-	{ "高架别墅 1号", 328.5579f, 425.9027f, 147.9707f, { "apa_ch2_04_interior_0_v_mp_stilts_b_milo_" }, {}, {}, false },
-	{ "高架别墅 3号", 122.5349f, 542.5076f, 182.8967f, { "apa_ch2_05c_interior_1_v_mp_stilts_a_milo_" }, {}, {}, false },
-	{ "高架别墅 4号", -166.4324f, 481.537f, 136.2436f, { "apa_ch2_05e_interior_0_v_mp_stilts_b_milo_" }, {}, {}, false },
-	{ "高架别墅 7号", -573.0324f, 643.7613f, 144.4316f, { "apa_ch2_09c_interior_0_v_mp_stilts_a_milo_" }, {}, {}, false },
-	{ "工作室公寓", 260.3297f, -997.4288f, -100.0f, { "hei_hw1_blimp_interior_v_studio_lo_milo_" }, {}, {}, false },
+	{ "理查兹尊爵公寓 10号", -925.5497f, -374.2203f, 103.2294f, { "hw1_blimp_interior_v_apartment_high_milo__10" }, {}, {}, false },
+	{ "高架别墅 1号", 328.5579f, 425.9027f, 148.9887f, { "apa_ch2_04_interior_0_v_mp_stilts_b_milo_" }, {}, {}, false },
+	{ "高架别墅 3号", 122.5349f, 542.5076f, 183.9206f, { "apa_ch2_05c_interior_1_v_mp_stilts_a_milo_" }, {}, {}, false },
+	{ "高架别墅 4号", -166.4324f, 481.537f, 137.2622f, { "apa_ch2_05e_interior_0_v_mp_stilts_b_milo_" }, {}, {}, false },
+	{ "高架别墅 7号", -573.0324f, 643.7613f, 145.4564f, { "apa_ch2_09c_interior_0_v_mp_stilts_a_milo_" }, {}, {}, false },
+	{ "工作室公寓", 260.3297f, -997.4288f, -99.0118f, { "hei_hw1_blimp_interior_v_studio_lo_milo_" }, {}, {}, false },
 	{ "潜艇 1号", 514.266f, 4855.68f, -62.5621f, { "xm_x17dlc_int_placement_interior_8_x17dlc_int_sub_milo_" }, {}, {}, false },
-	{ "潜艇 2号", 1560.83f, 411.237f, -47.8f, {}, {}, {}, false },
-	{ "丁字塔公寓 16号", -613.54040000f, 63.04870000f, 100.81960000f, { "hw1_blimp_interior_v_apartment_high_milo__16" }, {}, {}, false },
-	{ "丁字塔公寓 17号", -587.82590000f, 44.26880000f, 86.41870000f, { "hw1_blimp_interior_v_apartment_high_milo__17" }, {}, {}, false },
+	{ "潜艇 2号", 1563.1484f, 404.6264f, -49.6608f, {}, {}, {}, false },
+	{ "丁字塔公寓 16号", -613.5404f, 63.0487f, 101.8157f, { "hw1_blimp_interior_v_apartment_high_milo__16" }, {}, {}, false },
+	{ "丁字塔公寓 17号", -587.8259f, 44.2688f, 87.4157f, { "hw1_blimp_interior_v_apartment_high_milo__17" }, {}, {}, false },
 	{ "丁字塔公寓 42号", -614.86f, 40.6783f, 97.6f, {}, {}, {}, false },
 	{ "升级版基地", 462.09f, 4820.42f, -59.0f, IPL_PROPS_DOOMSDAY_MAIN_BASE, {}, { IPL_PROPS_FACILITY }, false },
-	{ "维斯普奇大道工作室公寓", 342.8157f, -997.4288f, -99.4041f, { "hei_hw1_blimp_interior_v_apart_midspaz_milo_" }, {}, {}, false },
-	{ "葡萄籽大道俱乐部车库", 649.73970000f, -2688.76200000f, -50.00000000f, { "m24_1_int_placement_m24_1_interior_dlc_int_bounty_milo_" }, {}, {}, false },
-	{ "威兹尔广场公寓 9号", -909.10170000f, -438.19030000f, 114.39970000f, { "hw1_blimp_interior_v_apartment_high_milo__9" }, {}, {}, false },
-	{ "威兹尔广场公寓 11号", -889.30300000f, -451.77510000f, 119.32700000f, { "hw1_blimp_interior_v_apartment_high_milo__11" }, {}, {}, false },
+	{ "维斯普奇大道工作室公寓", 341.3061f, -998.7455f, -99.1963f, { "hei_hw1_blimp_interior_v_apart_midspaz_milo_" }, {}, {}, false },
+	{ "葡萄籽大道俱乐部车库", 649.7397f, -2688.762f, -49.0040f, { "m24_1_int_placement_m24_1_interior_dlc_int_bounty_milo_" }, {}, {}, false },
+	{ "威兹尔广场公寓 9号", -909.1017f, -438.1903f, 115.3959f, { "hw1_blimp_interior_v_apartment_high_milo__9" }, {}, {}, false },
+	{ "威兹尔广场公寓 11号", -889.3030f, -451.7751f, 120.3234f, { "hw1_blimp_interior_v_apartment_high_milo__11" }, {}, {}, false },
 	//
 	//{ "大亨工作室", -24.58899000f, -73.79967000f, -75.00000000f, { "m25_1_int_placement_interior_int_tycoon_studio_lo_milo_" }, {}, {}, false },
 	//{ "大亨工坊", 60.36966000f, -80.91821000f, -75.00000000f, { "m25_1_int_placement_interior_int_tycoon_studio_mid_milo_" }, {}, {}, false },
@@ -472,7 +496,7 @@ const std::vector<tele_location> LOCATIONS_COLLECTIBLES = {
 	{ "残缺信件 16", 84.9697f, -436.906f, 36.0005f },
 	{ "残缺信件 17", 1099.15f, -209.824f, 55.9482f },
 	{ "残缺信件 18", -1726.98f, -198.253f, 57.8639f },
-	{ "残缺信件 19", 267.828f, -197.379f, 61.7877f },
+	{ "残缺信件 19", 269.8311f, -193.4669f, 61.5709f },
 	{ "残缺信件 20", -3019.49f, 37.488f, 10.1178f },
 	{ "残缺信件 21", -346.946f, 52.1923f, 53.9781f },
 	{ "残缺信件 22", 1054.28f, 169.932f, 88.7405f },
@@ -732,7 +756,7 @@ const std::vector<tele_location> LOCATIONS_STUNTS = {
 	{ "特技跳跃 36", 96.4723f, -2190.96f, 6.000154f },
 	{ "特技跳跃 37", 1.19046f, -1039.322f, 38.152f },
 	{ "特技跳跃 38", 392.563f, -1664.45f, 48.3087f },
-	{ "特技跳跃 39", 1488.1f, -2210.3f, 77.6151f, },
+	{ "特技跳跃 39", 1488.1f, -2210.3f, 77.6151f },
 	{ "特技跳跃 40", 442.29f, -1369.53f, 43.5537f },
 	{ "特技跳跃 41", 381.501f, -1155.12f, 29.2918f },
 	{ "特技跳跃 42", 42.701f, -778.82f, 44.1609f },
@@ -763,47 +787,428 @@ const std::vector<std::string> TEL_3DMARKER_MARTYPE_CAPTIONS{ "箭头", "圆柱"
 int Tel3dmarker_martype_Index = 0;
 bool Tel3dmarker_martype_Changed = true;
 
-void teleport_to_coords(Entity e, Vector3 coords){
-	ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords.x, coords.y, coords.z, 0, 0, 1);
+// 根据当前高度智能返回合适的步进值（9档动态调整）
+// 用于加快不同海拔地区的地面检测速度
+float get_dynamic_height_step(float current_height){
+	// 9档步进系统：根据海拔高度动态调整
+	if (current_height < 50.f)  return 10.f;   // 海平面/平地
+	else if (current_height < 100.f) return 20.f;   // 低海拔城市/建筑
+	else if (current_height < 200.f) return 30.f;   // 中层城市建筑
+	else if (current_height < 300.f) return 40.f;   // 小丘陵/低山
+	else if (current_height < 400.f) return 50.f;   // 低等山峰
+	else if (current_height < 500.f) return 70.f;   // 中等山峰
+	else if (current_height < 600.f) return 80.f;   // 高等山峰
+	else if (current_height < 700.f) return 90.f;   // 极高山峰
+	else return 100.f;                                          // 极高海拔（山顶）
+}
+
+// 加载指定坐标的地面高度（强制等待地形加载，避免传送到岸上时掉进水里）
+bool load_ground_at_3dcoord(Vector3& location){
+	const float max_ground_check = 1500.f;
+	const int max_attempts = 150;  // 减少最大尝试次数，提升速度
+	float ground_z = location.z;
+	int current_attempts = 0;
+	bool found_ground = false;
+	float water_height = 0.0f;
+	bool found_water = false;
+
+	// 🔧 关键修复：先请求碰撞数据，等待地形加载后再判断（避免掉进水里）
+	STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+	
+	// 等待至少5帧让地形数据加载（小岛等地形需要时间）
+	for (int preload = 0; preload < 5; preload++) {
+		WAIT(0);
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+	}
+
+	// 【高山专项预热】首次到达高海拔（600-900m）区域时，可能因远距离未完成流式加载而找不到地面。
+	// 下面在目标坐标上空（约750m）短暂设置流式聚焦，并在600-900m间分层请求碰撞，
+	// 以加速加载奇力耶德山等高山地形，避免首次传送被判定为“无地面”而传至高空。
+	// 注意：不改变其他流程，仅作为一次性预热，最高不超过900m。
+	{
+		const float mountainMinZ = 600.0f;   // 高山下限
+		const float mountainMaxZ = 900.0f;   // 高山上限（不超过900m）
+		const float focusZ       = (mountainMinZ + mountainMaxZ) * 0.5f; // 750m 中心高度
+		const float sphereRadius = 160.0f;   // 适中半径，覆盖山顶周边
+
+		// 将流式焦点置于目标点上空，提示引擎优先加载该区域的碰撞与几何
+		STREAMING::_SET_FOCUS_AREA(location.x, location.y, focusZ, 0.0f, 0.0f, 0.0f);
+		STREAMING::NEW_LOAD_SCENE_START_SPHERE(location.x, location.y, focusZ, sphereRadius, 0);
+
+		// 分层请求 600→900m 的碰撞数据，快速唤起高山带的地形
+		for (int i = 0; i < 12; ++i) {
+			float zHint = mountainMinZ + i * 25.0f; // 600, 625, ..., 875
+			if (zHint > mountainMaxZ) zHint = mountainMaxZ; // 严格上限900m
+			STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, zHint);
+			WAIT(0);
+			if (STREAMING::IS_NEW_LOAD_SCENE_LOADED()) break;
+		}
+
+		// 结束临时加载会话并清除焦点，避免对后续流式造成影响
+		if (STREAMING::IS_NEW_LOAD_SCENE_ACTIVE()) {
+			STREAMING::NEW_LOAD_SCENE_STOP();
+		}
+		STREAMING::CLEAR_FOCUS();
+	}
+
+	// 预加载完成后，开始检测地面和水面
+	do {
+		found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+		found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+		
+		// 🎯 智能判断：同时找到地面和水面时，比较高度
+		if (found_water && found_ground) {
+			// 地面高于水面（岸上/陆地） → 使用地面
+			if (ground_z > water_height) {
+				location.z = ground_z;
+				return true;
+			}
+			// 地面低于水面（真正的水域） → 使用水面
+			else {
+				location.z = water_height;
+				return true;
+			}
+		}
+		// 只找到地面（没有水） → 使用地面
+		else if (found_ground) {
+			location.z = ground_z;
+			return true;
+		}
+		// 只找到水面（但可能地形数据还没加载完） → 继续等待，不要立即返回
+		else if (found_water && current_attempts < 20) {
+			// 前20次尝试中，即使找到水面也继续等待地形加载（避免岸上被误判为水域）
+			STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+			
+			// 每5次尝试提升高度，帮助地形加载
+			if (current_attempts % 5 == 0) {
+				float height_step = get_dynamic_height_step(location.z);
+				location.z += height_step;
+			}
+		}
+		// 尝试超过20次仍只有水面 → 确实是水域，使用水面高度
+		else if (found_water) {
+			location.z = water_height;
+			return true;
+		}
+		// 什么都没找到 → 继续循环
+		else {
+			STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+			
+			// 每10次尝试提升高度，帮助地形加载
+			if (current_attempts % 10 == 0) {
+				float height_step = get_dynamic_height_step(location.z);
+				location.z += height_step;
+			}
+		}
+
+		++current_attempts;
+		WAIT(0);
+	} while (current_attempts < max_attempts);
+
+	// 循环结束，最后一次尝试
+	found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	
+	if (found_water && found_ground) {
+		// 地面高于水面 → 使用地面，否则使用水面
+		location.z = (ground_z > water_height) ? ground_z : water_height;
+		return true;
+	}
+	else if (found_ground) {
+		location.z = ground_z;
+		return true;
+	}
+	else if (found_water) {
+		location.z = water_height;
+		return true;
+	}
+	
+	// 既没有水面也没有地面，返回失败（由调用者决定如何处理）
+	return false;
+}
+
+// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE 自动处理载具（参考 YimMenu）
+void teleport_to_coords(Vector3 coords){
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	// 通用传送执行器：为避免人物或载具嵌入地面，Z 坐标统一上抬 +0.25 米作为安全高度偏移
+	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.25f);
 	WAIT(0);
 	set_status_text("传送完成！");
 }
 
-void teleport_to_marker(){
-	Vector3 coords = get_blip_marker();
+////////////////////////////////////////////////// ↓↓↓【向前传送】↓↓↓ //////////////////////////////////////////////////
 
-	if (coords.x + coords.y == 0) return;
-
-	// 获取要传送的实体
-	Entity e = PLAYER::PLAYER_PED_ID();
-	if (PED::IS_PED_IN_ANY_VEHICLE(e, 0)){
-		e = PED::GET_VEHICLE_PED_IS_USING(e);
+// 室内地面高度检测函数（快速、小范围，优先实现穿墙效果）
+bool load_ground_for_interior(Vector3& location, float currentZ){
+	const int max_attempts = 25;  // 室内专用：减少尝试次数
+	float ground_z = location.z;
+	int current_attempts = 0;
+	bool found_ground = false;
+	
+	// 室内检测策略：优先检测同一高度和向下，避免传送到上层
+	// 这样可以实现穿墙/穿门效果，而不是每次都上楼
+	float check_heights[] = {
+		currentZ,           // 当前高度（同一楼层）- 最高优先级
+		currentZ - 0.5f,    // 向下0.5米（小台阶）
+		currentZ - 1.0f,    // 向下1米（台阶）
+		currentZ - 1.5f,    // 向下1.5米
+		currentZ - 2.0f,    // 向下2米（小楼梯）
+		currentZ - 2.5f,    // 向下2.5米
+		currentZ - 3.0f,    // 向下3米（中等楼梯）
+		currentZ + 0.5f,    // 向上0.5米（小台阶）- 低优先级
+		currentZ + 1.0f,    // 向上1米（仅小台阶）
+	};
+	
+	// 快速检测常见高度（室内环境）
+	for (float checkZ : check_heights) {
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, checkZ);
+		
+		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, checkZ + 2.0f, &ground_z)) {
+			// 更严格的高度差检查：避免检测到上层楼梯
+			float height_diff = ground_z - currentZ;
+			
+			// 优先接受向下的地面或同一高度
+			if (height_diff <= 0.0f && height_diff >= -3.5f) {
+				// 向下的地面（包括同一高度），范围3.5米以内 - 优先使用
+				location.z = ground_z;
+				return true;
+			}
+			else if (height_diff > 0.0f && height_diff <= 0.8f) {
+				// 向上的地面，但只接受0.8米以内的极小台阶（避免上楼）
+				location.z = ground_z;
+				return true;
+			}
+		}
+		
+		++current_attempts;
+		if (current_attempts >= max_attempts) break;
+		WAIT(0);
 	}
+	
+	// 如果没找到合理的地面，返回失败（保持当前高度，实现穿墙/穿门效果）
+	return false;
+}
 
-	// 加载所需地图区域并检查高度层级以确认地面存在
-	bool groundFound = false;
-	static float groundCheckHeight[] =
-	{ 100.0, 150.0, 50.0, 0.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0 };
-	for (int i = 0; i < sizeof(groundCheckHeight) / sizeof(float); i++){
-		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords.x, coords.y, groundCheckHeight[i], 0, 0, 1);
-		WAIT(100);
-		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z)){
-			groundFound = true;
-			coords.z += 3.0;
-			break;
+// 向前传送专用的快速地面检测（最多80次循环，智能水面/地面判断）
+bool load_ground_for_forward_teleport(Vector3& location, float currentZ){
+	const float max_ground_check = 1000.f;
+	const int max_attempts = 80;  // 向前传送专用：只尝试80次
+	float ground_z = location.z;
+	int current_attempts = 0;
+	bool found_ground = false;
+	float water_height = 0.0f;
+	bool found_water = false;
+
+	// 先同时检测水面和地面
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+	
+	// 智能判断：避免传送到山底下的水里
+	if (found_water && found_ground) {
+		// 同时找到水面和地面
+		// 如果地面高于水面（山体），且地面高度接近当前高度，优先使用地面
+		if (ground_z > water_height) {
+			// 地面在水面上方（山、陆地）
+			float ground_height_diff = std::fabs(ground_z - currentZ);
+			float water_height_diff = std::fabs(water_height - currentZ);
+			
+			// 如果地面更接近当前高度，或者水面明显低于当前位置（山底下的水），使用地面
+			if (ground_height_diff < water_height_diff + 5.0f || water_height < currentZ - 10.0f) {
+				location.z = ground_z;
+				return true;
+			}
+		}
+		// 否则使用水面（正常水面传送）
+		location.z = water_height;
+		return true;
+	}
+	else if (found_water) {
+		// 只找到水面，检查是否是山底下的水（水面比当前位置低很多）
+		if (water_height < currentZ - 10.0f) {
+			// 水面太低，可能是山底下的水，继续检测地面
+			// 不立即返回，继续下面的循环
+		}
+		else {
+			// 正常水面，使用水面高度
+			location.z = water_height;
+			return true;
 		}
 	}
-	// 标记位于水域中
-	float height = -1.0;
-	WATER::GET_WATER_HEIGHT(coords.x, coords.y, coords.z, &height);
-	if (coords.z < height) coords.z = height;
-	// if ground not found then set Z in air and give player a parachute
-	//if (!groundFound){
-	//	coords.z = 1000.0;
-	//	WEAPON::GIVE_DELAYED_WEAPON_TO_PED(PLAYER::PLAYER_PED_ID(), 0xFBAB5776, 1, 0);
-	//}
-	// do it
-	teleport_to_coords(e, coords);
+	else if (found_ground) {
+		// 只找到地面，直接使用
+		location.z = ground_z;
+		return true;
+	}
+
+	// 如果初次检测失败或水面太低，尝试循环检测地面（最多80次）
+	do {
+		// 尝试获取地面高度并请求碰撞数据
+		found_ground = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(location.x, location.y, max_ground_check, &ground_z);
+		STREAMING::REQUEST_COLLISION_AT_COORD(location.x, location.y, location.z);
+		
+		if (found_ground) {
+			location.z = ground_z;
+			return true;
+		}
+		
+		// 每 5 次尝试检测一次水面（但要避免山底下的水）
+		if (current_attempts % 5 == 0){
+			found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+			if (found_water && water_height >= currentZ - 10.0f){
+				// 水面高度合理，使用水面
+				location.z = water_height;
+				return true;
+			}
+			// 使用智能步进：根据当前高度动态调整提升幅度
+			float height_step = get_dynamic_height_step(location.z);
+			location.z += height_step;
+		}
+
+		++current_attempts;
+		WAIT(0);
+	} while (!found_ground && current_attempts < max_attempts);
+
+	// 循环结束后再次检测水面（但要检查高度是否合理）
+	found_water = WATER::GET_WATER_HEIGHT(location.x, location.y, location.z, &water_height);
+	if (found_water && water_height >= currentZ - 10.0f){
+		location.z = water_height;
+		return true;
+	}
+	
+	// 既没有找到合理的水面也没有地面，返回失败
+	return false;
+}
+
+// 向前传送功能（智能水面/地面判断，室内1米，室外3米，支持从门外传送到门内）
+void teleport_forward(){
+	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放）
+	if (is_in_airbrake_mode()) {
+		set_status_text("~r~自由移动模式, 无法向前传送!\n~y~请先关闭自由移动模式。");
+		return;
+	}
+	if (freeCamActive) {
+		set_status_text("~r~自由相机模式, 无法向前传送!\n~y~请先关闭自由相机模式。");
+		return;
+	}
+	if (is_in_prop_placement_mode()) {
+		set_status_text("~r~物体摆放模式, 无法向前传送!\n~y~请先退出物体摆放模式。");
+		return;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 currentPos = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+	
+	// 检查玩家当前是否在室内
+	int currentInterior = INTERIOR::GET_INTERIOR_FROM_ENTITY(playerPed);
+	bool isInInterior = (currentInterior != 0);
+	
+	// 根据室内/室外环境自动调整传送距离
+	float actualDistance = isInInterior ? 1.0f : 3.0f;  // 室内1米，室外3米
+	
+	// 获取玩家当前朝向前方的偏移坐标
+	Vector3 forwardCoords = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(playerPed, 0.0f, actualDistance, 0.0f);
+	
+	// 🔧 新增：检查前方目标位置是否在室内（用于从门外传送到门内）
+	int targetInterior = INTERIOR::GET_INTERIOR_AT_COORDS(forwardCoords.x, forwardCoords.y, forwardCoords.z);
+	bool targetIsInInterior = (targetInterior != 0);
+	
+	// 智能判断：如果当前在户外，但前方目标在室内，则使用室内传送逻辑
+	bool useInteriorLogic = isInInterior || (!isInInterior && targetIsInInterior);
+	
+	if (useInteriorLogic) {
+		// 在室内 或 从户外传送到室内：使用室内专用地面检测（快速、小范围、适应楼梯）
+		bool found_interior_ground = load_ground_for_interior(forwardCoords, currentPos.z);
+		
+		if (!found_interior_ground) {
+			// 如果找不到合理的室内地面
+			if (!isInInterior && targetIsInInterior) {
+				// 🔒 安全检查：从户外传送到室内时，如果找不到地面，说明可能是空的室内
+				// 为了防止无限掉落，使用户外逻辑作为后备方案
+				bool found_ground_or_water = load_ground_for_forward_teleport(forwardCoords, currentPos.z);
+				if (!found_ground_or_water) {
+					// 如果户外逻辑也找不到地面，保持当前高度（但会有掉落风险）
+					forwardCoords.z = currentPos.z;
+					set_status_text("~y~警告: 前方室内可能没有地板！");
+				}
+			}
+			else {
+				// 在室内穿墙/穿门：保持当前高度（实现穿墙效果）
+				forwardCoords.z = currentPos.z;
+			}
+		}
+	}
+	else {
+		// 在户外 且 前方也是户外：使用户外地面检测函数（最多80次循环）
+		// 智能判断水面/地面，避免传送到山底下的水里
+		bool found_ground_or_water = load_ground_for_forward_teleport(forwardCoords, currentPos.z);
+		
+		if (!found_ground_or_water){
+			// 如果找不到地面/水面，使用当前高度
+			forwardCoords.z = currentPos.z;
+		}
+	}
+	
+	// 传送到前方坐标（使用 SET_PED_COORDS_KEEP_VEHICLE 自动处理载具）
+	//向前传送，Z 坐标高度补偿，0 米（不加偏移）
+	PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, forwardCoords.x, forwardCoords.y, forwardCoords.z + 0.0f);
+	WAIT(0);
+	
+	// 显示传送信息（根据室内/室外显示不同距离和模式）
+	std::ostringstream ss;
+	ss << "向前传送 " << std::fixed << std::setprecision(1) << actualDistance << " 米！";
+	if (isInInterior) {
+		ss << " (室内模式)";
+	}
+	else if (targetIsInInterior) {
+		ss << " (进入室内)";
+	}
+	set_status_text(ss.str());
+}
+
+////////////////////////////////////////////////// ↑↑↑【向前传送】↑↑↑ //////////////////////////////////////////////////
+
+void teleport_to_marker(){
+	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放）
+	if (is_in_airbrake_mode()) {
+		set_status_text("~r~自由移动模式下无法传送！\n~y~请先关闭自由移动模式。");
+		return;
+	}
+	if (freeCamActive) {
+		set_status_text("~r~自由相机模式下无法传送！\n~y~请先关闭自由相机模式。");
+		return;
+	}
+	if (is_in_prop_placement_mode()) {
+		set_status_text("~r~物体摆放模式下无法传送！\n~y~请先退出物体摆放模式。");
+		return;
+	}
+
+	Vector3 coords = get_blip_marker();
+
+	// 如果没有设置导航点，get_blip_marker() 已经显示了提示，直接返回
+	if (coords.x == 0 && coords.y == 0) return;
+
+	// 优先级1优化：无需手动检查和获取载具，SET_PED_COORDS_KEEP_VEHICLE 会自动处理
+
+	// 使用优化的地面高度加载函数（返回 true 表示找到了地面或水面并已设置 coords.z）
+	bool found_ground_or_water = load_ground_at_3dcoord(coords);
+
+	if (!found_ground_or_water){
+		// 如果找不到地面/水面，传送到目标上空1000米并发放降落伞作为备用方案
+		coords.z = 1000.0f;
+		WEAPON::GIVE_DELAYED_WEAPON_TO_PED(PLAYER::PLAYER_PED_ID(), 0xFBAB5776, 1, 0);
+		WAIT(0); // 给引擎一帧时间处理武器发放（可选）
+
+		// 执行传送并给出明确提示
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		//传送到导航点：找不到地/水面时的应急路径：先把 Z 设为 1000 米，再高度补偿:  +0 米
+		PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, coords.x, coords.y, coords.z + 0.0f);
+		WAIT(0);
+		set_status_text("~y~未找到地面或水面！\n~y~已传送至目标上空1千米！");
+		return;
+	}
+
+	// 传送到导航点：找到地面/水面，正常传送（高度补偿，走通用执行器 +0.25f）
+	teleport_to_coords(coords);
 }
 
 /////////////////////// 前往任务标记点 ///////////////////////////////
@@ -832,7 +1237,8 @@ void teleport_to_mission_marker(){
 			if (blip_been_already == false) {
 				coords_mission = UI::GET_BLIP_INFO_ID_COORD(myBlip);
 				blip_mission = true;
-				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 2, 0, 0, 1);
+				//传送到任务点：高度补偿：+1.0f，避免嵌入地面/碰撞体（使用 NO_OFFSET 不修正碰撞）。
+				ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 1, 0, 0, 1);
 			}
 			break;
 		}
@@ -842,7 +1248,8 @@ void teleport_to_mission_marker(){
 		if (UI::DOES_BLIP_EXIST(myBlip) != 0) {
 			coords_mission = UI::GET_BLIP_INFO_ID_COORD(myBlip);
 			blip_mission = true;
-			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 2, 0, 0, 1);
+			//传送到任务点：高度补偿：+1.0f，避免嵌入地面/碰撞体（使用 NO_OFFSET 不修正碰撞）。
+			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, coords_mission.x, coords_mission.y, coords_mission.z + 1, 0, 0, 1);
 		}
 	}
 }
@@ -959,77 +1366,225 @@ void handle_generic_settings_teleportation(std::vector<StringPairSettingDBRow>* 
 	}
 }
 
+////////////////////////  跳转到指定坐标 - 辅助函数 ////////////////////////////////
+// 检查字符是否，是有效的分隔符
+// 支持：空格、英文逗号、中文逗号、中文句号、中文顿号、英文斜杠
+bool is_valid_separator(const std::string& str, int index) {
+	// 英文分隔符：空格、英文逗号、英文斜杠
+	if (str[index] == ' ' || str[index] == ',' || str[index] == '/') {
+		return true;
+	}
+	
+	// 检查中文分隔符（UTF-8编码，占用3个字节）
+	if (index + 2 < str.size()) {
+		unsigned char b1 = (unsigned char)str[index];
+		unsigned char b2 = (unsigned char)str[index + 1];
+		unsigned char b3 = (unsigned char)str[index + 2];
+		
+		// 中文逗号: 0xEF 0xBC 0x8C (，)
+		if (b1 == 0xEF && b2 == 0xBC && b3 == 0x8C) {
+			return true;
+		}
+		// 中文句号: 0xE3 0x80 0x82 (。)
+		if (b1 == 0xE3 && b2 == 0x80 && b3 == 0x82) {
+			return true;
+		}
+		// 顿号: 0xE3 0x80 0x81 (、)
+		if (b1 == 0xE3 && b2 == 0x80 && b3 == 0x81) {
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+// 检查坐标是否在有效范围内
+bool is_coord_in_valid_range(float x, float y, float z) {
+	const float MAX_XY = 15999.9999f;
+	const float MIN_XY = -15999.9999f;
+	const float MAX_Z = 2699.9999f;
+	const float MIN_Z = -199.9999f;
+	
+	return (x >= MIN_XY && x <= MAX_XY && y >= MIN_XY && y <= MAX_XY && z >= MIN_Z && z <= MAX_Z);
+}
+
+// 检查是否是随机传送关键词
+bool is_random_keyword(const std::string& input) {
+	return (input == "random" || input == "Random" || input == "RANDOM" || input == "随机" || input == "SJ" || input == "sj");
+}
+
 ////////////////////////  跳转到指定坐标 ////////////////////////////////
 bool onconfirm_jump_category(MenuItem<int> choice)
 {
 	if (choice.value == -6) {
 		keyboard_on_screen_already = true;
-		curr_message = "输入 X Y Z 坐标, 使用空格或逗号作为分隔符, 输入 random 则传至随机位置";
+		curr_message = "输入 XYZ 坐标, 使用空格或逗号作为分隔符, 输入 “随机” 则传至随机位置";
 		std::string result = show_keyboard("手动输入名称", (char*)lastJumpSpawn.c_str());
 		if (!result.empty())
 		{
-			Entity e = PLAYER::PLAYER_PED_ID();
-			if (PED::IS_PED_IN_ANY_VEHICLE(e, 0)) e = PED::GET_VEHICLE_PED_IS_USING(e);
+			// 优先级1优化：无需手动检查和获取载具
+			Ped playerPed = PLAYER::PLAYER_PED_ID();
 			
 			result = trim(result);
 			lastJumpSpawn = result;
-			Hash hash = GAMEPLAY::GET_HASH_KEY((char*)result.c_str());
-
-			if (lastJumpSpawn != "random" && lastJumpSpawn != "Random" && lastJumpSpawn != "RANDOM" && lastJumpSpawn != "随机" && lastJumpSpawn != "SJ" && lastJumpSpawn != "sj")
+			
+			// 检查是否为随机传送关键词
+			if (is_random_keyword(lastJumpSpawn))
 			{
-				std::string a = (char*)result.c_str();
+				// 随机从已保存的坐标点中选择（排除水下、在线模式、额外场景、需要加载场景的位置）
+				// 可用的类别索引：0=主角的家, 1=地标点, 2=屋顶/高处, 4=故事模式室内, 7=特殊演员, 8=收藏品, 9=特技地点
+				// 排除：3=水下, 5=额外外部场景, 6=在线模式室内, 以及所有需要加载场景的位置
+				std::vector<int> available_categories = { 0, 1, 2, 4, 7, 8, 9 };
+				
+				// 尝试最多 50 次找到一个不需要加载场景的位置
+				tele_location* random_location = nullptr;
+				int max_attempts = 50;
+				int attempt = 0;
+				
+				while (attempt < max_attempts) {
+					// 随机选择一个类别
+					int random_category_index = rand() % available_categories.size();
+					int selected_category = available_categories[random_category_index];
+					
+					// 从该类别中随机选择一个位置
+					int location_count = VOV_LOCATIONS[selected_category].size();
+					if (location_count > 0) {
+						int random_location_index = rand() % location_count;
+						tele_location* candidate = &VOV_LOCATIONS[selected_category][random_location_index];
+						
+						// 检查是否需要加载场景（如果不需要，则选择此位置）
+						if (candidate->scenery_required.size() == 0) {
+							random_location = candidate;
+							break;
+						}
+					}
+					
+					attempt++;
+				}
+				
+				if (random_location != nullptr) {
+					Vector3 random_coords;
+					random_coords.x = random_location->x;
+					random_coords.y = random_location->y;
+					random_coords.z = random_location->z;
+					
+					// 显示传送到的位置名称
+					std::string status_msg = "随机传送到: " + random_location->text;
+					
+					// 随机位置传送：预设坐标以玩家为中心采样，存在约 1 米误差
+					// 先对 Z 坐标做 -1.0f 校正，再走通用执行器（内部 +0.25f 安全偏移）
+					random_coords.z -= 1.0f;
+					teleport_to_coords(random_coords);
+					WAIT(0);
+					set_status_text(status_msg);
+					return false;
+				}
+				else {
+					set_status_text("随机传送失败, 未找到可用位置!");
+					return false;
+				}
+			}
+			else
+			{
+				// 尝试解析坐标
+				std::string a = result;
 				std::string tmp_str_x, tmp_str_y, tmp_str_z;
 				int found_separator = 0;
 				bool found_symbol = false;
+				bool has_invalid_separator = false;
 
+				// 遍历字符串解析坐标
 				for (int i = 0; i < a.size(); i++) {
-					if (a[i] != *"," && a[i] != *" ") found_symbol = true;
-					if ((a[i] == *"," || a[i] == *" ") && found_symbol == true) {
-						found_separator = found_separator + 1;
-						found_symbol = false;
+					// 检查是否是有效分隔符
+					if (is_valid_separator(a, i)) {
+						// 如果是中文字符（3字节），需要跳过后续2个字节
+						unsigned char b1 = (unsigned char)a[i];
+						if (b1 >= 0xE0 && i + 2 < a.size()) {
+							i += 2; // 跳过UTF-8中文字符的后续字节
+						}
+						
+						if (found_symbol) {
+							found_separator++;
+							found_symbol = false;
+						}
+						continue;
+					}
+					
+					// 检查是否是数字、负号或小数点
+					bool is_valid_char = false;
+					if (a[i] == '-' || a[i] == '.') {
+						is_valid_char = true;
 					}
 					for (int n = 0; n < 10; n++) {
-						char n_string = n + '0';
-						if (found_separator == 0 && a[i] == n_string) tmp_str_x = tmp_str_x + a[i];
-						if (found_separator == 1 && a[i] == n_string) tmp_str_y = tmp_str_y + a[i];
-						if (found_separator == 2 && a[i] == n_string) tmp_str_z = tmp_str_z + a[i];
+						if (a[i] == (n + '0')) {
+							is_valid_char = true;
+							break;
+						}
 					}
-					if (found_separator == 0 && (a[i] == *"-" || a[i] == *".")) tmp_str_x = tmp_str_x + a[i];
-					if (found_separator == 1 && (a[i] == *"-" || a[i] == *".")) tmp_str_y = tmp_str_y + a[i];
-					if (found_separator == 2 && (a[i] == *"-" || a[i] == *".")) tmp_str_z = tmp_str_z + a[i];
-				}
-
-				std::string::size_type sz;
-				float x = std::stof(tmp_str_x, &sz);
-				float y = std::stof(tmp_str_y, &sz);
-				float z = std::stof(tmp_str_z, &sz);
-
-				ENTITY::SET_ENTITY_COORDS(e, x, y, z, 1, 0, 0, 1);
-			}
-
-			if (lastJumpSpawn == "random" || lastJumpSpawn == "Random" || lastJumpSpawn == "RANDOM" || lastJumpSpawn == "随机" || lastJumpSpawn == "SJ" || lastJumpSpawn == "sj")
-			{
-				int x_coord = -3168 + rand() % 6934; // (rand() % 3934 + -3294); // 上边距 + 下边距
-				int y_coord = -3330 + rand() % 10391; // (rand() % 6576 + -3330); 
-				Vector3 me_coords = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), 0);
-
-				bool groundFound = false;
-				static float groundCheckHeight[] =
-				{ 100.0, 150.0, 50.0, 0.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0 };
-				for (int i = 0; i < sizeof(groundCheckHeight) / sizeof(float); i++) {
-					ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, x_coord, y_coord, groundCheckHeight[i], 0, 0, 1);
-					WAIT(100);
-					if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(x_coord, y_coord, groundCheckHeight[i], &me_coords.z)) {
-						groundFound = true;
-						me_coords.z += 3.0;
+					
+					// 如果不是有效字符也不是分隔符，标记为无效
+					if (!is_valid_char) {
+						has_invalid_separator = true;
 						break;
 					}
+					
+					// 提取坐标值
+					found_symbol = true;
+					if (found_separator == 0) {
+						tmp_str_x += a[i];
+					}
+					else if (found_separator == 1) {
+						tmp_str_y += a[i];
+					}
+					else if (found_separator == 2) {
+						tmp_str_z += a[i];
+					}
 				}
-				ENTITY::SET_ENTITY_COORDS(e, x_coord, y_coord, me_coords.z, 1, 0, 0, 1);
-			}
 
-			WAIT(0);
-			set_status_text("传送完成！"); 
+				// 验证输入格式
+				if (has_invalid_separator) {
+					set_status_text("~r~错误: 输入内容包含,\n无效字符或分隔符!");
+					return false;
+				}
+
+				// 检查是否解析到了三个坐标值
+				if (tmp_str_x.empty() || tmp_str_y.empty() || tmp_str_z.empty()) {
+					set_status_text("~r~错误: 坐标格式输入错误!\n需要完整 XYZ 坐标三个值!");
+					return false;
+				}
+
+				// 尝试转换字符串为浮点数
+				try {
+					std::string::size_type sz;
+					float x = std::stof(tmp_str_x, &sz);
+					float y = std::stof(tmp_str_y, &sz);
+					float z = std::stof(tmp_str_z, &sz);
+
+					// 验证坐标是否在有效范围内
+					if (!is_coord_in_valid_range(x, y, z)) {
+						set_status_text("~r~错误: 坐标超出有效范围!");
+						return false;
+					}
+
+					// 优先级1优化：使用 SET_PED_COORDS_KEEP_VEHICLE
+					// 手动输入自定义坐标，不需要高度偏移补偿， +0.0f（即不偏移）
+					PED::SET_PED_COORDS_KEEP_VEHICLE(playerPed, x, y, z + 0.0f);
+					WAIT(0);
+					set_status_text("传送完成！");
+				}
+				catch (const std::invalid_argument&) {
+					set_status_text("~r~错误: 坐标格式无效!");
+					return false;
+				}
+				catch (const std::out_of_range&) {
+					set_status_text("~r~错误: 坐标数值超出范围!");
+					return false;
+				}
+				catch (...) {
+					set_status_text("~r~传送失败: 未知错误!");
+					return false;
+				}
+			}
 		}
 		return false;
 	}
@@ -1073,6 +1628,7 @@ void set_3d_marker(){
 }
 
 void getTelChauffeurIndex();
+bool process_savedlocation_menu();  // 前向声明
 
 bool onconfirm_chauffeur_menu(MenuItem<int> choice)
 {
@@ -1190,7 +1746,12 @@ void getTelChauffeurIndex(){
 
 bool onconfirm_teleport_category(MenuItem<int> choice){
 	
-	if (choice.value == -1){
+	if (choice.value == -8){
+		// 向前传送功能（触发式，室内1米/户外3米自动切换）
+		teleport_forward();
+		return false;
+	}
+	else if (choice.value == -1){
 		teleport_to_marker();
 		return false;
 	}
@@ -1218,6 +1779,10 @@ bool onconfirm_teleport_category(MenuItem<int> choice){
 		set_3d_marker();
 		return false;
 	}
+	else if (choice.value == -9){
+		// 保存自定义坐标菜单
+		return process_savedlocation_menu();
+	}
 
 	lastChosenCategory = choice.value;
 
@@ -1232,11 +1797,7 @@ bool onconfirm_teleport_location(MenuItem<int> choice){
 
 	tele_location* value = &VOV_LOCATIONS[lastChosenCategory][choice.value];
 
-	// 获取要传送的实体
-	Entity e = PLAYER::PLAYER_PED_ID();
-	if (PED::IS_PED_IN_ANY_VEHICLE(e, 0)){
-		e = PED::GET_VEHICLE_PED_IS_USING(e);
-	}
+	// 优先级1优化：无需手动检查和获取载具，SET_PED_COORDS_KEEP_VEHICLE 会自动处理
 
 	Vector3 coords;
 	std::vector<char*> emptyVec;
@@ -1362,7 +1923,10 @@ bool onconfirm_teleport_location(MenuItem<int> choice){
 		}
 	}
 	
-	teleport_to_coords(e, coords);
+	// 预设分类地点传送：预设坐标以玩家为中心采样，存在约 1 米误差
+	// 先对 Z 坐标做 -1.0f 校正，再走通用执行器（内部 +0.25f 安全偏移）
+	coords.z -= 1.0f;
+	teleport_to_coords(coords);
 
 	teleported_i = true;
 
@@ -1374,6 +1938,12 @@ bool process_teleport_menu(int categoryIndex){
 		std::vector<MenuItem<int>*> menuItems;
 		
 		int i = 0;
+
+		MenuItem<int> *forwardItem = new MenuItem<int>();
+		forwardItem->caption = "向前传送 (穿墙)";
+		forwardItem->value = -8;
+		forwardItem->isLeaf = true;
+		menuItems.push_back(forwardItem);
 
 		MenuItem<int> *markerItem = new MenuItem<int>();
 		markerItem->caption = "传送到导航点";
@@ -1412,9 +1982,15 @@ bool process_teleport_menu(int categoryIndex){
 		menuItems.push_back(markerItem);
 
 		markerItem = new MenuItem<int>();
-		markerItem->caption = "自定义坐标传送";
+		markerItem->caption = "传送至自定义坐标";
 		markerItem->value = -6;
 		markerItem->isLeaf = true;
+		menuItems.push_back(markerItem);
+
+		markerItem = new MenuItem<int>();
+		markerItem->caption = "保存的自定义坐标";
+		markerItem->value = -9;
+		markerItem->isLeaf = false;
 		menuItems.push_back(markerItem);
 			
 		ToggleMenuItem<int>* togItem = new ToggleMenuItem<int>();
@@ -1602,7 +2178,9 @@ void update_teleport_features(){
 		if (me_rot > 292 && me_rot < 337) direction = "东北";
 
 		std::string CurrCoordsLines[1];
-		ss << std::fixed << std::setprecision(0) << "横轴: " << coords.x << "   纵轴: " << coords.y << "   高度: " << coords.z << "   方向: " << direction << "   角度: " << me_rot;
+		// 坐标保留两位小数；角度不显示小数
+		ss << std::fixed << std::setprecision(2) << "横轴: " << coords.x << "   纵轴: " << coords.y << "   高度: " << coords.z << "   方向: " << direction;
+		ss << "   角度: " << std::setprecision(0) << me_rot << "°";
 		int index = 0;
 		CurrCoordsLines[index++] = ss.str();
 		int numActualLines = 0;
@@ -1693,21 +2271,13 @@ void update_teleport_features(){
 		AI::TASK_SMART_FLEE_PED(driver_to_marker_pilot, PLAYER::PLAYER_PED_ID(), 1000, -1, true, true);
 	}
 
-	// 自动传送到标记点
-	if (featureTeleportAutomatically) {
-		Vector3 coords;
-		bool blipFound_m = false;
-		int blipIterator = UI::_GET_BLIP_INFO_ID_ITERATOR();
-		for (Blip i = UI::GET_FIRST_BLIP_INFO_ID(blipIterator); UI::DOES_BLIP_EXIST(i) != 0; i = UI::GET_NEXT_BLIP_INFO_ID(blipIterator)) {
-			if (UI::GET_BLIP_INFO_ID_TYPE(i) == 4) {
-				coords = UI::GET_BLIP_INFO_ID_COORD(i);
-				blipFound_m = true;
-				break;
-			}
-		}
-		if (blipFound_m == true) {
+	// 自动传送到标记点（优化版，参考 YimMenu）
+	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放），如果是则跳过自动传送
+	if (featureTeleportAutomatically && UI::IS_WAYPOINT_ACTIVE()) {
+		// 检查是否处于特殊模式，如果是则不自动传送
+		if (!is_in_airbrake_mode() && !freeCamActive && !is_in_prop_placement_mode()) {
+			// 直接调用传送到导航点功能
 			teleport_to_marker();
-			blipFound_m = false;
 		}
 	}
 
@@ -1872,3 +2442,840 @@ void update_teleport_features(){
 	if (teleported_i == true && INTERIOR::GET_INTERIOR_AT_COORDS(ENTITY::GET_ENTITY_COORDS(playerPed, true).x, ENTITY::GET_ENTITY_COORDS(playerPed, true).y, ENTITY::GET_ENTITY_COORDS(playerPed, true).z) == 0) teleported_i = false;
 	
 } // 循环结束
+
+
+/////////////////////// 保存自定义坐标功能实现 ///////////////////////////////
+
+// 获取当前位置的本地化名称（区域名称 + 街道名称）
+std::string get_current_location_name()
+{
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 coords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+	
+	// 获取区域名称（返回的是字符串指针）
+	char* zoneName = (char*)ZONE::GET_NAME_OF_ZONE(coords.x, coords.y, coords.z);
+	std::string localizedZoneName = "";
+	
+	if (zoneName != nullptr && strlen(zoneName) > 0)
+	{
+		// 获取本地化文本
+		char* localizedName = (char*)UI::_GET_LABEL_TEXT(zoneName);
+		
+		// 如果本地化文本有效且不等于原始名称，使用本地化名称
+		if (localizedName != nullptr && strlen(localizedName) > 0 && strcmp(localizedName, zoneName) != 0)
+		{
+			localizedZoneName = std::string(localizedName);
+		}
+	}
+	
+	// 获取街道名称
+	Hash streetNameHash = 0;
+	Hash crossingRoadHash = 0;
+	PATHFIND::GET_STREET_NAME_AT_COORD(coords.x, coords.y, coords.z, &streetNameHash, &crossingRoadHash);
+	
+	std::string streetName = "";
+	if (streetNameHash != 0)
+	{
+		const char* streetNamePtr = UI::GET_STREET_NAME_FROM_HASH_KEY(streetNameHash);
+		if (streetNamePtr != nullptr && strlen(streetNamePtr) > 0)
+		{
+			streetName = std::string(streetNamePtr);
+		}
+	}
+	
+	// 组合区域名称和街道名称
+	std::string finalName = "";
+	
+	if (!localizedZoneName.empty() && !streetName.empty())
+	{
+		// 区域名称 + 街道名称
+		finalName = localizedZoneName + " - " + streetName;
+	}
+	else if (!localizedZoneName.empty())
+	{
+		// 只有区域名称
+		finalName = localizedZoneName;
+	}
+	else if (!streetName.empty())
+	{
+		// 只有街道名称
+		finalName = streetName;
+	}
+	else
+	{
+		// 都没有，使用默认名称
+		finalName = "新建位置";
+	}
+	
+	return finalName;
+}
+
+// 生成唯一的位置名称（处理重复名称）
+std::string generate_unique_location_name(std::string baseName, std::vector<SavedLocationDBRow*> existingLocations)
+{
+	// 检查基础名称是否已存在
+	bool nameExists = false;
+	int counter = 1;
+	
+	for (auto loc : existingLocations)
+	{
+		if (loc->saveName == baseName)
+		{
+			nameExists = true;
+			break;
+		}
+	}
+	
+	if (!nameExists)
+	{
+		return baseName;
+	}
+	
+	// 名称已存在，添加计数器
+	std::string uniqueName;
+	do
+	{
+		std::ostringstream ss;
+		ss << baseName << "  [ " << counter << " ]";
+		uniqueName = ss.str();
+		
+		nameExists = false;
+		for (auto loc : existingLocations)
+		{
+			if (loc->saveName == uniqueName)
+			{
+				nameExists = true;
+				break;
+			}
+		}
+		counter++;
+	} while (nameExists);
+	
+	return uniqueName;
+}
+
+// 生成坐标调整选项的辅助函数（范围±10.0，步进0.11）
+std::vector<std::string> generate_coord_captions(float centerValue)
+{
+	std::vector<std::string> captions;
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	
+	for (int i = 0; i < numOptions; i++)
+	{
+		float offset = (i - centerIndex) * COORD_STEP; // 以中心索引为基准
+		float displayValue = centerValue + offset;
+		std::ostringstream ss;
+		ss << std::fixed << std::setprecision(2) << displayValue;
+		captions.push_back(ss.str());
+	}
+	return captions;
+}
+
+// 生成角度调整选项（范围±ANGLE_RANGE，步进 ANGLE_STEP）
+std::vector<std::string> generate_angle_captions(float centerAngle)
+{
+	std::vector<std::string> captions;
+	const int numOptions = (int)((ANGLE_RANGE * 2.0f) / ANGLE_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+
+	for (int i = 0; i < numOptions; i++)
+	{
+		float offset = (i - centerIndex) * ANGLE_STEP;
+		float displayValue = centerAngle + offset;
+		std::ostringstream ss;
+		ss << std::fixed << std::setprecision(0) << displayValue;
+		captions.push_back(ss.str());
+	}
+	return captions;
+}
+
+// 全局变量，用于记录每次进入菜单时的初始坐标（作为中心值）
+static Vector3 coordEditBase = { 0.0f, 0.0f, 0.0f };
+static float yawEditBase = 0.0f;
+
+// 坐标调整回调函数
+void onchange_custom_coord_x(int value, SelectFromListMenuItem* source)
+{
+	// value 为选项索引，中心索引按范围/步进动态计算
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditCoords.x = coordEditBase.x + offset * COORD_STEP;
+}
+
+void onchange_custom_coord_y(int value, SelectFromListMenuItem* source)
+{
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditCoords.y = coordEditBase.y + offset * COORD_STEP;
+}
+
+void onchange_custom_coord_z(int value, SelectFromListMenuItem* source)
+{
+	const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditCoords.z = coordEditBase.z + offset * COORD_STEP;
+}
+
+void onchange_custom_yaw(int value, SelectFromListMenuItem* source)
+{
+	const int numOptions = (int)((ANGLE_RANGE * 2.0f) / ANGLE_STEP) + 1;
+	const int centerIndex = numOptions / 2;
+	int offset = value - centerIndex;
+	customEditYaw = yawEditBase + offset * ANGLE_STEP;
+}
+
+// 菜单中断检查函数
+bool location_save_slots_menu_interrupt()
+{
+	if (requireRefreshOfLocationSaveSlots)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool location_slot_menu_interrupt()
+{
+	if (requireRefreshOfLocationSlotMenu)
+	{
+		return true;
+	}
+	return false;
+}
+
+// 保存当前坐标位置的函数
+void save_current_location()
+{
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 coords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+	
+	ENTDatabase* database = get_database();
+	std::vector<SavedLocationDBRow*> existingLocations = database->get_saved_locations();
+	
+	// 获取位置名称
+	std::string baseName = get_current_location_name();
+	std::string uniqueName = generate_unique_location_name(baseName, existingLocations);
+	
+	// 清理已有数据
+	for (auto loc : existingLocations)
+	{
+		delete loc;
+	}
+	existingLocations.clear();
+	
+	// 弹出输入框让用户确认或修改名称
+	// 为输入框添加上方提示
+	keyboard_on_screen_already = true;
+	curr_message = "为当前坐标位置，输入保存名称：";
+	std::string result = show_keyboard("输入当前坐标位置名称", (char*)uniqueName.c_str());
+	
+	if (!result.empty())
+	{
+		// 保存到数据库
+		float heading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		bool success = database->save_location(coords.x, coords.y, coords.z, result, -1, heading);
+		
+		if (success)
+		{
+			set_status_text("当前坐标位置已保存！");
+			requireRefreshOfLocationSaveSlots = true;
+		}
+		else
+		{
+			set_status_text("~r~当前坐标位置保存失败！");
+		}
+	}
+}
+
+// 删除全部已保存的坐标位置
+void delete_all_saved_locations()
+{
+	ENTDatabase* database = get_database();
+	std::vector<SavedLocationDBRow*> savedLocations = database->get_saved_locations();
+	
+	if (savedLocations.empty())
+	{
+		set_status_text("~y~没有已保存的坐标位置！");
+		return;
+	}
+	
+	// 删除所有位置
+	for (auto loc : savedLocations)
+	{
+		database->delete_saved_location(loc->rowID);
+		delete loc;
+	}
+	savedLocations.clear();
+	
+	set_status_text("已删除全部保存的坐标位置！");
+	requireRefreshOfLocationSaveSlots = true;
+}
+
+// 已保存位置的子菜单回调函数
+bool onconfirm_savedlocation_slot(MenuItem<int> choice);
+
+// 全局静态变量，用于在菜单和回调之间传递slot
+static int g_current_location_slot = -1;
+
+// 已保存位置的子菜单
+bool process_savedlocation_slot_menu(int slot)
+{
+	// 保存当前slot供回调函数使用
+	g_current_location_slot = slot;
+	
+	// 进入子菜单时，将光标重置到顶部，避免沿用删除前的旧索引
+	static int activeLineIndexSavedLocationSlot = 0;
+	activeLineIndexSavedLocationSlot = 0;
+	
+	do
+	{
+		requireRefreshOfLocationSlotMenu = false;
+		
+		ENTDatabase* database = get_database();
+		std::vector<SavedLocationDBRow*> savedLocations = database->get_saved_locations(slot);
+		
+		if (savedLocations.empty())
+		{
+			set_status_text("~r~未找到该保存的坐标位置！");
+			return false;
+		}
+		
+		SavedLocationDBRow* location = savedLocations.at(0);
+		
+		std::vector<MenuItem<int>*> menuItems;
+		
+		// 立即传送
+		MenuItem<int>* item = new MenuItem<int>();
+		item->caption = "立即传送";
+		item->value = 0;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 用当前坐标覆盖
+		item = new MenuItem<int>();
+		item->caption = "用当前坐标位置覆盖";
+		item->value = 1;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 重命名
+		item = new MenuItem<int>();
+		item->caption = "重命名";
+		item->value = 2;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 删除
+		item = new MenuItem<int>();
+		item->caption = "删除";
+		item->value = 3;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 显示坐标信息
+		std::ostringstream titleSS;
+		// 仅显示名称，坐标信息挪到菜单项中
+		titleSS << location->saveName;
+		
+		// 在第一行插入只读文本项显示坐标信息
+		{
+			MenuItem<int>* coordInfo = new MenuItem<int>();
+			std::ostringstream coordSS;
+			coordSS << std::fixed << std::setprecision(2)
+				<< "X: " << location->posX << "  |  "
+				<< "Y: " << location->posY << "  |  "
+				<< "Z: " << location->posZ;
+			// 若支持 yaw，则追加显示
+			coordSS << std::fixed << std::setprecision(0);
+			coordSS << "  |  Yaw: " << location->yaw << "°";
+			coordInfo->caption = coordSS.str();
+			coordInfo->value = -99; // 只读占位
+			coordInfo->isLeaf = true;
+			menuItems.insert(menuItems.begin(), coordInfo);
+		}
+
+		bool result = draw_generic_menu<int>(menuItems, &activeLineIndexSavedLocationSlot, titleSS.str(), 
+			onconfirm_savedlocation_slot, NULL, NULL, location_slot_menu_interrupt);
+		
+		delete location;
+		savedLocations.clear();
+		
+		// 如果选择了删除，退出菜单
+		if (result || !requireRefreshOfLocationSlotMenu)
+		{
+			return result;
+		}
+		
+	} while (requireRefreshOfLocationSlotMenu);
+	
+	return false;
+}
+
+// 已保存位置子菜单的回调函数实现
+bool onconfirm_savedlocation_slot(MenuItem<int> choice)
+{
+	// 使用全局静态变量获取当前slot
+	ENTDatabase* db = get_database();
+	std::vector<SavedLocationDBRow*> savedLocations = db->get_saved_locations(g_current_location_slot);
+	
+	if (savedLocations.empty())
+	{
+		return false;
+	}
+	
+	SavedLocationDBRow* location = savedLocations.at(0);
+	bool result = false;
+	
+	switch (choice.value)
+	{
+	case 0: // 立即传送
+	{
+		Vector3 coords;
+		coords.x = location->posX;
+		coords.y = location->posY;
+		coords.z = location->posZ;
+		// 为“已保存位置 -> 立即传送”单独增加 Z 轴高度补偿，避免悬空约 1 米
+		coords.z -= 1.0f;
+		teleport_to_coords(coords);//已保存位置“立即传送”，读取数据库中的位置，调用通用执行器（+0.25f），并对齐朝向。
+		{
+			Ped p = PLAYER::PLAYER_PED_ID();
+			if (PED::IS_PED_IN_ANY_VEHICLE(p, false))
+			{
+				Entity veh = PED::GET_VEHICLE_PED_IS_USING(p);
+				if (ENTITY::DOES_ENTITY_EXIST(veh)) ENTITY::SET_ENTITY_HEADING(veh, location->yaw);
+			}
+			else
+			{
+				ENTITY::SET_ENTITY_HEADING(p, location->yaw);
+			}
+			// 重置相机朝向，使其与玩家朝向一致
+			WAIT(0); // 等待一帧让朝向设置生效
+			CAM::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f);
+			CAM::SET_GAMEPLAY_CAM_RELATIVE_PITCH(0.0f, 1.0f);
+		}
+		// 刷新一次菜单但保持光标位置
+		requireRefreshOfLocationSlotMenu = true;
+		result = false; // 不返回上级菜单，停留在当前选项
+		break;
+	}
+	case 1: // 用当前坐标覆盖
+	{
+		Ped playerPed = PLAYER::PLAYER_PED_ID();
+		Vector3 currentCoords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+		float heading = ENTITY::GET_ENTITY_HEADING(PLAYER::PLAYER_PED_ID());
+		db->save_location(currentCoords.x, currentCoords.y, currentCoords.z, location->saveName, g_current_location_slot, heading);
+		set_status_text("当前保存的坐标位置已更新！");
+		requireRefreshOfLocationSlotMenu = true;
+		requireRefreshOfLocationSaveSlots = true;
+		result = false; // 不返回上级菜单，停留在当前选项
+		break;
+	}
+	case 2: // 重命名
+	{
+		// 为输入框添加上方提示
+		keyboard_on_screen_already = true;
+		curr_message = "为当前坐标位置，输入新名称：";
+		std::string newName = show_keyboard("输入当前坐标位置新名称", (char*)location->saveName.c_str());
+		if (!newName.empty())
+		{
+			db->rename_saved_location(newName, g_current_location_slot);
+			set_status_text("重命名成功！");
+			requireRefreshOfLocationSlotMenu = true;
+			requireRefreshOfLocationSaveSlots = true;
+		}
+		result = false; // 不返回上级菜单，停留在当前选项
+		break;
+	}
+	case 3: // 删除
+	{
+		db->delete_saved_location(g_current_location_slot);
+		set_status_text("当前坐标位置已删除！");
+		requireRefreshOfLocationSaveSlots = true;
+		result = true; // 删除后返回上级菜单
+		break;
+	}
+	}
+	
+	delete location;
+	savedLocations.clear();
+	
+	return result;
+}
+
+// 编辑自定义坐标菜单
+bool process_edit_custom_coords_menu()
+{
+	do
+	{
+		editCoordsMenuNeedsRefresh = false;
+		
+		std::vector<MenuItem<int>*> menuItems;
+		
+		// 获取当前坐标位置
+		MenuItem<int>* item = new MenuItem<int>();
+		item->caption = "获取当前坐标位置";
+		item->value = 0;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 清除当前坐标位置
+		item = new MenuItem<int>();
+		item->caption = "清除当前坐标位置";
+		item->value = 6;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// X轴调整（生成以基准坐标为中心的101个选项，范围±10.0，步进0.11）
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> xOptions = generate_coord_captions(coordEditBase.x);
+			SelectFromListMenuItem* xItem = new SelectFromListMenuItem(xOptions, onchange_custom_coord_x);
+			
+			// 根据当前坐标和基准坐标计算索引值
+			float xOffset = customEditCoords.x - coordEditBase.x;
+			const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+			const int centerIndex = numOptions / 2;
+			int xIndex = centerIndex + (int)std::round(xOffset / COORD_STEP);
+			if (xIndex < 0) xIndex = 0;
+			if (xIndex > (numOptions - 1)) xIndex = (numOptions - 1);
+			
+			xItem->caption = "横向 [X轴]";
+			xItem->value = xIndex;
+			xItem->wrap = false; // 不循环
+			menuItems.push_back(xItem);
+		}
+		else
+		{
+			std::vector<std::string> xPlaceholder{ "未获取" };
+			SelectFromListMenuItem* xItem = new SelectFromListMenuItem(xPlaceholder, NULL);
+			xItem->caption = "横向 [X轴]";
+			xItem->value = 0;
+			xItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(xItem);
+		}
+		
+		// Y轴调整
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> yOptions = generate_coord_captions(coordEditBase.y);
+			SelectFromListMenuItem* yItem = new SelectFromListMenuItem(yOptions, onchange_custom_coord_y);
+			
+			// 根据当前坐标和基准坐标计算索引值
+			float yOffset = customEditCoords.y - coordEditBase.y;
+			const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+			const int centerIndex = numOptions / 2;
+			int yIndex = centerIndex + (int)std::round(yOffset / COORD_STEP);
+			if (yIndex < 0) yIndex = 0;
+			if (yIndex > (numOptions - 1)) yIndex = (numOptions - 1);
+			
+			yItem->caption = "纵向 [Y轴]";
+			yItem->value = yIndex;
+			yItem->wrap = false;
+			menuItems.push_back(yItem);
+		}
+		else
+		{
+			std::vector<std::string> yPlaceholder{ "未获取" };
+			SelectFromListMenuItem* yItem = new SelectFromListMenuItem(yPlaceholder, NULL);
+			yItem->caption = "纵向 [Y轴]";
+			yItem->value = 0;
+			yItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(yItem);
+		}
+		
+		// Z轴调整
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> zOptions = generate_coord_captions(coordEditBase.z);
+			SelectFromListMenuItem* zItem = new SelectFromListMenuItem(zOptions, onchange_custom_coord_z);
+			
+			// 根据当前坐标和基准坐标计算索引值
+			float zOffset = customEditCoords.z - coordEditBase.z;
+			const int numOptions = (int)((COORD_RANGE * 2.0f) / COORD_STEP) + 1;
+			const int centerIndex = numOptions / 2;
+			int zIndex = centerIndex + (int)std::round(zOffset / COORD_STEP);
+			if (zIndex < 0) zIndex = 0;
+			if (zIndex > (numOptions - 1)) zIndex = (numOptions - 1);
+			
+			zItem->caption = "高度 [Z轴]";
+			zItem->value = zIndex;
+			zItem->wrap = false;
+			menuItems.push_back(zItem);
+		}
+		else
+		{
+			std::vector<std::string> zPlaceholder{ "未获取" };
+			SelectFromListMenuItem* zItem = new SelectFromListMenuItem(zPlaceholder, NULL);
+			zItem->caption = "高度 [Z轴]";
+			zItem->value = 0;
+			zItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(zItem);
+		}
+		
+		// 朝向/航向角（Yaw）调整
+		if (customCoordsInitialized)
+		{
+			std::vector<std::string> yawOptions = generate_angle_captions(yawEditBase);
+			SelectFromListMenuItem* yawItem = new SelectFromListMenuItem(yawOptions, onchange_custom_yaw);
+			// 根据当前朝向和基准角计算索引值
+			float yawOffset = customEditYaw - yawEditBase;
+			const int yawNumOptions = (int)((ANGLE_RANGE * 2.0f) / ANGLE_STEP) + 1;
+			const int yawCenterIndex = yawNumOptions / 2;
+			int yawIndex = yawCenterIndex + (int)std::round(yawOffset / ANGLE_STEP);
+			if (yawIndex < 0) yawIndex = 0;
+			if (yawIndex > (yawNumOptions - 1)) yawIndex = (yawNumOptions - 1);
+
+			yawItem->caption = "朝向 [Yaw]";
+			yawItem->value = yawIndex;
+			yawItem->wrap = false;
+			menuItems.push_back(yawItem);
+		}
+		else
+		{
+			std::vector<std::string> yawPlaceholder{ "未获取" };
+			SelectFromListMenuItem* yawItem = new SelectFromListMenuItem(yawPlaceholder, NULL);
+			yawItem->caption = "朝向 [Yaw]";
+			yawItem->value = 0;
+			yawItem->wrap = true; // 始终显示 << >>
+			menuItems.push_back(yawItem);
+		}
+		
+		// 立即传送
+		item = new MenuItem<int>();
+		item->caption = "立即传送";
+		item->value = 4;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		// 保存当前坐标位置
+		item = new MenuItem<int>();
+		item->caption = "保存当前坐标位置";
+		item->value = 5;
+		item->isLeaf = true;
+		menuItems.push_back(item);
+		
+		int activeLineIndex = 0;
+		draw_generic_menu<int>(menuItems, &activeLineIndex, "编辑自定义坐标",
+			[](MenuItem<int> choice) -> bool
+			{
+				switch (choice.value)
+				{
+				case 0: // 获取当前坐标位置
+				{
+					Ped playerPed = PLAYER::PLAYER_PED_ID();
+					customEditCoords = ENTITY::GET_ENTITY_COORDS(playerPed, false);
+					customEditYaw = ENTITY::GET_ENTITY_HEADING(playerPed);
+					coordEditBase = customEditCoords; // 同时更新基准坐标
+					yawEditBase = customEditYaw; // 同时更新基准角
+					customCoordsInitialized = true;
+					set_status_text("已成功获取当前坐标位置！");
+					editCoordsMenuNeedsRefresh = true;
+					return false;
+				}
+				case 4: // 立即传送
+					{
+						if (!customCoordsInitialized)
+						{
+							set_status_text("~r~请先获取当前坐标位置！");
+							return false;
+						}
+						// 为“编辑自定义坐标 -> 立即传送”单独增加 Z 轴高度补偿，避免悬空约 1 米
+						{
+							Vector3 adj = customEditCoords;
+							adj.z -= 1.0f;
+							teleport_to_coords(adj);//编辑自定义坐标“立即传送”，调用通用执行器（+0.25f），并对齐朝向。
+						}
+						// 对齐朝向（载具优先）
+						{
+							Ped p = PLAYER::PLAYER_PED_ID();
+							if (PED::IS_PED_IN_ANY_VEHICLE(p, false))
+							{
+								Entity veh = PED::GET_VEHICLE_PED_IS_USING(p);
+								if (ENTITY::DOES_ENTITY_EXIST(veh)) ENTITY::SET_ENTITY_HEADING(veh, customEditYaw);
+							}
+							else
+							{
+								ENTITY::SET_ENTITY_HEADING(p, customEditYaw);
+							}
+							// 重置相机朝向，使其与玩家朝向一致
+							WAIT(0); // 等待一帧让朝向设置生效
+							CAM::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f);
+							CAM::SET_GAMEPLAY_CAM_RELATIVE_PITCH(0.0f, 1.0f);
+						}
+						return false; // 不返回上级菜单，停留在当前选项
+					}
+					case 5: // 保存当前坐标位置
+					{
+						if (!customCoordsInitialized)
+						{
+							set_status_text("~r~请先获取当前坐标位置！");
+							return false;
+						}
+						
+						ENTDatabase* database = get_database();
+						std::vector<SavedLocationDBRow*> existingLocations = database->get_saved_locations();
+						
+						std::string baseName = get_current_location_name();
+						std::string uniqueName = generate_unique_location_name(baseName, existingLocations);
+						
+						for (auto loc : existingLocations)
+						{
+							delete loc;
+						}
+						existingLocations.clear();
+						
+						// 为输入框添加上方提示
+						keyboard_on_screen_already = true;
+						curr_message = "为当前坐标位置，输入保存名称：";
+						std::string result = show_keyboard("输入当前坐标位置名称", (char*)uniqueName.c_str());
+						
+						if (!result.empty())
+						{
+							bool success = database->save_location(customEditCoords.x, customEditCoords.y, customEditCoords.z, result, -1, customEditYaw);
+							
+							if (success)
+							{
+								set_status_text("当前坐标位置已保存！");
+								requireRefreshOfLocationSaveSlots = true;
+							}
+							else
+							{
+								set_status_text("~r~当前坐标位置保存失败！");
+							}
+						}
+						return false;
+					}
+					case 6: // 清除当前坐标位置
+					{
+						// 检查坐标是否已获取
+						if (!customCoordsInitialized)
+						{
+							set_status_text("~y~当前坐标未获取，无需清除！");
+							return false;
+						}
+						// 清除所有坐标数据
+						customEditCoords = { 0.0f, 0.0f, 0.0f };
+						customEditYaw = 0.0f;
+						coordEditBase = { 0.0f, 0.0f, 0.0f };
+						yawEditBase = 0.0f;
+						customCoordsInitialized = false;
+						set_status_text("已清除当前坐标位置！");
+						editCoordsMenuNeedsRefresh = true;
+						return false;
+					}
+				}
+				return false;
+			}, NULL, NULL, []() -> bool { return editCoordsMenuNeedsRefresh; });
+		
+	} while (editCoordsMenuNeedsRefresh);
+	
+	return false;
+}
+
+// 已保存位置列表菜单确认回调
+bool onconfirm_savedlocation_menu(MenuItem<int> choice)
+{
+	switch (choice.value)
+	{
+	case -1: // 编辑自定义坐标
+		return process_edit_custom_coords_menu();
+	case -2: // 保存当前坐标位置
+		save_current_location();
+		return false;
+	case -3: // 删除全部坐标位置
+		delete_all_saved_locations();
+		return false;
+	default:
+		return process_savedlocation_slot_menu(choice.value);
+	}
+}
+
+// 保存自定义坐标主菜单
+bool process_savedlocation_menu()
+{
+	static int activeLineIndexSavedLocation = 0;
+	
+	do
+	{
+		requireRefreshOfLocationSlotMenu = false;
+		requireRefreshOfLocationSaveSlots = false;
+		
+		ENTDatabase* database = get_database();
+		std::vector<SavedLocationDBRow*> savedLocations = database->get_saved_locations();
+		// 记录当前数量并根据数量变化情况决定是否重置菜单索引
+		size_t currentSavedCount = savedLocations.size();
+		
+		std::vector<MenuItem<int>*> menuItems;
+		
+		// 编辑自定义坐标
+		MenuItem<int>* item = new MenuItem<int>();
+		item->isLeaf = false;
+		item->value = -1;
+		item->caption = "编辑自定义坐标";
+		menuItems.push_back(item);
+		
+		// 保存当前坐标位置
+		item = new MenuItem<int>();
+		item->isLeaf = true;
+		item->value = -2;
+		item->caption = "保存当前坐标位置";
+		menuItems.push_back(item);
+		
+		// 删除全部坐标位置（始终显示，即使没有已保存的位置）
+		item = new MenuItem<int>();
+		item->isLeaf = true;
+		item->value = -3;
+		item->caption = "删除全部的坐标位置";
+		menuItems.push_back(item);
+		
+		// 已保存的位置列表
+		for (auto loc : savedLocations)
+		{
+			MenuItem<int>* locItem = new MenuItem<int>();
+			locItem->isLeaf = false;
+			locItem->value = loc->rowID;
+			
+			// 显示坐标信息
+			std::ostringstream ss;
+			ss << loc->saveName;
+			locItem->caption = ss.str();
+			
+			menuItems.push_back(locItem);
+		}
+		
+		// 如果数量减少（例如执行了"删除全部"或删除单个），将主菜单光标重置到顶部
+		if (currentSavedCount == 0 || currentSavedCount < (size_t)lastKnownSavedLocationCount)
+		{
+			activeLineIndexSavedLocation = 0;
+		}
+		else
+		{
+			// 防御性收敛，避免索引越界
+			int maxIndex = (int)menuItems.size() - 1;
+			if (maxIndex < 0) maxIndex = 0;
+			if (activeLineIndexSavedLocation > maxIndex) activeLineIndexSavedLocation = maxIndex;
+			if (activeLineIndexSavedLocation < 0) activeLineIndexSavedLocation = 0;
+		}
+		
+		draw_generic_menu<int>(menuItems, &activeLineIndexSavedLocation, "保存的自定义坐标", onconfirm_savedlocation_menu, NULL, NULL, location_save_slots_menu_interrupt);
+		
+		// 清理
+		for (auto loc : savedLocations)
+		{
+			delete loc;
+		}
+		savedLocations.clear();
+		
+		// 更新上次已知数量
+		lastKnownSavedLocationCount = (int)currentSavedCount;
+		
+	} while (requireRefreshOfLocationSaveSlots);
+	
+	return false;
+}
+
+/////////////////////// 保存自定义坐标功能实现结束 ///////////////////////////////

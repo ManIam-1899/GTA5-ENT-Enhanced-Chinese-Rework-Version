@@ -17,6 +17,21 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <vector>
 #include "..\storage\database.h"
 
+extern bool featureFreezeTime;
+extern bool featureFreezeTimeUpdated;
+extern bool featureTimeSyncedUpdated;
+
+// 模拟时钟设置
+extern bool featureAnalogClockEnabled;
+extern int analogClockStyleIndex; // 默认时钟
+extern int analogClockTimeSourceIndex; // 0: 游戏时间, 1: 现实时间
+extern float analogClockPosX; // 屏幕坐标 0..1, 中心点
+extern float analogClockPosY; // 屏幕坐标 0..1, 中心点
+extern bool analogClockShowLabel; // 显示"现实时间/游戏时间"标签
+extern bool analogClockShowDigital; // 显示数字时间
+extern bool analogClockShowDate; // 显示日期
+extern int analogClockPixelSize; // 时钟贴图尺寸（像素），按屏幕分辨率1:1绘制
+
 void process_time_menu();
 
 void reset_time_globals();
@@ -30,6 +45,9 @@ void add_time_generic_settings(std::vector<StringPairSettingDBRow>* results);
 void handle_generic_settings_time(std::vector<StringPairSettingDBRow>* settings);
 
 void all_time_flow_rate();
+
+// 模拟时钟菜单
+void process_analog_clock_menu();
 
 void movetime_day_forward();
 

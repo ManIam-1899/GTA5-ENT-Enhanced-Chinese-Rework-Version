@@ -3895,7 +3895,7 @@ bool process_anims_menu_top()
 
 	MenuItem<int> *item = new MenuItem<int>();
 	item->isLeaf = false;
-	item->caption = "场景动画";
+	item->caption = "场景动画分类";
 	item->value = CATEGORY_SCENARIOS;
 	menuItems.push_back(item);
 
@@ -4116,11 +4116,13 @@ bool process_scenarios_menu_l1()
 	MenuItem<int> *item = new MenuItem<int>();
 	item->caption = "人类场景动画";
 	item->value = 0;
+	item->isLeaf = false;
 	menuItems.push_back(item);
 
 	item = new MenuItem<int>();
 	item->caption = "动物场景动画";
 	item->value = 1;
+	item->isLeaf = false;
 	menuItems.push_back(item);
 
 	bool result = draw_generic_menu<int>(menuItems, &activeScenarioLineIndex[0], "场景动画类型", onconfirm_scenarios_menu_l1, NULL, NULL, NULL);

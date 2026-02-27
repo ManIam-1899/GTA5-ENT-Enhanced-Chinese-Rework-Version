@@ -31,6 +31,8 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "road_laws.h"
 #include "vehicles.h"
 #include "weapons.h"
+#include "speed_altitude.h"
+#include "screenshot.h"
 #include "../version.h"
 #include "../utils.h"
 #include "../ui_support/file_dialog.h"
@@ -62,6 +64,10 @@ int last_player_slot_seen = 0;
 int game_frame_num = 0;
 
 int jumpfly_secs_passed, jumpfly_secs_curr, jumpfly_tick = 0;
+DWORD jumpfly_start_time = 0;		// 空格键开始按下的时间戳（毫秒）
+bool jumpfly_activated = false;		// 是否已激活空中飞行（防止刚启动就结束）
+DWORD jumpfly_roll_start_time = 0;	// 翻滚动作开始时间（毫秒）- 用于兜底强制结束
+DWORD jumpfly_activate_time = 0;	// 飞行激活时间（毫秒）- 用于起飞保护期
 
 int fuelLevelOffset = -1;
 int fuelTankOffset = -1;
@@ -106,16 +112,28 @@ bool onlineWarningShown = false;
 
 bool injured_drunk = false;
 
+// 手动触发自动保存的防重入标志（仅用于手动触发，不影响自动保存）
+static volatile LONG g_manual_save_in_progress = 0;
+// 保存完成后的提示挂起标志（由后台线程置位，主线程消耗并提示）
+static volatile LONG g_manual_save_notify_pending = 0;
+static volatile LONG g_auto_save_notify_pending = 0;
+
+// 自动保存提示频率控制
+static int g_auto_save_count = 0;
+static const int AUTO_SAVE_NOTIFY_INTERVAL = 10; // 每10次自动保存才显示一次提示（1次大约60秒）
+
 // 功能
 bool featurePlayerInvincible = false;
 bool featurePlayerInvincibleUpdated = false;
 bool featureNoFallDamage = false;
 bool featureFireProof = false;
 bool featurePlayerIgnoredByPolice = false;
+bool featurePlayerNeverWanted = false;
 bool featurePlayerUnlimitedAbility = false;
 bool featurePlayerNoNoise = false;
 bool featurePlayerFastSwim = false;
 bool featurePlayerFastRun = false;
+bool featurePlayerFastWalk = false;
 bool featurePlayerRunApartments = false;
 bool featurePlayerInvisible = false;
 bool featurePlayerInvisibleInVehicle = false;
@@ -145,6 +163,9 @@ bool featureWantedLevelNoSWATVehiclesUpdated = false;
 bool NoTaxiWhistling = false;
 bool featurePlayerCanBeHeadshot = false;
 bool featureRespawnsWhereDied = false;
+bool featurePlayerSuicide = false;
+bool featurePlayerSuicideUpdated = false;
+DWORD featurePlayerSuicideTime = 0;
 bool lev_message = false;
 bool engine_running = true;
 bool we_have_troubles, iaminside = false;
@@ -232,14 +253,54 @@ int curr_cam = -1;
 int curr_hlth = -1;
 
 // 玩家跑步速度 && 汉考克模式(美国一部电影中的主角)
-const std::vector<std::string> PLAYER_MOVEMENT_CAPTIONS{ "正常", "0.5x", "1x", "2x", "3x", "4x", "5x", "6x", "7x", "8x", "9x", "10x" };
-const double PLAYER_MOVEMENT_VALUES[] = { 0.00, 0.60, 1.00, 2.00, 3.00, 4.00, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00 };
+const std::vector<std::string> PLAYER_MOVEMENT_CAPTIONS{ "正常", "0.5x", "1x", "1.5x", "2x", "2.5x", "3x", "3.5x", "4x", "4.5x", "5x", "6x", "7x", "8x", "9x", "10x" };
+const double PLAYER_MOVEMENT_VALUES[] = { 0.00, 0.60, 1.00, 1.50, 2.00, 2.50, 3.00, 3.50, 4.00, 4.50, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00 };
 int current_player_movement = 0;
 bool current_player_movement_Changed = true; 
 int current_player_jumpfly = 0;
 bool current_player_jumpfly_Changed = true;
 int current_player_superjump = 0;
 bool current_player_superjump_Changed = true;
+int current_player_walkspeed = 0;
+bool current_player_walkspeed_Changed = true;
+
+// 湿身程度（参考 Menyoo 的 Sweat Level 逻辑）
+bool featurePlayerClothesSoaked = false;
+bool featurePlayerClothesSoakedUpdated = false;
+bool featurePlayerClothesDry = false;
+bool featurePlayerClothesDryUpdated = false;
+// 记录上帧状态，用于检测“本帧刚开启”的边沿（避免旧Updated标记导致互斥失效）
+static bool prevClothesSoaked = false;
+static bool prevClothesDry = false;
+
+// 水底行走功能
+bool featurePlayerWalkUnderwater = false;
+bool featurePlayerWalkUnderwaterUpdated = false;
+
+// 水上行走功能
+bool featurePlayerWalkOnWater = false;
+bool featurePlayerWalkOnWaterUpdated = false;
+Object waterPlatform = NULL;
+
+// 记录上帧状态，用于检测"本帧刚开启"的边沿（避免旧Updated标记导致互斥失效）
+static bool prevWalkUnderwater = false;
+static bool prevWalkOnWater = false;
+
+// 湿度最大高度（可调整以适配不同模型和场景）
+static constexpr float MAX_WETNESS = 5.5f;
+// 干燥清理的帧周期（每 N 帧清理一次，折中性能与效果）
+static constexpr int DRY_CLEAR_PERIOD_FRAMES = 1; // 约0.0167 秒
+// 湿透施加的帧周期（每 N 帧强制湿身，减少每帧调用负担）
+static constexpr int SOAKED_ENFORCE_PERIOD_FRAMES = 1; // 约0.0167 秒
+
+// 获取水面高度的辅助函数
+float GetWaterHeight(Vector3 pos) {
+	float waterHeight = 0.0f;
+	if (WATER::GET_WATER_HEIGHT(pos.x, pos.y, pos.z, &waterHeight)) {
+		return waterHeight;
+	}
+	return -1000.0f; // 如果没有水，返回一个很低的值
+}
 
 /* Prop unblocker related code - will need to clean up later*/
 //与道具解锁器相关的代码 - 以后需要清理
@@ -301,9 +362,23 @@ void onchange_player_movement_mode(int value, SelectFromListMenuItem* source) {
 	current_player_movement_Changed = true;
 }
 
+void onchange_player_walkspeed_mode(int value, SelectFromListMenuItem* source) {
+	current_player_walkspeed = value;
+	current_player_walkspeed_Changed = true;
+}
+
 void onchange_player_jumpfly_mode(int value, SelectFromListMenuItem* source) {
+	// 中文注释：当从“正常”(索引0)切换到任意倍数(>0)时，显示一次按键提示
+	// 仅在切换发生瞬间触发，避免每帧或重复提示
+	int prev_value = current_player_jumpfly;
 	current_player_jumpfly = value;
 	current_player_jumpfly_Changed = true;
+	if (prev_value == 0 && value > 0) {
+		// 中文提示：长按空格启动/增高，WSAD 控方向，Ctrl 结束飞行
+		set_status_text("长按 ~q~空格 ~s~开启飞行模式！");
+		set_status_text("按 ~q~WSAD ~s~可以控制方向！");
+		set_status_text("按 ~q~Ctrl ~s~立即结束飞行！");
+	}
 }
 
 void onchange_player_superjump_mode(int value, SelectFromListMenuItem* source) {
@@ -569,6 +644,7 @@ void update_features() {
 	Player player = PLAYER::PLAYER_ID();
 	Ped playerPed = PLAYER::PLAYER_PED_ID();
 	BOOL bPlayerExists = ENTITY::DOES_ENTITY_EXIST(playerPed);
+	static bool prevRunApartments = false;
 
 	// 注释掉阻止进入线上模式的代码
 	/*if (NETWORK::NETWORK_IS_GAME_IN_PROGRESS()) {
@@ -610,11 +686,26 @@ void update_features() {
 
 	everInitialised = true;
 	game_frame_num++;
-	if(game_frame_num >= 216000){
+	if(game_frame_num >= 216000){//自动保存，最大帧数：216000，之后重置为 0
 		game_frame_num = 0;
 	}
 
-	if(game_frame_num % 3600 == 0){
+	// 处理保存完成后的挂起提示（避免在后台线程中直接调用 UI 导致崩溃）
+	if (InterlockedExchange(&g_manual_save_notify_pending, 0) == 1) {
+		set_status_text_centre_screen("~s~自动保存，~g~执行完毕！");//手动触发的保存提示
+	}
+	if (InterlockedExchange(&g_auto_save_notify_pending, 0) == 1) {
+		// 自动保存提示频率控制：只在特定次数时显示提示
+		g_auto_save_count++;
+		if (g_auto_save_count >= AUTO_SAVE_NOTIFY_INTERVAL) {
+			// 使用统一的 set_status_text 在屏幕底部显示自动保存完成提示
+			set_status_text("~g~自动保存完成！");//自动触发的保存提示
+			g_auto_save_count = 0; // 重置计数器
+		}
+		// 如果不满足显示条件，则静默完成自动保存，不显示提示
+	}
+
+	if (game_frame_num % 3600 == 0) {//自动保存，固定间隔：默认3600 帧（约 60 秒）
 		DWORD myThreadID;
 		HANDLE myHandle = CreateThread(0, 0, save_settings_thread, 0, 0, &myThreadID);
 		CloseHandle(myHandle);
@@ -886,6 +977,8 @@ void update_features() {
 	update_area_effects(playerPed);
 	
 	update_speedaltitude(playerPed);
+	// 独立调用：模拟速度表每帧更新（不再耦合到旧速度/高度文本函数）
+	update_speedaltitude_append_analog(playerPed);
 
 	update_weapon_features(bPlayerExists, player);
 
@@ -991,7 +1084,50 @@ void update_features() {
 		//featureWantedLevelFrozenUpdated = false;
 		featureWantedLevelFrozenUpdated = true;
 	}
-	
+
+	// 永不通缉功能
+	if (featurePlayerNeverWanted) {
+		// 每帧强制清零，保证手动加星也会被立刻清掉
+		if (PLAYER::GET_PLAYER_WANTED_LEVEL(player) > 0) {
+			PLAYER::SET_PLAYER_WANTED_LEVEL(player, 0, false);
+			PLAYER::SET_PLAYER_WANTED_LEVEL_NOW(player, 0);
+		}
+
+		// 让警察忽视玩家
+		PLAYER::SET_POLICE_IGNORE_PLAYER(player, true);
+		// 禁止派遣警察
+		PLAYER::SET_DISPATCH_COPS_FOR_PLAYER(player, false);
+		// 禁止通缉等级倍率
+		PLAYER::SET_WANTED_LEVEL_MULTIPLIER(0.0f);
+	} else {
+		// 恢复默认值
+		PLAYER::SET_POLICE_IGNORE_PLAYER(player, false);
+		PLAYER::SET_DISPATCH_COPS_FOR_PLAYER(player, true);
+		PLAYER::SET_WANTED_LEVEL_MULTIPLIER(1.0f);
+	}
+
+	// 自杀功能
+	if (featurePlayerSuicideUpdated) {
+		if (bPlayerExists && featurePlayerSuicide) {
+			// 设置玩家血量为0，实现自杀
+			ENTITY::SET_ENTITY_HEALTH(playerPed, 0);
+			set_status_text("自杀已执行完毕！");
+			// 记录自杀时间，开始3秒冷却
+			featurePlayerSuicideTime = GetTickCount();
+		}
+		featurePlayerSuicideUpdated = false;
+	}
+
+	// 检查自杀功能的3秒冷却时间
+	if (featurePlayerSuicide && featurePlayerSuicideTime > 0) {
+		DWORD currentTime = GetTickCount();
+		if (currentTime - featurePlayerSuicideTime >= 3000) { // 3秒 = 3000毫秒
+			// 冷却时间结束，清除复选框状态
+			featurePlayerSuicide = false;
+			featurePlayerSuicideTime = 0;
+		}
+	}
+
 	// 禁止警察直升机
 	if (featureWantedLevelNoPHeli) {
 		GAMEPLAY::ENABLE_DISPATCH_SERVICE(2, false);
@@ -1146,21 +1282,34 @@ void update_features() {
 		float v_z = p_force * (CamRot.x * 0.2);
 		Vector3 curLocation = ENTITY::GET_ENTITY_COORDS(playerPed, 0);
 		if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) ENTITY::SET_ENTITY_ROTATION(PLAYER::PLAYER_PED_ID(), CamRot.x, CamRot.y, CamRot.z, 1, true);
+		
+		// 启动飞行逻辑：长按空格500毫秒
 		if (CONTROLS::IS_CONTROL_PRESSED(2, 22)) {
-			jumpfly_secs_passed = clock() / CLOCKS_PER_SEC;
-			if (((clock() / (CLOCKS_PER_SEC / 1000)) - jumpfly_secs_curr) != 0) {
-				jumpfly_tick = jumpfly_tick + 1;
-				jumpfly_secs_curr = jumpfly_secs_passed;
+			// 记录开始按下的时间
+			if (jumpfly_start_time == 0) {
+				jumpfly_start_time = GetTickCount();
 			}
-			if (jumpfly_tick > 5) {
+			
+			DWORD press_duration = GetTickCount() - jumpfly_start_time;
+			
+			// 长按超过500毫秒，启动空中飞行
+			if (press_duration >= 500) {
 				if (!ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) {
 					AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
 					AI::TASK_PLAY_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 8.0, 0.0, -1, 9, 0, 0, 0, 0); // free_idle 自由待机
+					jumpfly_activated = true;  // 标记已激活
+					jumpfly_activate_time = GetTickCount();  // 记录激活时间，用于起飞保护
 				}
 				ENTITY::APPLY_FORCE_TO_ENTITY(PLAYER::PLAYER_PED_ID(), 1, 0, 0, p_force, 0, 0, 0, true, false, true, true, true, true);
 			}
+			
 			if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) skydiving = true;
+		} else {
+			// 松开空格，重置计时器
+			jumpfly_start_time = 0;
 		}
+		
+		// 方向控制
 		if (CONTROLS::IS_CONTROL_PRESSED(2, 32) && skydiving == true) { // 仅向上移动
 			if (!ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) {
 				AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
@@ -1200,21 +1349,124 @@ void update_features() {
 			ENTITY::FREEZE_ENTITY_POSITION(PLAYER::PLAYER_PED_ID(), false);
 			jumpfly_tick = 0; 
 		}
-		if (ENTITY::HAS_ENTITY_COLLIDED_WITH_ANYTHING(PLAYER::PLAYER_PED_ID())) { 
-			AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
-			if (skydiving == true) {
-				AI::TASK_PLAY_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 8.0, 0.0, -1, 9, 0, 0, 0, 0);
-				WAIT(400);
-			}
-			skydiving = false;
+		
+		// 检查各种结束飞行的条件
+		bool should_end_flight = false;
+		bool is_ctrl_triggered = false;  // 标记是否由Ctrl触发
+		
+		// 获取当前离地高度（用于多处判断）
+		float ground_z;
+		GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(curLocation.x, curLocation.y, curLocation.z, &ground_z);
+		float height_above_ground = curLocation.z - ground_z;
+		
+		// 1. 碰撞检测（墙面或地面）
+		// 起飞保护期：激活后1.5秒内忽略碰撞，避免起飞时频繁被障碍物打断
+		DWORD time_since_activate = (jumpfly_activate_time > 0) ? (GetTickCount() - jumpfly_activate_time) : 9999;
+		bool in_takeoff_protection = (time_since_activate < 1500);  // 1.5秒保护期
+		
+		if (ENTITY::HAS_ENTITY_COLLIDED_WITH_ANYTHING(PLAYER::PLAYER_PED_ID()) && !in_takeoff_protection) {
+			should_end_flight = true;
 		}
+		
+		// 2. 贴地面1.0米时结束（但需要已经激活飞行，避免刚启动就结束）
+		// 同样需要保护期，否则地面起飞时会被立即触发
+		if (jumpfly_activated && skydiving && !in_takeoff_protection) {
+			if (height_above_ground <= 1.0f && height_above_ground >= 0.0f) {
+				should_end_flight = true;
+			}
+		}
+		
+		// 3. 按Ctrl键结束飞行（Control 36是Ctrl）
+		if (skydiving && CONTROLS::IS_CONTROL_PRESSED(2, 36)) {
+			should_end_flight = true;
+			is_ctrl_triggered = true;
+		}
+		
+		// 统一的结束飞行逻辑
+		if (should_end_flight) {
+			if (skydiving == true) {
+				// 判断是否播放翻滚动作
+				// 高空中（离地超过10米）按Ctrl结束，不播放翻滚动画，直接清除任务让物理系统接管
+				bool should_play_roll = true;
+				if (is_ctrl_triggered && height_above_ground > 10.0f) {
+					should_play_roll = false;
+				}
+				
+				if (should_play_roll) {
+					// 近地情况：停止飞行动画，减速，播放翻滚
+					AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
+					
+					// 获取当前速度
+					Vector3 current_velocity = ENTITY::GET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID());
+					
+					// 保留30%的水平速度，使停止更平滑
+					float velocity_factor = 0.3f;
+					ENTITY::SET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID(), 
+						current_velocity.x * velocity_factor, 
+						current_velocity.y * velocity_factor, 
+						current_velocity.z * velocity_factor);
+					
+					// 播放翻滚动作
+					AI::TASK_PLAY_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 8.0, 0.0, -1, 9, 0, 0, 0, 0);
+					jumpfly_roll_start_time = GetTickCount();  // 记录翻滚开始时间
+					WAIT(400);
+				} else {
+					// 高空情况：直接清除所有任务，让物理系统接管，避免站立闪烁
+					AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
+					
+					// 获取当前速度并进行衰减
+					Vector3 current_velocity = ENTITY::GET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID());
+					
+					// 保留较少的水平速度(30%)，完全清除向上速度，允许向下速度
+					float horizontal_factor = 0.3f;
+					float vertical_velocity = (current_velocity.z > 0) ? 0.0f : current_velocity.z;  // 清除向上速度，保留向下速度
+					
+					ENTITY::SET_ENTITY_VELOCITY(PLAYER::PLAYER_PED_ID(), 
+						current_velocity.x * horizontal_factor, 
+						current_velocity.y * horizontal_factor, 
+						vertical_velocity);
+				}
+			} else {
+				// 非飞行状态，只停止动画
+				AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
+			}
+			
+			skydiving = false;
+			jumpfly_activated = false;  // 重置激活标志
+			jumpfly_start_time = 0;		// 重置计时器
+			jumpfly_activate_time = 0;	// 重置激活时间
+		}
+		
+		// 兜底逻辑：强制结束超时的翻滚动画（防止卡住）
+		if (jumpfly_roll_start_time > 0) {
+			DWORD roll_duration = GetTickCount() - jumpfly_roll_start_time;
+			// 翻滚动画超过3秒仍在播放，强制清除
+			if (roll_duration > 3000) {
+				AI::CLEAR_PED_TASKS_IMMEDIATELY(PLAYER::PLAYER_PED_ID());
+				jumpfly_roll_start_time = 0;
+			}
+			// 翻滚动画已经结束，重置计时器
+			else if (!ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 3)) {
+				jumpfly_roll_start_time = 0;
+			}
+		}
+		
+		// 清理动画
 		if (skydiving == false) {
 			AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3);
 			AI::STOP_ANIM_TASK(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 3); 
 		}
+		
+		// 状态同步
 		if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "skydive@base", "free_idle", 3)) skydiving = true;
 		else skydiving = false;
 		if (ENTITY::IS_ENTITY_PLAYING_ANIM(PLAYER::PLAYER_PED_ID(), "move_strafe@roll_fps", "combatroll_fwd_p1_00", 3)) skydiving = false;
+	} else {
+		// 不在空中飞行模式时，重置所有状态
+		jumpfly_start_time = 0;
+		jumpfly_activated = false;
+		jumpfly_roll_start_time = 0;
+		jumpfly_activate_time = 0;
 	}
 
 	// 玩家可以被爆头
@@ -1331,6 +1583,20 @@ void update_features() {
 		if (iaminside == false && PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) > 0) we_have_troubles = true;
 		if (we_have_troubles == true && PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) == 0) we_have_troubles = false;
 	}
+
+	// 关闭“在公寓里跑步”功能时，自动清除“一星”并恢复相关状态
+	if (!featurePlayerRunApartments && prevRunApartments) {
+		if (PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) <= 1) {
+			PLAYER::SET_MAX_WANTED_LEVEL(5);
+			PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), 0, 0);
+			PLAYER::SET_PLAYER_WANTED_LEVEL_NOW(PLAYER::PLAYER_ID(), 0);
+		}
+		PLAYER::SET_POLICE_IGNORE_PLAYER(PLAYER::PLAYER_ID(), false);
+		UI::SHOW_HUD_COMPONENT_THIS_FRAME(1);
+		we_have_troubles = false;
+		iaminside = false;
+	}
+	prevRunApartments = featurePlayerRunApartments;
 	
 	// 最大通缉等级
 	if (PLAYER::GET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID()) > VEH_STARSPUNISH_VALUES[wanted_maxpossible_level]) {
@@ -1469,18 +1735,43 @@ void update_features() {
 		PLAYER::SET_SWIM_MULTIPLIER_FOR_PLAYER(player, 1.49);
 	}
 
-	// 玩家快速奔跑
-	if(featurePlayerFastRun){
-		if (AI::IS_PED_SPRINTING(PLAYER::PLAYER_PED_ID())) PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.49);
-		else PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.0);
+	// 提前判定奔跑状态，降低延迟
+	bool isSprinting = AI::IS_PED_SPRINTING(PLAYER::PLAYER_PED_ID()) || CONTROLS::IS_CONTROL_PRESSED(2, 21);
+
+	// 玩家快速奔跑（与“奔跑速度”调节一致，不再固定1.49x）
+	if (featurePlayerFastRun) {
+		float runMult = (float)PLAYER_MOVEMENT_VALUES[current_player_movement];
+		if (runMult <= 0.0f) runMult = 1.0f; // 正常
+		// 保持冲刺乘数为 1.0，统一由移动速率覆盖控制
+		PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.0f);
+	} else {
+		PLAYER::SET_RUN_SPRINT_MULTIPLIER_FOR_PLAYER(player, 1.0f);
 	}
 
-	// 玩家奔跑速度
-	if (PLAYER_MOVEMENT_VALUES[current_player_movement] > 0.00) {
-		if (AI::IS_PED_SPRINTING(PLAYER::PLAYER_PED_ID())) PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_movement]);
-		else PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
-		//if (CONTROLS::IS_CONTROL_PRESSED(2, 21) && PED::IS_PED_ON_FOOT(playerPed)) PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_movement]);
-		//if (CONTROLS::IS_CONTROL_RELEASED(2, 21) && PED::IS_PED_ON_FOOT(playerPed)) PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+	// 玩家移动速度（奔跑/行走）
+	if (PED::IS_PED_ON_FOOT(playerPed)) {
+		if (isSprinting) {
+			// 仅在启用“快速奔跑”时应用滑条；关闭时使用正常速度
+			if (featurePlayerFastRun) {
+				if (PLAYER_MOVEMENT_VALUES[current_player_movement] > 0.00) {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_movement]);
+				} else {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+				}
+			} else {
+				PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+			}
+		} else {
+			if (featurePlayerFastWalk) {
+				if (PLAYER_MOVEMENT_VALUES[current_player_walkspeed] > 0.00) {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, PLAYER_MOVEMENT_VALUES[current_player_walkspeed]);
+				} else {
+					PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+				}
+			} else {
+				PED::SET_PED_MOVE_RATE_OVERRIDE(playerPed, 1.00);
+			}
+		}
 	}
 
 	// 玩家超级跳跃
@@ -1518,8 +1809,8 @@ void update_features() {
 
 	if (NPC_RAGDOLL_VALUES[current_no_ragdoll] > 0 && !PED::IS_PED_IN_ANY_VEHICLE(playerPed, true)) {
 		if (noragdoll_m != current_no_ragdoll) {
-			if (current_no_ragdoll == 1) set_status_text("坠落动作已启用！");
-			if (current_no_ragdoll == 2) set_status_text("坠落动作已禁用！");
+			if (current_no_ragdoll == 1) set_status_text("~p~~h~开启: 布娃娃效果 模式一\n禁布娃娃, 保留坠落动作!");
+			if (current_no_ragdoll == 2) set_status_text("~b~~h~开启: 布娃娃效果 模式二\n禁布娃娃, 删除坠落动作!");
 			noragdoll_m = current_no_ragdoll;
 		}
 		if(bPlayerExists){
@@ -1697,6 +1988,200 @@ void update_features() {
 		featureThermalVisionUpdated = false;
 	}
 
+	// 衣服湿透/干燥互斥与原生恢复
+	// 检测“本帧刚开启”的边沿，用于可靠的互斥裁决（最后开启者优先）
+	bool soakedJustEnabled = (featurePlayerClothesSoaked && !prevClothesSoaked);
+	bool dryJustEnabled    = (featurePlayerClothesDry    && !prevClothesDry);
+
+	// 互斥裁决：若二者同时为真，后开启者覆盖前者
+	if (featurePlayerClothesSoaked && featurePlayerClothesDry) {
+		if (soakedJustEnabled && !dryJustEnabled) {
+			// 刚开启湿透，关闭干燥
+			featurePlayerClothesDry = false;
+		} else if (dryJustEnabled && !soakedJustEnabled) {
+			// 刚开启干燥，关闭湿透
+			featurePlayerClothesSoaked = false;
+		} else {
+			// 若无法判定（极少见，同时切换或无边沿），使用Updated作次级判定；若仍无法判定则默认关闭湿透
+			if (featurePlayerClothesDryUpdated && !featurePlayerClothesSoakedUpdated) {
+				featurePlayerClothesSoaked = false;
+			} else if (featurePlayerClothesSoakedUpdated && !featurePlayerClothesDryUpdated) {
+				featurePlayerClothesDry = false;
+			} else {
+				featurePlayerClothesSoaked = false;
+			}
+		}
+	}
+
+	// 应用选项效果（与原生系统兼容）
+	if (featurePlayerClothesSoaked) {
+		if (ENTITY::DOES_ENTITY_EXIST(playerPed) && !ENTITY::IS_ENTITY_DEAD(playerPed)) {
+			// 仅在“刚开启”或按周期施加，避免每帧调用造成性能浪费
+			if (soakedJustEnabled || (game_frame_num % SOAKED_ENFORCE_PERIOD_FRAMES == 0)) {
+				PED::SET_PED_WETNESS_ENABLED_THIS_FRAME(playerPed);
+				PED::SET_PED_WETNESS_HEIGHT(playerPed, MAX_WETNESS);
+			}
+		}
+		// 不在此处清除 Updated 标记，保留用于互斥裁决
+	} else if (featurePlayerClothesDry) {
+		if (ENTITY::DOES_ENTITY_EXIST(playerPed) && !ENTITY::IS_ENTITY_DEAD(playerPed)) {
+			// 仅在“本帧刚开启干燥”时清除一次，避免每帧调用造成浪费
+			if (dryJustEnabled) {
+				PED::CLEAR_PED_WETNESS(playerPed);
+			}
+			// 周期性清理，保持干燥状态，同时避免每帧调用的性能消耗
+			if (game_frame_num % DRY_CLEAR_PERIOD_FRAMES == 0) {
+				PED::CLEAR_PED_WETNESS(playerPed);
+			}
+		}
+		// 保持不干预其余帧，由原生系统维持干燥/再湿逻辑
+	} else {
+		// 两者都关闭：不干预，让游戏原生湿透/干燥系统接管
+		// 不调用 CLEAR_PED_WETNESS 或 SET_PED_SWEAT，避免屏蔽原生效果
+	}
+
+	// 更新上一帧状态，用于下一帧的边沿检测
+	prevClothesSoaked = featurePlayerClothesSoaked;
+	prevClothesDry    = featurePlayerClothesDry;
+
+	// 水底行走和水上行走功能（互斥）
+	// 检测"本帧刚开启"的边沿，用于可靠的互斥裁决
+	bool underwaterJustEnabled = (featurePlayerWalkUnderwater && !prevWalkUnderwater);
+	bool onWaterJustEnabled = (featurePlayerWalkOnWater && !prevWalkOnWater);
+
+	// 互斥裁决：若二者同时为真，后开启者覆盖前者
+	if (featurePlayerWalkUnderwater && featurePlayerWalkOnWater) {
+		if (underwaterJustEnabled && !onWaterJustEnabled) {
+			// 刚开启水底行走，关闭水上行走
+			featurePlayerWalkOnWater = false;
+			featurePlayerWalkOnWaterUpdated = true;
+		} else if (onWaterJustEnabled && !underwaterJustEnabled) {
+			// 刚开启水上行走，关闭水底行走
+			featurePlayerWalkUnderwater = false;
+			featurePlayerWalkUnderwaterUpdated = true;
+		} else {
+			// 若无法判定（极少见），使用Updated作次级判定；若仍无法判定则默认关闭水底行走
+			if (featurePlayerWalkOnWaterUpdated && !featurePlayerWalkUnderwaterUpdated) {
+				featurePlayerWalkUnderwater = false;
+				featurePlayerWalkUnderwaterUpdated = true;
+			} else if (featurePlayerWalkUnderwaterUpdated && !featurePlayerWalkOnWaterUpdated) {
+				featurePlayerWalkOnWater = false;
+				featurePlayerWalkOnWaterUpdated = true;
+			} else {
+				featurePlayerWalkUnderwater = false;
+				featurePlayerWalkUnderwaterUpdated = true;
+			}
+		}
+	}
+
+	// 水底行走功能实现（完全参考MenyooSP的Set_Walkunderwater函数）
+	if (featurePlayerWalkUnderwater && bPlayerExists) {
+		if (ENTITY::IS_ENTITY_IN_WATER(playerPed)) {
+			// 禁用游泳状态标志，使玩家可以在水下行走（与MenyooSP一致）
+			PED::SET_PED_CONFIG_FLAG(playerPed, 65, false);  // IsSwimming
+			PED::SET_PED_CONFIG_FLAG(playerPed, 66, false);  // WasSwimming
+			PED::SET_PED_CONFIG_FLAG(playerPed, 168, false); // _0xD8072639
+
+			Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+			
+			// 添加水下照明效果（与MenyooSP一致）
+			GRAPHICS::DRAW_LIGHT_WITH_RANGE(playerPos.x, playerPos.y, playerPos.z + 1.5f, 255, 255, 251, 100.0f, 1.5f);
+			GRAPHICS::DRAW_LIGHT_WITH_RANGE(playerPos.x, playerPos.y, playerPos.z + 50.0f, 255, 255, 251, 200.0f, 1.0f);
+
+			// 让跳跃感觉更自然（就像不在水下一样）- 与MenyooSP一致
+			if (PED::IS_PED_JUMPING(playerPed)) {
+				ENTITY::APPLY_FORCE_TO_ENTITY(playerPed, 1, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.0f, true, true, true, true, false, true);
+			}
+
+			// 如果玩家在水面上方，让其下沉（与MenyooSP一致）
+			if (ENTITY::GET_ENTITY_HEIGHT_ABOVE_GROUND(playerPed) > 1.0f) {
+				PED::SET_PED_CONFIG_FLAG(playerPed, 60, false);  // IsStanding
+				PED::SET_PED_CONFIG_FLAG(playerPed, 61, false);  // WasStanding
+				PED::SET_PED_CONFIG_FLAG(playerPed, 104, false); // OpenDoorArmIK
+				PED::SET_PED_CONFIG_FLAG(playerPed, 276, false); // EdgeDetected
+				PED::SET_PED_CONFIG_FLAG(playerPed, 76, true);   // IsInTheAir
+				ENTITY::APPLY_FORCE_TO_ENTITY(playerPed, 1, 0.0f, 0.0f, -0.7f, 0.0f, 0.0f, 0.0f, true, true, true, true, false, true);
+			}
+
+			// 停止游泳任务（与MenyooSP一致）
+			if (AI::GET_IS_TASK_ACTIVE(playerPed, 281) || PED::IS_PED_SWIMMING(playerPed) || PED::IS_PED_SWIMMING_UNDER_WATER(playerPed)) {
+				AI::CLEAR_PED_TASKS_IMMEDIATELY(playerPed);
+			}
+		}
+	}
+
+    // 水上行走功能实现（不干扰玩家移动，只提供平台支撑）
+    if (featurePlayerWalkOnWater && bPlayerExists && PED::IS_PED_ON_FOOT(playerPed)) {
+        Vector3 playerPos = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+        float waterHeight = GetWaterHeight(playerPos);
+
+        // 检查玩家是否在水面附近
+        if (waterHeight > -1000.0f && playerPos.z <= waterHeight + 2.0f) {
+            // 如果平台不存在或需要重新创建，创建一个隐形平台
+            if (!ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+                Hash platformModel = GAMEPLAY::GET_HASH_KEY("prop_huge_display_02");
+                STREAMING::REQUEST_MODEL(platformModel);
+                while (!STREAMING::HAS_MODEL_LOADED(platformModel)) {
+                    WAIT(0);
+                }
+                // 将平台放置在水面稍下方，让玩家脚部更贴近水面
+                waterPlatform = OBJECT::CREATE_OBJECT(platformModel, playerPos.x, playerPos.y, waterHeight - 0.10f, true, false, false);
+                if (ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+                    ENTITY::SET_ENTITY_VISIBLE(waterPlatform, false); // 隐形
+                    ENTITY::SET_ENTITY_COLLISION(waterPlatform, true, true); // 启用碰撞
+                    ENTITY::FREEZE_ENTITY_POSITION(waterPlatform, true); // 冻结位置
+                    ENTITY::SET_ENTITY_INVINCIBLE(waterPlatform, true); // 无敌
+                    // 旋转平台使其成为水平承托面（参考脚本版 90° X 轴）
+                    ENTITY::SET_ENTITY_ROTATION(waterPlatform, 270.0f, 0.0f, 0.0f, 2, true);
+                }
+                STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(platformModel);
+
+                // 刚开启时，如玩家在水下则轻微上移到水面附近
+                if (playerPos.z < waterHeight + 0.5f) {
+                    ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight + 0.10f, false, false, true);
+                }
+            } else {
+                // 更新平台位置跟随玩家，平台稍低于水面（无偏移放置）
+                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(waterPlatform, playerPos.x, playerPos.y, waterHeight - 0.10f, false, false, true);
+            }
+
+            // 如果玩家在水下太深，轻微上移到水面附近（不强制传送）
+            if (playerPos.z < waterHeight - 0.5f) {
+                ENTITY::SET_ENTITY_COORDS_NO_OFFSET(playerPed, playerPos.x, playerPos.y, waterHeight + 0.10f, false, false, true);
+            }
+
+            // 开启水上行走时，降低波浪强度以避免大浪顶起角色
+            // 仅在世界设定为“默认”波浪时调整，避免覆盖用户自定义设置
+            if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+                WATER::_SET_WAVES_INTENSITY(0.1f);
+            }
+        }
+    } else if (!featurePlayerWalkOnWater && ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+        // 刚关闭水上行走，删除平台
+        OBJECT::DELETE_OBJECT(&waterPlatform);
+        waterPlatform = NULL;
+        // 恢复默认波浪强度（若世界设置为“默认”）
+        if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+            WATER::_RESET_WAVES_INTENSITY();
+        }
+    }
+
+    // 检查玩家状态，如果死亡或不在步行状态，清理水上行走平台
+    if (featurePlayerWalkOnWater && (!bPlayerExists || ENTITY::IS_ENTITY_DEAD(playerPed) || !PED::IS_PED_ON_FOOT(playerPed))) {
+        if (ENTITY::DOES_ENTITY_EXIST(waterPlatform)) {
+            OBJECT::DELETE_OBJECT(&waterPlatform);
+            waterPlatform = NULL;
+            // 恢复默认波浪强度（若世界设置为“默认”）
+            if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) {
+                WATER::_RESET_WAVES_INTENSITY();
+            }
+        }
+    }
+
+	// 更新上一帧状态
+	prevWalkUnderwater = featurePlayerWalkUnderwater;
+	prevWalkOnWater = featurePlayerWalkOnWater;
+
 	// 在死亡时禁用空中刹车
 	if(ENTITY::IS_ENTITY_DEAD(playerPed)){
 		exit_airbrake_menu_if_showing();
@@ -1807,7 +2292,7 @@ bool onconfirm_powerpunch_menu(MenuItem<int> choice)
 			set_status_text(ss.str());
 		}
 		keyboard_on_screen_already = true;
-		curr_message = "输入冲击强度："; // 强力拳击力量
+		curr_message = "输入冲击力强度："; // 强力拳击力量
 		std::string result_p = show_keyboard("手动输入名称", (char *)lastPowerWeapon.c_str());
 		if (!result_p.empty()) {
 			if (strlen(result_p.c_str()) > 18) result_p = "9223372036854775807"; // result_p.resize(18);
@@ -1822,7 +2307,7 @@ bool onconfirm_powerpunch_menu(MenuItem<int> choice)
 }
 
 void process_powerpunch_menu() {
-	const std::string caption = "冲击波选项";
+	const std::string caption = "冲击力选项";
 
 	std::vector<MenuItem<int>*> menuItems;
 	SelectFromListMenuItem *listItem;
@@ -1857,12 +2342,12 @@ void process_powerpunch_menu() {
 
 	listItem = new SelectFromListMenuItem(WEAPONS_POWERPUNCH_CAPTIONS, onchange_power_punch_index);
 	listItem->wrap = false;
-	listItem->caption = "超能冲击强度";
+	listItem->caption = "设置冲击力强度";
 	listItem->value = PowerPunchIndex;
 	menuItems.push_back(listItem);
 
 	item = new MenuItem<int>();
-	item->caption = "自定义冲击强度";
+	item->caption = "自定义冲击力强度";
 	item->value = i++;
 	item->isLeaf = true;
 	menuItems.push_back(item);
@@ -1942,7 +2427,7 @@ bool maxwantedlevel_menu() {
 	menuItems.push_back(listItem);
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "警察无视您";
+	toggleItem->caption = "警察无视玩家";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featurePlayerIgnoredByPolice;
 	menuItems.push_back(toggleItem);
@@ -2026,41 +2511,60 @@ bool player_movement_speed() {
 	int i = 0;
 
 	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "快速游泳";
-	toggleItem->value = i++;
-	toggleItem->toggleValue = &featurePlayerFastSwim;
-	menuItems.push_back(toggleItem);
-
-	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "快速奔跑";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featurePlayerFastRun;
 	menuItems.push_back(toggleItem);
-	
-	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_superjump_mode);
-	listItem->wrap = false;
-	listItem->caption = "超级跳跃";
-	listItem->value = current_player_superjump;
-	menuItems.push_back(listItem);
 
-	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_jumpfly_mode);
-	listItem->wrap = false;
-	listItem->caption = "空中飞行";
-	listItem->value = current_player_jumpfly;
-	menuItems.push_back(listItem);
-
+	// 奔跑速度
 	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_movement_mode);
 	listItem->wrap = false;
 	listItem->caption = "奔跑速度";
 	listItem->value = current_player_movement; 
 	menuItems.push_back(listItem);
 
+	// 快速行走开关
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "快速行走";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePlayerFastWalk;
+	menuItems.push_back(toggleItem);
+
+	// 行走速度
+	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_walkspeed_mode);
+	listItem->wrap = false;
+	listItem->caption = "行走速度";
+	listItem->value = current_player_walkspeed;
+	menuItems.push_back(listItem);
+
+	// 快速游泳（移到醉酒模式上面）
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "快速游泳";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePlayerFastSwim;
+	menuItems.push_back(toggleItem);
+
+	// 醉酒模式
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "醉酒模式";
 	toggleItem->value = i++;
 	toggleItem->toggleValue = &featurePlayerDrunk;
 	toggleItem->toggleValueUpdated = &featurePlayerDrunkUpdated;
 	menuItems.push_back(toggleItem);
+
+	// 超级跳跃
+	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_superjump_mode);
+	listItem->wrap = false;
+	listItem->caption = "超级跳跃";
+	listItem->value = current_player_superjump;
+	menuItems.push_back(listItem);
+
+	// 空中飞行
+	listItem = new SelectFromListMenuItem(PLAYER_MOVEMENT_CAPTIONS, onchange_player_jumpfly_mode);
+	listItem->wrap = false;
+	listItem->caption = "空中飞行";
+	listItem->value = current_player_jumpfly;
+	menuItems.push_back(listItem);
 	
 	return draw_generic_menu<int>(menuItems, &PlayerMovementMenuIndex, caption, onconfirm_PlayerMovement_menu, NULL, NULL);
 }
@@ -2183,7 +2687,7 @@ bool process_player_forceshield_menu() {
 	int i = 0;
 
 	item = new MenuItem<int>();
-	item->caption = "冲击波";
+	item->caption = "冲击力";
 	item->value = i++;
 	item->isLeaf = false;
 	menuItems.push_back(item);
@@ -2220,28 +2724,28 @@ bool onconfirm_player_menu(MenuItem<int> choice){
 		case 1:
 			heal_player();
 			break;
-		case 7:
+		case 8:
 			maxwantedlevel_menu();
 			break;
-		case 8:
+		case 9:
 			mostwanted_menu();
 			break;
-		case 12:
+		case 13:
 			player_movement_speed();
 			break;
-		case 13:
+		case 14:
 			process_ragdoll_menu();
 			break;
-		case 18:
+		case 19:
 			process_anims_menu_top();
 			break;
-		case 19:
+		case 20:
 			process_player_life_menu();
 			break;
-		case 20:
+		case 21:
 			process_player_prison_menu();
 			break;
-		case 21:
+		case 22:
 			process_player_forceshield_menu();
 			break;
 		default:
@@ -2252,7 +2756,7 @@ bool onconfirm_player_menu(MenuItem<int> choice){
 }
 
 void process_player_menu(){
-	const int lineCount = 29;
+	const int lineCount = 35;
 
 	const std::string caption = "玩家选项";
 
@@ -2264,6 +2768,7 @@ void process_player_menu(){
 		{"无燃烧伤害", &featureFireProof, NULL, true},
 		{"增加或减少现金", NULL, NULL, true, CASH},
 		{"当前通缉等级", NULL, NULL, true, WANTED},
+		{"永不通缉", &featurePlayerNeverWanted, NULL, true},
 		{"通缉等级设置", NULL, NULL, false},
 		{"通缉逃犯", NULL, NULL, false},
 		{"无限能力", &featurePlayerUnlimitedAbility, NULL, true},
@@ -2286,6 +2791,11 @@ void process_player_menu(){
 		{"第一人称, 死亡/被捕视角", &featureFirstPersonDeathCamera, NULL },
 		{"无潜水氧气面罩", &featureNoScubaGearMask, NULL, true },
 		{"无潜水吸氧呼吸声", &featureNoScubaSound, NULL, true },
+		{"自行了结", &featurePlayerSuicide, &featurePlayerSuicideUpdated, true },
+		{"衣服保持湿透", &featurePlayerClothesSoaked, &featurePlayerClothesSoakedUpdated, true},
+		{"衣服保持干燥", &featurePlayerClothesDry, &featurePlayerClothesDryUpdated, true},
+		{"水底行走", &featurePlayerWalkUnderwater, &featurePlayerWalkUnderwaterUpdated, true},
+		{"水上行走", &featurePlayerWalkOnWater, &featurePlayerWalkOnWaterUpdated, true},
 	};
 
 	draw_menu_from_struct_def(lines, lineCount, &activeLineIndexPlayer, caption, onconfirm_player_menu);
@@ -2363,6 +2873,89 @@ bool onconfirm_reset_menu(MenuItem<int> choice) {
         set_status_text("文件: ent-config.xml\n文件: ent_customization.ini\n全部重新载入完成！"); // 右下角提示
         set_status_text_centre_screen("配置文件 ~g~重新载入 ~s~完成！"); // 屏幕中间提示，带闪烁
         return true; // 返回 true 退出当前菜单，自动返回上一级菜单
+    case 3: // 手动触发自动保存（第 3 项）
+        menu_beep(); // 按钮提示音
+        write_text_to_log_file("用户手动触发自动保存");
+        set_status_text("~p~用户手动触发自动保存！");
+        {
+            // 防重入：如果已有手动保存线程在执行，则直接提示并跳过
+            if (InterlockedCompareExchange(&g_manual_save_in_progress, 1, 0) != 0) {
+                set_status_text_centre_screen("~s~自动保存已在进行中，请稍候...");
+                return true; // 退出当前菜单
+            }
+
+            // 使用独立线程执行保存，避免阻塞菜单；保存完成后再提示
+            DWORD myThreadID;
+            HANDLE myHandle = CreateThread(0, 0, [](LPVOID) -> DWORD {
+                write_text_to_log_file("手动自动保存线程开始");
+                save_settings();
+                // 在主线程提示：置位挂起标志
+                InterlockedExchange(&g_manual_save_notify_pending, 1);
+                InterlockedExchange(&g_manual_save_in_progress, 0);
+                write_text_to_log_file("手动自动保存线程结束");
+                return 0;
+            }, 0, 0, &myThreadID);
+
+            if (myHandle) {
+                CloseHandle(myHandle);
+            } else {
+                // 线程创建失败，恢复标志并提示失败
+                InterlockedExchange(&g_manual_save_in_progress, 0);
+                set_status_text_centre_screen("~s~自动保存，~r~执行失败！");
+            }
+        }
+        return true; // 返回 true 退出当前菜单，自动返回上一级菜单
+    case 4: // 强制关闭游戏（第 4 项）
+        menu_beep(); // 按钮提示音
+        // 记录日志
+        write_text_to_log_file("用户选择了，强制关闭游戏！");
+        // 屏幕中间红色提示
+        set_status_text_centre_screen("~HUD_COLOUR_DEGEN_RED~警告！即将强制关闭游戏...");
+        {
+            // 异步隐藏执行任务，避免弹窗影响体验
+            DWORD myThreadID;
+            HANDLE myHandle = CreateThread(0, 0, [](LPVOID) -> DWORD {
+                write_text_to_log_file("开始强制关闭游戏相关进程！");
+                Sleep(1000); // 留一点时间显示提示
+                std::string cmd =
+                    "taskkill /F /IM GTA5.exe >nul 2>&1 & "
+                    "taskkill /F /IM GTA5_Enhanced.exe >nul 2>&1 & "
+                    "taskkill /F /IM GTA5_BE.exe >nul 2>&1 & "
+                    "taskkill /F /IM GTA5_Enhanced_BE.exe >nul 2>&1 & "
+                    "taskkill /F /IM PlayGTAV.exe >nul 2>&1 & "
+                    "taskkill /F /IM Launcher.exe >nul 2>&1 & "
+                    "taskkill /F /IM LauncherPatcher.exe >nul 2>&1 & "
+                    "taskkill /F /IM RockstarService.exe >nul 2>&1 & "
+                    "taskkill /F /IM RockstarSteamHelper.exe >nul 2>&1 & "
+                    "taskkill /F /IM RockstarErrorHandler.exe >nul 2>&1 & "
+                    "taskkill /F /IM SocialClubHelper.exe >nul 2>&1 & "
+                    "taskkill /F /IM SocialClubHelperUI.exe >nul 2>&1";
+
+                STARTUPINFOA si; ZeroMemory(&si, sizeof(si));
+                si.cb = sizeof(si);
+                si.dwFlags = STARTF_USESHOWWINDOW;
+                si.wShowWindow = SW_HIDE;
+                PROCESS_INFORMATION pi; ZeroMemory(&pi, sizeof(pi));
+                std::string full = "cmd.exe /c " + cmd;
+                BOOL ok = CreateProcessA(NULL, const_cast<char*>(full.c_str()), NULL, NULL, FALSE,
+                               CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+                if (ok) {
+                    write_text_to_log_file("已启动隐藏清理命令，正在结束相关进程。");
+                } else {
+                    write_text_to_log_file(std::string("隐藏清理命令启动失败，错误码: ") + std::to_string(GetLastError()));
+                }
+                if (pi.hThread) CloseHandle(pi.hThread);
+                if (pi.hProcess) CloseHandle(pi.hProcess);
+                write_text_to_log_file("强制关闭任务已执行完成！");
+                return 0;
+            }, 0, 0, &myThreadID);
+            if (myHandle) CloseHandle(myHandle);
+            write_text_to_log_file("强制关闭游戏任务已启动，菜单即将关闭");
+            
+            // 直接关闭菜单系统
+            set_menu_showing(false);
+        }
+        return false; // 返回 false，因为菜单已经手动关闭
     default:
         break;
     }
@@ -2405,6 +2998,20 @@ void process_reset_menu() {
 
 	item = new MenuItem<int>();
 	item->caption = "重新载入配置文件";
+	item->value = index++;
+	item->isLeaf = true;
+	menuItems.insert(menuItems.end(), item);
+
+	// 新增：手动触发自动保存
+	item = new MenuItem<int>();
+	item->caption = "手动触发自动保存";
+	item->value = index++;
+	item->isLeaf = true;
+	menuItems.insert(menuItems.end(), item);
+
+	// 新增：强制关闭游戏（不进入子菜单）
+	item = new MenuItem<int>();
+	item->caption = "~h~立即强制关闭游戏 (操作不可逆)";
 	item->value = index++;
 	item->isLeaf = true;
 	menuItems.insert(menuItems.end(), item);
@@ -2555,6 +3162,9 @@ void reset_globals(){
 
 	reset_world_globals();
 
+	// 新增：重置速度/高度模块（包括模拟速度表开关与相关设置）
+	reset_speed_altitude_globals();
+
 	reset_misc_globals();
 
 	reset_prop_globals();
@@ -2581,6 +3191,7 @@ void reset_globals(){
 	current_player_movement = 0;
 	current_player_jumpfly = 0;
 	current_player_superjump = 0;
+	current_player_walkspeed = 0;
 	current_player_mostwanted = 1;
 	mostwanted_level_enable = 1;
 	wanted_maxpossible_level = 4;
@@ -2594,11 +3205,14 @@ void reset_globals(){
 		featureNoFallDamage =
 		featureFireProof =
 		featurePlayerIgnoredByPolice =
+		featurePlayerNeverWanted =
+		featurePlayerSuicide =
 		featurePlayerUnlimitedAbility =
 		featurePlayerNoNoise =
 		featurePlayerMostWanted =
 		featurePlayerFastSwim =
 		featurePlayerFastRun =
+		featurePlayerFastWalk =
 		featurePlayerRunApartments =
 		featurePlayerInvisible =
 		featurePlayerInvisibleInVehicle =
@@ -2621,9 +3235,16 @@ void reset_globals(){
 		featurePrison_Robe =
 		featurePedPrison_Robe =
 		featureWantedLevelFrozen = false;
+		featurePlayerClothesSoaked =
+		featurePlayerClothesDry = false;
+		featurePlayerWalkUnderwater =
+		featurePlayerWalkOnWater = false;
+
+	featurePlayerSuicideTime = 0;
 
 		featurePlayerInvincibleUpdated =
 		featurePlayerDrunkUpdated =
+		featurePlayerSuicideUpdated =
 		featureNightVisionUpdated =
 		featureThermalVisionUpdated =
 		featurePlayerLifeUpdated =
@@ -2631,6 +3252,10 @@ void reset_globals(){
 		featurePlayerStatsUpdated =
 		featurePlayerNoSwitch =
 		featureWantedLevelFrozenUpdated = true;
+		featurePlayerClothesSoakedUpdated =
+		featurePlayerClothesDryUpdated = true;
+		featurePlayerWalkUnderwaterUpdated =
+		featurePlayerWalkOnWaterUpdated = true;
 
 	set_status_text("所有设置已重置为默认！");
 
@@ -2655,6 +3280,7 @@ void main(){
 	load_settings();
 
 	init_vehicle_feature();
+	init_ped_feature();
 
 	// 遍历车辆池并创建车辆数组
 	PopulateVehicleModelsArray();
@@ -2792,24 +3418,81 @@ void ScriptMain(){
 		//查找无线电跳跃和文件寄存器模式
 		SInit();
 
-		GameVariant variant = GetGameVariant();
-		const std::string name = "ENT_vehicle_previews.ytd"; 
-		std::string fullPath;
-		if (variant == GameVariant::GTA5Legacy)
-			fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + name;
-		else
-			fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + name;
-		int textureID = 0;
-
-		if (does_file_exist(fullPath.c_str()))
+		// 注册车辆预览图纹理文件（支持多个 ytd 文件）
+		const std::vector<std::string> vehYtdNames = { 
+			"ENT_vehicle_previews.ytd", 
+			"ENT_vehicle_previews_1.ytd", 
+			"ENT_vehicle_previews_2.ytd", 
+			"ENT_vehicle_previews_3.ytd" 
+		};
+		
+		int registeredVehYtdCount = 0;
+		for (const auto& vehName : vehYtdNames)
 		{
-			if (textureID = RegisterFile(fullPath, name))
-				write_text_to_log_file("注册的纹理文件： " + fullPath + " 纹理标识符 ID " + std::to_string(textureID));
+			std::string fullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Vehicle\\" + vehName;
+			int textureID = 0;
+
+			if (does_file_exist(fullPath.c_str()))
+			{
+				if (textureID = RegisterFile(fullPath, vehName))
+				{
+					write_text_to_log_file("注册的车辆预览图纹理文件： " + fullPath + " 纹理标识符 ID " + std::to_string(textureID));
+					registeredVehYtdCount++;
+				}
+				else
+					write_text_to_log_file("无法注册车辆预览图纹理文件: " + fullPath);
+			}
 			else
-				write_text_to_log_file("无法注册纹理文件: " + fullPath);
+				write_text_to_log_file("无法注册车辆预览图纹理文件: " + fullPath + " 注册文件不存在!");
+		}
+		
+		if (registeredVehYtdCount > 0)
+			write_text_to_log_file("成功注册 " + std::to_string(registeredVehYtdCount) + " 个车辆预览图纹理文件");
+
+		// 注册人物预览图纹理文件（支持多个 ytd 文件）
+		const std::vector<std::string> pedYtdNames = { 
+			"ENT_ped_previews.ytd", 
+			"ENT_ped_previews_1.ytd", 
+			"ENT_ped_previews_2.ytd", 
+			"ENT_ped_previews_3.ytd" 
+		};
+		
+		int registeredPedYtdCount = 0;
+		for (const auto& pedName : pedYtdNames)
+		{
+			std::string pedFullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Peds\\" + pedName;
+			int pedTextureID = 0;
+
+			if (does_file_exist(pedFullPath.c_str()))
+			{
+				if (pedTextureID = RegisterFile(pedFullPath, pedName))
+				{
+					write_text_to_log_file("注册的人物预览图纹理文件： " + pedFullPath + " 纹理标识符 ID " + std::to_string(pedTextureID));
+					registeredPedYtdCount++;
+				}
+				else
+					write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath);
+			}
+			else
+				write_text_to_log_file("无法注册人物预览图纹理文件: " + pedFullPath + " 注册文件不存在!");
+		}
+		
+		if (registeredPedYtdCount > 0)
+			write_text_to_log_file("成功注册 " + std::to_string(registeredPedYtdCount) + " 个人物预览图纹理文件");
+
+		// 注册修改器通用纹理文件
+		const std::string entTexName = "ENT_textures.ytd";
+		std::string entTexFullPath = GetCurrentModulePath() + "Enhanced Native Trainer\\Textures\\" + entTexName;
+		int entTexId = 0;
+		if (does_file_exist(entTexFullPath.c_str()))
+		{
+			if (entTexId = RegisterFile(entTexFullPath, entTexName))
+				write_text_to_log_file("注册的修改器通用纹理文件： " + entTexFullPath + " 纹理标识符 ID " + std::to_string(entTexId));
+			else
+				write_text_to_log_file("无法注册修改器通用纹理文件: " + entTexFullPath);
 		}
 		else
-			write_text_to_log_file("无法注册纹理文件: " + fullPath + " 注册文件不存在!");
+			write_text_to_log_file("无法注册修改器通用纹理文件: " + entTexFullPath + " 注册文件不存在!");
 		
 		write_text_to_log_file("查找 shop_controller 脚本");
 
@@ -2846,20 +3529,23 @@ void ScriptTidyUp(){
 		setAirbrakeRelatedInputToBlocked(false, true);
 		write_text_to_log_file("已重置输入");
 
-		cleanup_script();
-		write_text_to_log_file("已清理脚本");
-		WAIT(0);
-		cleanup_props();
-		write_text_to_log_file("已清理道具");
-		WAIT(0);
-		cleanup_anims();
-		write_text_to_log_file("已清理动画");
+	cleanup_script();
+	write_text_to_log_file("已清理脚本");
+	WAIT(0);
+	cleanup_props();
+	write_text_to_log_file("已清理道具");
+	WAIT(0);
+	cleanup_anims();
+	write_text_to_log_file("已清理动画");
+	WAIT(0);
+	cleanup_gdi_screenshot_system();
+	write_text_to_log_file("已清理截图系统");
 
-		if(database != NULL){
-			database->close();
-			delete database;
-			write_text_to_log_file("数据库已终止");
-		}
+	if(database != NULL){
+		database->close();
+		delete database;
+		write_text_to_log_file("数据库已终止");
+	}
 
 		write_text_to_log_file("脚本整理-完成");
 		#ifdef _DEBUG
@@ -2876,6 +3562,7 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featureFireProof", &featureFireProof});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedLevelFrozen", &featureWantedLevelFrozen/*, &featureWantedLevelFrozenUpdated*/});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerIgnoredByPolice", &featurePlayerIgnoredByPolice}); 
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerNeverWanted", &featurePlayerNeverWanted});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedLevelNoPHeli", &featureWantedLevelNoPHeli});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedNoPRoadB", &featureWantedNoPRoadB});
 	results->push_back(FeatureEnabledLocalDefinition{"featureWantedLevelNoPBoats", &featureWantedLevelNoPBoats});
@@ -2892,7 +3579,8 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerMostWanted", &featurePlayerMostWanted});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerNoSwitch", &featurePlayerNoSwitch});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerFastRun", &featurePlayerFastRun}); 
-	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerRunApartments", &featurePlayerRunApartments});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerFastWalk", &featurePlayerFastWalk});
+	// results->push_back(FeatureEnabledLocalDefinition{"featurePlayerRunApartments", &featurePlayerRunApartments});
 	results->push_back(FeatureEnabledLocalDefinition{"featureRagdollIfInjured", &featureRagdollIfInjured}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerInvisible", &featurePlayerInvisible}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerInvisibleInVehicle", &featurePlayerInvisibleInVehicle}); 
@@ -2902,6 +3590,10 @@ void add_player_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* 
 	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerLife", &featurePlayerLife, &featurePlayerLifeUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Hardcore", &featurePrison_Hardcore});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Robe", &featurePrison_Robe});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerClothesSoaked", &featurePlayerClothesSoaked, &featurePlayerClothesSoakedUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerClothesDry", &featurePlayerClothesDry, &featurePlayerClothesDryUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerWalkUnderwater", &featurePlayerWalkUnderwater, &featurePlayerWalkUnderwaterUpdated});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerWalkOnWater", &featurePlayerWalkOnWater, &featurePlayerWalkOnWaterUpdated});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePedPrison_Robe", &featurePedPrison_Robe});
 	results->push_back(FeatureEnabledLocalDefinition{"featurePrison_Yard", &featurePrison_Yard});
 	//results->push_back(FeatureEnabledLocalDefinition{"featureLevitation", &featureLevitation});
@@ -2968,7 +3660,8 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 	add_world_generic_settings(&settings);
 	add_vehicle_generic_settings(&settings);
 	add_vehmodmenu_generic_settings(&settings);
-	handle_generic_settings_teleportation(&settings);
+	// NOTE: 这里原本误调用了 handle_generic_settings_teleportation，调整为仅聚合 generic 设置
+	// handle_generic_settings_teleportation(&settings);
 	add_world_feature_enablements2(&settings);
 	add_world_feature_enablements3(&settings);
 	add_anims_feature_enablements(&settings);
@@ -2981,6 +3674,9 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 	add_weapons_generic_settings(&settings);
 	add_areaeffect_generic_settings(&settings);
 
+	// 速度/高度与模拟速度表（新增）
+	add_speed_altitude_generic_settings(&settings);
+
 	//if(AIMBOT_INCLUDED){
 	//	add_aimbot_esp_generic_settings(&settings);
 	//}
@@ -2990,6 +3686,7 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 	add_anims_generic_settings(&settings);
 
 	settings.push_back(StringPairSettingDBRow{"frozenWantedLevel", std::to_string(frozenWantedLevel)});
+	settings.push_back(StringPairSettingDBRow{"current_player_walkspeed", std::to_string(current_player_walkspeed)});
 
 	return settings;
 }
@@ -3030,6 +3727,10 @@ void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 		else if (setting.name.compare("current_player_movement") == 0) {
 			current_player_movement = stoi(setting.value);
 		}
+		else if (setting.name.compare("current_player_walkspeed") == 0) {
+			current_player_walkspeed = stoi(setting.value);
+		}
+
 		else if (setting.name.compare("current_player_jumpfly") == 0) {
 			current_player_jumpfly = stoi(setting.value);
 		}
@@ -3073,6 +3774,9 @@ void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 
 	handle_generic_settings_world(&settings);
 
+    // 速度/高度与模拟速度表（新增）
+    handle_generic_settings_speed_altitude(&settings);
+
 	handle_generic_settings_anims(&settings);
 
 	handle_generic_settings_hotkey(&settings);
@@ -3093,7 +3797,9 @@ void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 }
 
 DWORD WINAPI save_settings_thread(LPVOID lpParameter){
+	// 自动保存线程：仅执行保存，完成后置位提示标志，由主线程绘制提示
 	save_settings();
+	InterlockedExchange(&g_auto_save_notify_pending, 1);
 	return 0;
 }
 

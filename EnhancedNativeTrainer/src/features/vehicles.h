@@ -1156,6 +1156,16 @@ bool create_sample_vehicle_previews_xml(const char* xmlPath);
 bool load_custom_vehicle_previews_from_xml(const char* xmlPath);
 bool ensure_custom_vehicle_previews_loaded();
 
+// 车辆标记管理功能
+void process_vehicle_markers_menu();
+void mark_current_vehicle();
+void unmark_current_vehicle();
+void clear_all_vehicle_markers();
+void teleport_to_last_marked_vehicle();
+void teleport_last_marked_vehicle_to_player();
+void update_vehicle_markers();
+void toggle_vehicle_markers(bool enabled);
+
 void update_vehicle_features(BOOL playerExists, Ped playerPed);
 
 void update_veh_weapons_features();
@@ -1584,6 +1594,8 @@ extern bool featureRestoreTracked;
 extern bool featureDisableIgnition;
 extern int EngineRunningIndex;
 extern int LevitationIndex;
+// 冻结车辆 触发式功能：通过菜单项或快捷键触发
+void vehicle_freeze_toggle();
 
 extern std::string  veh_to_spawn;
 extern bool repairing_engine;

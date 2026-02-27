@@ -88,6 +88,11 @@ void write_default_config_xml_file() {
 		xmlFile << "	<key function=\"toggle_airbrake\" value=\"VK_F6\"/>" << std::endl;
 		xmlFile << "	<!-- 开启/关闭，自由移动功能，按键为 F6 -->" << std::endl;
 		xmlFile << "" << std::endl;
+		xmlFile << "	<key function=\"freecam_toggle\" value=\"VK_F7\"/>" << std::endl;
+		xmlFile << "	<!-- 开启/关闭，自由相机模式，按键为 F7 -->" << std::endl;
+		xmlFile << "" << std::endl;
+		xmlFile << "	<key function=\"screenshot\" value=\"VK_F12\"/>" << std::endl;
+		xmlFile << "	<!-- 游戏全屏截图，按键为 F12 -->" << std::endl;
 		xmlFile << "" << std::endl;
 		xmlFile << "	<key function=\"airbrake_up\" value=\"VK_KEY_Q\"/>" << std::endl;
 		xmlFile << "	<!-- 自由移动，上升，按键为 Q -->" << std::endl;
@@ -815,7 +820,7 @@ void write_config_ini_file(){
 
 			result.push_back(std::string(";;;; 增强型 原生修改器：配置 INI 文件（开始） ;;;;\n\n;;; （删除此文件以恢复默认颜色配置） ;;;\n"));
 
-			result.push_back(std::string(";; 菜单颜色（开始） ;;\n;\t请遵循 RGBA 颜色系统，每个颜色组件的值范围为 0 ~ 255 ;"));
+			result.push_back(std::string(";; 菜单颜色（开始） ;;\n;; 请遵循 RGBA 颜色系统，每个颜色组件的值范围为 0 ~ 255 ;;"));
 			for(auto a : lines){
 				for(int b = 0; b < ENTColor::colsVarsNum; b++){
 					if(a.compare(0, ENTColor::colsVarsReverse.at(b).length() + 1, (ENTColor::colsVarsReverse.at(b) + tmpk[0])) == 0){
@@ -937,6 +942,8 @@ KeyInputConfig::KeyInputConfig(){
 	this->keyConfigs[KeyConfig::KEY_VEH_CANREFUELING] = new KeyConfig(VK_LBUTTON);
 	
 	this->keyConfigs[KeyConfig::KEY_TOGGLE_AIRBRAKE] = new KeyConfig(VK_F6);
+	this->keyConfigs[KeyConfig::KEY_FREECAM_TOGGLE] = new KeyConfig(VK_F7);
+	this->keyConfigs[KeyConfig::KEY_SCREENSHOT] = new KeyConfig(VK_F12); // 默认F12
 
 	this->keyConfigs[KeyConfig::KEY_AIRBRAKE_UP] = new KeyConfig(VK_KEY_Q);
 	this->keyConfigs[KeyConfig::KEY_AIRBRAKE_DOWN] = new KeyConfig(VK_KEY_Z);
@@ -992,6 +999,8 @@ KeyConfig* KeyInputConfig::get_key(std::string function){
 
 const std::string KeyConfig::KEY_TOGGLE_MAIN_MENU = std::string("toggle_main_menu");
 const std::string KeyConfig::KEY_TOGGLE_AIRBRAKE = std::string("toggle_airbrake");
+const std::string KeyConfig::KEY_FREECAM_TOGGLE = std::string("freecam_toggle");
+const std::string KeyConfig::KEY_SCREENSHOT = std::string("screenshot");
 
 const std::string KeyConfig::KEY_MENU_UP = std::string("menu_up");
 const std::string KeyConfig::KEY_MENU_DOWN = std::string("menu_down");

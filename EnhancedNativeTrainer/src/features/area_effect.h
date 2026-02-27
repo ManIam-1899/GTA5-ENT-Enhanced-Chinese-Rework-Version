@@ -163,6 +163,9 @@ void update_area_effects(Ped playerPed);
 
 void update_speedaltitude(Ped playerPed);
 
+// 独立的模拟速度表帧更新（与旧速度/高度文本渲染分离）
+void update_speedaltitude_append_analog(Ped playerPed);
+
 std::set<Ped> get_nearby_peds(Ped playerPed);
 
 std::set<Vehicle> get_nearby_vehicles(Ped playerPed);

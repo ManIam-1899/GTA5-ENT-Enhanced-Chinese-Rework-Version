@@ -706,6 +706,39 @@ int find_highest_instance_num_of_prop(Hash model)
 	return highestFound;
 }
 
+// 删除指定区域内的已生成物体
+int delete_spawned_props_in_radius(Vector3 coords, float radius)
+{
+	int count = 0;
+	std::vector<SpawnedPropInstance>::iterator it;
+	for (it = propsWeCreated.begin(); it != propsWeCreated.end();)
+	{
+		if (ENTITY::DOES_ENTITY_EXIST((*it).instance))
+		{
+			Vector3 propCoords = ENTITY::GET_ENTITY_COORDS((*it).instance, true);
+			float distance = GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(coords.x, coords.y, coords.z, propCoords.x, propCoords.y, propCoords.z, true);
+			
+			if (distance <= radius)
+			{
+				Object obj = (*it).instance;
+				OBJECT::DELETE_OBJECT(&obj);
+				count++;
+				it = propsWeCreated.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+		else
+		{
+			// 物体已不存在，从列表中移除
+			it = propsWeCreated.erase(it);
+		}
+	}
+	return count;
+}
+
 int menu_spawned_instance_index = 0;
 
 bool prop_spawned_instances_menu()

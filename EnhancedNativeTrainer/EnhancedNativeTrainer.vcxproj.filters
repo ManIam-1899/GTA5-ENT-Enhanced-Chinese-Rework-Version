@@ -52,6 +52,9 @@
     <ClCompile Include="src\features\props.cpp">
       <Filter>src\features</Filter>
     </ClCompile>
+    <ClCompile Include="src\features\screenshot.cpp">
+      <Filter>src\features</Filter>
+    </ClCompile>
     <ClCompile Include="src\features\script.cpp">
       <Filter>src\features</Filter>
     </ClCompile>
@@ -202,6 +205,9 @@
       <Filter>inc\features</Filter>
     </ClInclude>
     <ClInclude Include="src\features\script.h">
+      <Filter>inc\features</Filter>
+    </ClInclude>
+    <ClInclude Include="src\features\screenshot.h">
       <Filter>inc\features</Filter>
     </ClInclude>
     <ClInclude Include="inc\sqlite3\sqlite3.h">

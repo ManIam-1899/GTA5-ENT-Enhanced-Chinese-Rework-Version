@@ -20,7 +20,6 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\storage\database.h"
 #include "..\debug\debuglog.h"
 #include "skins.h"
-#include "script.h"
 #include "vehicles.h"
 #include "misc.h"
 #include "teleportation.h"
@@ -67,8 +66,11 @@ extern bool featurePlayerInvisible;
 extern bool featurePlayerInvisibleInVehicle;
 extern bool featureShowStatusMessage;
 extern bool featureNoAutoRespawn;
+extern bool featurePlayerWalkUnderwater;
+extern bool featurePlayerWalkOnWater;
 extern bool player_died;
 extern bool featureWantedLevelFrozen;
+extern bool featurePlayerNeverWanted;
 extern bool in_prison;
 extern bool super_jump_no_parachute;
 extern int myENTGroup;
@@ -119,6 +121,9 @@ static inline std::string &trim(std::string &s) {
 	return ltrim(rtrim(s));
 }
 
+// 获取水面高度（供水上/水下行走等功能调用）
+float GetWaterHeight(Vector3 pos);
+
 void ScriptMain();
 
 void ScriptTidyUp();
@@ -158,6 +163,7 @@ void onchange_player_mostwanted_level_mode(int value, SelectFromListMenuItem* so
 void onchange_player_wanted_maxpossible_level_mode(int value, SelectFromListMenuItem* source);
 
 void onchange_player_movement_mode(int value, SelectFromListMenuItem* source);
+void onchange_player_walkspeed_mode(int value, SelectFromListMenuItem* source);
 
 void onchange_NPC_ragdoll_mode(int value, SelectFromListMenuItem* source);
 

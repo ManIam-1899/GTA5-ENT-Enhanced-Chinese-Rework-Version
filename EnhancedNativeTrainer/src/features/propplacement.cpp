@@ -6,6 +6,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 
 #include "..\ui_support\menu_functions.h"
 #include "propplacement.h"
+#include "misc.h"
 #include "..\io\keyboard.h"
 #include "..\io\config_io.h"
 #include "..\utils.h"
@@ -46,6 +47,11 @@ void exit_prop_placer_if_showing()
 
 void begin_prop_placement(SpawnedPropInstance prop)
 {
+	// 如果自由相机模式已激活，则无效化物体摆放模式启动（防止功能冲突）
+	if (freeCamActive) {
+		return; // 静默返回，不启动物体摆放模式
+	}
+
 	setGameInputToEnabled(false);
 	bool wasHudHidden = is_hud_hidden();
 	set_hud_hidden(true);

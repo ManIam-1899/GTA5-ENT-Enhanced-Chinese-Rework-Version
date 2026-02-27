@@ -76,6 +76,9 @@ extern int DefMenuTabIndex;
 const std::vector<std::string> MISC_PHONE_FREESECONDS_CAPTIONS{ "0", "3", "5", "10", "15" };
 const int MISC_PHONE_FREESECONDS_VALUES[] = { 0, 3, 5, 10, 15 };
 
+// 骑车手机动作动画类型（替换原本误用“前几秒免费”的选项）
+extern const std::vector<std::string> MISC_PHONE_BIKE_ANIM_CAPTIONS;
+
 extern bool featureGamePause;
 
 // 标题字体选项
@@ -171,26 +174,119 @@ const int MENU_ITEM_TOP_OFFSET_DEFAULT_INDEX = 0;
 extern int MenuItemTopOffsetIndex;
 extern bool MenuItemTopOffsetChanged;
 
-// 预览图左右判断依据 - 默认 500.0f
+// 车辆预览图左右判断依据 - 默认 500.0f
 const std::vector<std::string> MISC_PREVIEW_POSITION_THRESHOLD_CAPTIONS{ "默认", "200", "300", "400", "450", "550", "600", "650", "700", "750", "800", "850", "900" };
 const float MISC_PREVIEW_POSITION_THRESHOLD_VALUES[] = { 500.0f, 200.0f, 300.0f, 400.0f, 450.0f, 550.0f, 600.0f, 650.0f, 700.0f, 750.0f, 800.0f, 850.0f, 900.0f };
 const int PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX = 0;
 extern int PreviewPositionThresholdIndex;
 extern bool PreviewPositionThresholdChanged;
 
-// 预览图分辨率适配值 - 默认 1920.0f
+// 车辆预览图分辨率适配值 - 默认 1920.0f
 const std::vector<std::string> MISC_PREVIEW_RESOLUTION_SCALE_CAPTIONS{ "默认 (1080P)", "2560 (2k)", "3840 (4K)", "1760", "1680", "1600", "1440", "1366", "1280", "2816", "3072", "3200", "3328",  };
 const float MISC_PREVIEW_RESOLUTION_SCALE_VALUES[] = { 1920.0f, 2560.0f, 3840.0f, 1760.0f, 1680.0f, 1600.0f, 1440.0f, 1366.0f, 1280.0f, 2816.0f, 3072.0f, 3200.0f, 3328.0f };
 const int PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX = 0;
 extern int PreviewResolutionScaleIndex;
 extern bool PreviewResolutionScaleChanged;
 
-// 预览图间距 - 默认 8.0f
+// 车辆预览图间距 - 默认 8.0f
 const std::vector<std::string> MISC_PREVIEW_SPACING_CAPTIONS{ "默认", "0", "1", "2", "3", "4", "5", "6", "7", "9", "10", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "50" };
 const float MISC_PREVIEW_SPACING_VALUES[] = { 8.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 9.0f, 10.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f, 41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 50.0f };
 const int PREVIEW_SPACING_DEFAULT_INDEX = 0;
 extern int PreviewSpacingIndex;
 extern bool PreviewSpacingChanged;
+
+// 人物预览图左右判断依据 - 默认 500.0f
+const std::vector<std::string> MISC_PED_PREVIEW_POSITION_THRESHOLD_CAPTIONS{ "默认", "200", "300", "400", "450", "550", "600", "650", "700", "750", "800", "850", "900" };
+const float MISC_PED_PREVIEW_POSITION_THRESHOLD_VALUES[] = { 500.0f, 200.0f, 300.0f, 400.0f, 450.0f, 550.0f, 600.0f, 650.0f, 700.0f, 750.0f, 800.0f, 850.0f, 900.0f };
+const int PED_PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX = 0;
+extern int PedPreviewPositionThresholdIndex;
+extern bool PedPreviewPositionThresholdChanged;
+extern float pedPreviewPositionThreshold;
+
+// 人物预览图分辨率适配值 - 默认 1920.0f
+const std::vector<std::string> MISC_PED_PREVIEW_RESOLUTION_SCALE_CAPTIONS{ "默认 (1080P)", "2560 (2k)", "3840 (4K)", "1760", "1680", "1600", "1440", "1366", "1280", "2816", "3072", "3200", "3328",  };
+const float MISC_PED_PREVIEW_RESOLUTION_SCALE_VALUES[] = { 1920.0f, 2560.0f, 3840.0f, 1760.0f, 1680.0f, 1600.0f, 1440.0f, 1366.0f, 1280.0f, 2816.0f, 3072.0f, 3200.0f, 3328.0f };
+const int PED_PREVIEW_RESOLUTION_SCALE_DEFAULT_INDEX = 0;
+extern int PedPreviewResolutionScaleIndex;
+extern bool PedPreviewResolutionScaleChanged;
+extern float pedPreviewResolutionScale;
+
+// 人物预览图间距 - 默认 8.0f
+const std::vector<std::string> MISC_PED_PREVIEW_SPACING_CAPTIONS{ "默认", "0", "1", "2", "3", "4.5", "6", "7", "8", "9", "10.5", "12", "13.5", "15", "16.5", "18", "19.5", "21", "22.5", "24", "25.5", "27", "28.5", "30", "31.5", "33", "34.5", "36", "37.5", "39", "40.5", "42", "43.5", "45", "46.5", "48", "49.5", "51", "52.5", "54", "55.5", "57", "58.5", "60", "61.5", "63", "66", "70" };
+const float MISC_PED_PREVIEW_SPACING_VALUES[] = { 8.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.5f, 6.0f, 7.0f, 8.0f, 9.0f, 10.5f, 12.0f, 13.5f, 15.0f, 16.5f, 18.0f, 19.5f, 21.0f, 22.5f, 24.0f, 25.5f, 27.0f, 28.5f, 30.0f, 31.5f, 33.0f, 34.5f, 36.0f, 37.5f, 39.0f, 40.5f, 42.0f, 43.5f, 45.0f, 46.5f, 48.0f, 49.5f, 51.0f, 52.5f, 54.0f, 55.5f, 57.0f, 58.5f, 60.0f, 61.5f, 63.0f, 66.0f, 70.0f };
+const int PED_PREVIEW_SPACING_DEFAULT_INDEX = 0;
+extern int PedPreviewSpacingIndex;
+extern bool PedPreviewSpacingChanged;
+extern float pedPreviewSpacing;
+
+// 显示人物预览图开关(复选框方式显示)
+extern bool featureShowPedPreviews;
+
+// 显示车辆和人物原模型名称开关
+extern bool featureShowModelName;
+
+// 自由相机模式相关常量和变量
+const std::vector<std::string> MISC_FREECAM_FOLLOW_CAPTIONS{ "跟随", "不跟随" };
+const int MISC_FREECAM_FOLLOW_VALUES[] = { 0, 1 }; // 跟随=0, 不跟随=1
+
+const std::vector<std::string> MISC_FREECAM_INFO_DISPLAY_CAPTIONS{ "底部显示", "顶部显示", "不显示" };
+const int MISC_FREECAM_INFO_DISPLAY_VALUES[] = { 0, 1, 2 }; // 底部=0, 顶部=1, 不显示=2
+
+// 相机视野距离（FOV - 控制远近镜头，值越小越远，越大越近）
+const std::vector<std::string> MISC_FREECAM_FOV_CAPTIONS{ "5", "10", "15", "20", "25", "30", "35", "40", "45", "默认 (50)", "55", "60", "65", "70", "75", "80", "85", "90", "95", "100", "105", "110", "115", "120", "125", "130" };
+const float MISC_FREECAM_FOV_VALUES[] = { 5.0f, 10.0f, 15.0f, 20.0f, 25.0f, 30.0f, 35.0f, 40.0f, 45.0f, 50.0f, 55.0f, 60.0f, 65.0f, 70.0f, 75.0f, 80.0f, 85.0f, 90.0f, 95.0f, 100.0f, 105.0f, 110.0f, 115.0f, 120.0f, 125.0f, 130.0f };
+
+const std::vector<std::string> MISC_FREECAM_SPEED_CAPTIONS{ "默认 (0.35)", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0" };
+const float MISC_FREECAM_SPEED_VALUES[] = { 0.35f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 4.5f, 5.0f };
+
+// 自由相机中心十字选项
+const std::vector<std::string> MISC_FREECAM_CROSSHAIR_STYLE_CAPTIONS{ "不显示(默认)", "实线", "虚线" };
+const int MISC_FREECAM_CROSSHAIR_STYLE_VALUES[] = { 0, 1, 2 }; // 0=不显示,1=实线,2=虚线
+
+const std::vector<std::string> MISC_FREECAM_CROSSHAIR_COLOR_CAPTIONS{ "白色(默认)", "红色", "粉红色", "绿色", "蓝色", "黄色", "橙色", "紫色", "黑色", "灰色" };
+const int MISC_FREECAM_CROSSHAIR_COLOR_COUNT = 10; // 颜色数量
+
+extern bool featureFreeCamEnabled;
+extern int FreeCamFollowIndex;
+extern bool FreeCamFollowChanged;
+extern int FreeCamFovIndex;
+extern bool FreeCamFovChanged;
+extern int FreeCamSpeedSlowIndex;
+extern bool FreeCamSpeedSlowChanged;
+extern int FreeCamSpeedMediumIndex;
+extern bool FreeCamSpeedMediumChanged;
+extern int FreeCamSpeedFastIndex;
+extern bool FreeCamSpeedFastChanged;
+extern int FreeCamInfoDisplayIndex;
+extern bool FreeCamInfoDisplayChanged;
+
+// 中心十字配置索引
+extern int FreeCamCrosshairStyleIndex; // 默认0 不显示
+extern bool FreeCamCrosshairStyleChanged;
+extern int FreeCamCrosshairColorIndex; // 默认0 白色
+extern bool FreeCamCrosshairColorChanged;
+
+extern bool freeCamActive;
+extern Camera freeCamHandle;
+extern int currentSpeedMode; // 0=慢速, 1=中速, 2=快速
+
+// 自由相机模式函数声明
+void process_misc_freecam_menu();
+void update_freecam_features(BOOL playerExists, Ped playerPed);
+void reset_freecam_settings_to_defaults();
+void activate_freecam(Ped playerPed);
+void deactivate_freecam(Ped playerPed);
+void draw_freecam_crosshair();
+
+// 自由相机模式回调函数声明
+void onchange_freecam_follow_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_fov_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_speed_slow_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_speed_medium_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_speed_fast_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_info_display_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_crosshair_style_index(int value, SelectFromListMenuItem* source);
+void onchange_freecam_crosshair_color_index(int value, SelectFromListMenuItem* source);
 
 void process_misc_menu();
 
@@ -237,15 +333,27 @@ void onchange_misc_preview_position_threshold_index(int value, SelectFromListMen
 void onchange_misc_preview_resolution_scale_index(int value, SelectFromListMenuItem* source);
 void onchange_misc_preview_spacing_index(int value, SelectFromListMenuItem* source);
 
+// 人物预览图设置：回调函数原型（用于函数指针传递，需要提前声明）
+void onchange_misc_ped_preview_position_threshold_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_ped_preview_resolution_scale_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_ped_preview_spacing_index(int value, SelectFromListMenuItem* source);
+
 void process_misc_font_settings_menu();
 
 void process_misc_menu_layout_settings_menu();
 
 void process_misc_vehicle_preview_settings_menu();
 
+void process_misc_ped_preview_settings_menu();
+
+// 合并后的预览图设置菜单（车辆 + 人物）
+void process_misc_preview_settings_menu();
+
 void process_misc_menu_key_settings_menu();
 
 bool is_vehicle_preview_enabled();
+
+bool is_ped_preview_enabled();
 
 bool is_hud_hidden();
 
@@ -384,15 +492,16 @@ extern int CommonKeyConfirmSelectIndex;     // 确认/选择 - 默认小键盘 5
 extern int CommonKeyBackCancelIndex;       // 返回/取消 - 默认小键盘 0
 extern bool CommonKeyChanged[7];
 
-// 其他按键设置变量 (7个功能)
+// 其他按键设置变量 (8个功能)
 extern int OtherKeyToggleFreeMoveIndex;     // 开/关自由移动 - 默认 F6
+extern int OtherKeyFreeCamToggleIndex;      // 自由相机模式 - 默认 F7
 extern int OtherKeyVehicleBoostIndex;       // 车辆加速 - 默认小键盘 9
 extern int OtherKeyVehicleStopIndex;        // 停止车辆 - 默认小键盘 3
 extern int OtherKeyVehicleRocketsIndex;     // 车辆发射火箭 - 默认小键盘 +
 extern int OtherKeyLeftBlinkIndex;          // 左转向灯 - 默认左箭头
 extern int OtherKeyRightBlinkIndex;         // 右转向灯 - 默认右箭头
 extern int OtherKeyEmergencyBlinkIndex;     // 打开双闪 - 默认小键盘 .
-extern bool OtherKeyChanged[7];
+extern bool OtherKeyChanged[8];
 
 // 常用按键和其他按键菜单常量
 const int TRAINERCONFIG_COMMON_KEYS = 70;   // 常用按键菜单

@@ -16,14 +16,16 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\ui_support\menu_functions.h"
 #include "script.h"
 #include <stdio.h>
+#include "..\..\inc\main.h"
 
 const std::vector<std::string> TIME_SPEED_CAPTIONS{ "最低", "0.1x", "0.2x", "0.3x", "0.4x", "0.5x", "0.6x", "0.7x", "0.8x", "0.9x", "1x (正常)" };
 const std::vector<float> TIME_SPEED_VALUES{ 0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f };
 const int DEFAULT_TIME_SPEED = 10;
 
-const std::vector<std::string> TIME_FLOW_RATE_CAPTIONS{ "冻结时间 (0秒/秒)", "每秒半秒 (0.5秒/秒)", "现实时间 (1秒/秒)", "每秒 2 秒", "每秒 3 秒", "每秒 4 秒", "每秒 5 秒", "每秒 6 秒", "每秒 7 秒", "每秒 8 秒", "每秒 9 秒", "每秒 10 秒", "每秒 12 秒", "每秒 15 秒", "正常时间流速 (30秒/秒)", "每秒 1 分钟", "每秒 2 分钟", "每秒 3 分钟", "每秒 4 分钟", "每秒 5 分钟", "每秒 6 分钟", "每秒 7 分钟", "每秒 8 分钟", "每秒 9 分钟", "每秒 10 分钟", "每秒 12 分钟", "每秒 15 分钟", "每秒 30 分钟", "每秒 1 小时", "每秒 2 小时", "每秒 3 小时", "每秒 4 小时", "每秒 5 小时", "每秒 6 小时", "每秒 12 小时", "每秒 1 天" };
+const std::vector<std::string> TIME_FLOW_RATE_CAPTIONS{ "冻结时间 (0秒/秒)", "每秒半秒 (0.5秒/秒)", "现实时间 (1秒/秒)", "每秒 2 秒", "每秒 3 秒", "每秒 4 秒", "每秒 5 秒", "每秒 6 秒", "每秒 7 秒", "每秒 8 秒", "每秒 9 秒", "每秒 10 秒", "每秒 12 秒", "每秒 15 秒", "游戏默认流速 (30秒/秒)", "每秒 1 分钟", "每秒 2 分钟", "每秒 3 分钟", "每秒 4 分钟", "每秒 5 分钟", "每秒 6 分钟", "每秒 7 分钟", "每秒 8 分钟", "每秒 9 分钟", "每秒 10 分钟", "每秒 12 分钟", "每秒 15 分钟", "每秒 30 分钟", "每秒 1 小时", "每秒 2 小时", "每秒 3 小时", "每秒 4 小时", "每秒 5 小时", "每秒 6 小时", "每秒 12 小时", "每秒 1 天" };
 const std::vector<float> TIME_FLOW_RATE_VALUES{ 0.0f, 0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 12.0f, 15.0f, 30.0f, 60.0f, 120.0f, 180.0f, 240.0f, 300.0f, 360.0f, 420.0f, 480.0f, 540.0f, 600.0f, 720.0f, 900.0f, 1800.0f, 3600.0f, 7200.0f, 10800.0f, 14400.0f, 18000.0f, 21600.0f, 43200.0f, 86400.0f };
-const int DEFAULT_TIME_FLOW_RATE = 10;
+// 默认时间流速应为“正常时间流速 (30秒/秒)” -> 索引 14
+const int DEFAULT_TIME_FLOW_RATE = 14;
 
 const int DEFAULT_HOTKEY_FLOW_RATE = 10;
 
@@ -39,9 +41,12 @@ int timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 int HotkeyFlowRateIndex = DEFAULT_HOTKEY_FLOW_RATE;
 
 bool featureTimeSynced = false;
+bool featureTimeSyncedUpdated = false;
 bool featureShowtime = false;
 bool featurehotkeytime = false;
 bool featureSpeedAimInVeh = false;
+bool featureFreezeTime = false;
+bool featureFreezeTimeUpdated = false;
 bool timeFlowRateChanged = true, timeFlowRateLocked = true;
 bool HotkeyFlowRateChanged = true, HotkeyFlowRateLocked = true;
 
@@ -52,12 +57,34 @@ float frozentimestate = -1;
 bool requireRefreshOfTime = false;
 
 int activeLineIndexTime = 0;
+int activeLineIndexTimeFlow = 0;
+int timeSettingsAnalogRowIndex = -1;
 
 float timeFactor = 1000.0f / TIME_FLOW_RATE_VALUES.at(timeFlowRateIndex);
 
 int timeSinceAimingBegan = 0;
 
 bool weHaveChangedTimeScale;
+
+// ================= 模拟时钟：设置及资源 =================
+bool featureAnalogClockEnabled = false;
+int analogClockStyleIndex = 0; // 默认时钟
+int analogClockTimeSourceIndex = 0; // 0 游戏时间, 1 现实时间
+float analogClockPosX = 0.90f; // 默认右上角
+float analogClockPosY = 0.15f;
+bool analogClockShowLabel = true;
+bool analogClockShowDigital = true;
+bool analogClockShowDate = true; // 默认显示日期
+bool featureAnalogClockEnabledUpdated = false; // 模拟时钟开关更新状态
+int analogClockPixelSize = 256; // 默认按256像素绘制（与常见YTD贴图匹配）
+int analogClockPresetIndex = 0; // 0 右上(默认), 1 右下, 2 左上, 3 左下, 4 自定义
+// 用于在“预设位置”选择时同步更新 X/Y 列表当前值（非捕获lambda）
+static SelectFromListMenuItem* gAnalogPosXItem = nullptr;
+static SelectFromListMenuItem* gAnalogPosYItem = nullptr;
+static SelectFromListMenuItem* gAnalogPresetItem = nullptr;
+
+static inline void ensure_clock_textures_loaded();
+static inline void draw_analog_clock();
 
 float quadratic_time_transition(float start, float end, float progress) {
 	//二次方程相关内容
@@ -139,7 +166,18 @@ void onchange_aiming_speed_callback(int value, SelectFromListMenuItem* source) {
 }
 
 void onchange_time_flow_rate_callback(int value, SelectFromListMenuItem* source) {
+	// 当开启“时间与电脑系统同步”时，阻止用户更改时间流速，并提示警告
+	if (featureTimeSynced) {
+		set_status_text("~r~警告: 时间与系统同步已开启！\n请先关闭同步后再进行更改！");
+		requireRefreshOfTime = true;
+		return;
+	}
 	timeFlowRateIndex = value, timeFlowRateChanged = true, timeFlowRateLocked = false;
+	featureFreezeTime = (value == 0);
+	if (value == 0) {
+		// 选择“冻结时间”项时，关闭系统时间同步，保持互斥
+		featureTimeSynced = false;
+	}
 }
 
 void onchange_hotkey_flow_rate_callback(int value, SelectFromListMenuItem* source) {
@@ -151,8 +189,10 @@ void onchange_hotkey_freeze_unfreeze_time() {
 		frozentimestate = timeFlowRateIndex;
 		timeFlowRateIndex = 0;
 		timeFlowRateChanged = true;
-		set_status_text("时间已冻结！");
+		write_text_to_log_file("时间已冻结！");//提示重复了，这里改为日志记录
 		requireRefreshOfTime = true;
+		// 通过热键开启冻结时，关闭系统时间同步，保持互斥
+		featureTimeSynced = false;
 	}
 	else
 	{
@@ -164,9 +204,12 @@ void onchange_hotkey_freeze_unfreeze_time() {
 			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 			timeFlowRateChanged = true;
 		}
-		set_status_text("时间已解冻！");
+		write_text_to_log_file("时间已解冻！");//提示重复了，这里改为日志记录
 		requireRefreshOfTime = true;
 	}
+	// 同步复选框状态
+	featureFreezeTime = (timeFlowRateIndex == 0);
+	featureFreezeTimeUpdated = true;
 }
 
 bool onconfirm_time_flowrate_menu(MenuItem<int> choice) {
@@ -175,8 +218,9 @@ bool onconfirm_time_flowrate_menu(MenuItem<int> choice) {
 			set_status_text("时间已与电脑系统同步！");
 		}
 	}
-	else if (choice.value == 666) {
-		onchange_hotkey_freeze_unfreeze_time();
+	// 基于选中行索引打开“模拟时钟”子菜单
+	if (activeLineIndexTimeFlow == timeSettingsAnalogRowIndex) {
+		process_analog_clock_menu();
 	}
 	return false;
 }
@@ -189,6 +233,7 @@ bool flowtime_menu_interrupt() {
 }
 
 void all_time_flow_rate() {
+	// 保留菜单选择的行索引，避免刷新后光标跳到第一项
 	do {
 		requireRefreshOfTime = false;
 		std::vector<MenuItem<int>*> menuItems;
@@ -199,7 +244,8 @@ void all_time_flow_rate() {
 		togItem->caption = "时间与电脑系统同步";
 		togItem->value = 0;
 		togItem->toggleValue = &featureTimeSynced;
-		togItem->toggleValueUpdated = NULL;
+		// 添加更新标记，以便在切换时处理互斥逻辑
+		togItem->toggleValueUpdated = &featureTimeSyncedUpdated;
 		menuItems.push_back(togItem);
 
 		SelectFromListMenuItem* listItem = new SelectFromListMenuItem(TIME_SPEED_CAPTIONS, onchange_hotkey_flow_rate_callback);
@@ -228,11 +274,12 @@ void all_time_flow_rate() {
 		listItem->onConfirmFunction = onconfirm_time_flow_rate;
 		menuItems.push_back(listItem);
 
-		item = new MenuItem<int>();
-		item->caption = "冻结时间 [开/关]";
-		item->value = 666;
-		item->isLeaf = true;
-		menuItems.push_back(item);
+		ToggleMenuItem<int>* freezeTog = new ToggleMenuItem<int>();
+		freezeTog->caption = "冻结时间";
+		freezeTog->value = 0;
+		freezeTog->toggleValue = &featureFreezeTime;
+		freezeTog->toggleValueUpdated = &featureFreezeTimeUpdated;
+		menuItems.push_back(freezeTog);
 
 		togItem = new ToggleMenuItem<int>();
 		togItem->caption = "显示当前游戏内时间";
@@ -248,7 +295,17 @@ void all_time_flow_rate() {
 		togItem->toggleValueUpdated = NULL;
 		menuItems.push_back(togItem);
 
-		draw_generic_menu<int>(menuItems, nullptr, "时间设置", onconfirm_time_flowrate_menu, nullptr, nullptr, flowtime_menu_interrupt);
+		// 模拟时钟子菜单入口（移入时间设置内）
+		MenuItem<int>* analogItem = new MenuItem<int>();
+		analogItem->caption = "模拟时钟 (显示圆形钟表)";
+		analogItem->value = -1;
+		analogItem->isLeaf = false;
+		menuItems.push_back(analogItem);
+		// 记录该项的行索引，供确认回调按索引路由
+		timeSettingsAnalogRowIndex = static_cast<int>(menuItems.size()) - 1;
+
+		// 使用持久化的行索引以在刷新后保持光标位置
+		draw_generic_menu<int>(menuItems, &activeLineIndexTimeFlow, "时间设置", onconfirm_time_flowrate_menu, nullptr, nullptr, flowtime_menu_interrupt);
 	} while (requireRefreshOfTime);
 }
 
@@ -427,23 +484,41 @@ void process_time_menu() {
 
 void reset_time_globals() {
 	featureTimeSynced = false;
+	featureTimeSyncedUpdated = false;
 	timeFlowRateChanged = true;
 	HotkeyFlowRateChanged = true;
 	featureShowtime = false;
 	featurehotkeytime = false;
 	featureSpeedAimInVeh = false;
+	featureFreezeTime = false;
+	featureFreezeTimeUpdated = false;
 
 	timeSpeedIndexWhileAiming = DEFAULT_TIME_SPEED;
 	timeSpeedIndex = DEFAULT_TIME_SPEED;
 	timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
 	HotkeyFlowRateIndex = DEFAULT_HOTKEY_FLOW_RATE;
+	frozentimestate = -1;
+
+	// 模拟时钟默认值
+	featureAnalogClockEnabled = false;
+	analogClockStyleIndex = 0;// 默认时钟
+	analogClockTimeSourceIndex = 0;
+	analogClockPosX = 0.90f;
+	analogClockPosY = 0.15f;
+	analogClockShowLabel = true;
+	analogClockShowDigital = true;
+	analogClockShowDate = true; // 默认显示日期
+	analogClockPixelSize = 256;
+	analogClockPresetIndex = 0; // 默认右上
 }
 
 void add_time_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* results) {
-	results->push_back(FeatureEnabledLocalDefinition{ "featureTimeSynced", &featureTimeSynced });
+	results->push_back(FeatureEnabledLocalDefinition{ "featureTimeSynced", &featureTimeSynced, &featureTimeSyncedUpdated });
 	results->push_back(FeatureEnabledLocalDefinition{ "featureShowtime", &featureShowtime });
 	results->push_back(FeatureEnabledLocalDefinition{ "featurehotkeytime", &featurehotkeytime });
 	results->push_back(FeatureEnabledLocalDefinition{ "featureSpeedAimInVeh", &featureSpeedAimInVeh });
+	results->push_back(FeatureEnabledLocalDefinition{ "featureFreezeTime", &featureFreezeTime, &featureFreezeTimeUpdated });
+	results->push_back(FeatureEnabledLocalDefinition{ "featureAnalogClockEnabled", &featureAnalogClockEnabled });
 }
 
 void movetime_day_forward() {
@@ -958,34 +1033,146 @@ void handle_generic_settings_time(std::vector<StringPairSettingDBRow>* settings)
 		if (setting.name.compare("timeSpeedIndexWhileAiming") == 0) {
 			timeSpeedIndexWhileAiming = stoi(setting.value);
 		}
-		else if (setting.name.compare("timeFlowRateIndex") == 0) {
-			timeFlowRateIndex = stoi(setting.value);
-		}
 		else if (setting.name.compare("HotkeyFlowRateIndex") == 0) {
 			HotkeyFlowRateIndex = stoi(setting.value);
+		}
+		else if (setting.name.compare("analogClockStyleIndex") == 0) {
+			analogClockStyleIndex = stoi(setting.value);
+		}
+		else if (setting.name.compare("analogClockTimeSourceIndex") == 0) {
+			analogClockTimeSourceIndex = stoi(setting.value);
+		}
+		else if (setting.name.compare("analogClockPosX") == 0) {
+			analogClockPosX = (float)atof(setting.value.c_str());
+		}
+		else if (setting.name.compare("analogClockPosY") == 0) {
+			analogClockPosY = (float)atof(setting.value.c_str());
+		}
+		else if (setting.name.compare("analogClockShowLabel") == 0) {
+			analogClockShowLabel = (setting.value == "1" || setting.value == "true");
+		}
+		else if (setting.name.compare("analogClockShowDigital") == 0) {
+			analogClockShowDigital = (setting.value == "1" || setting.value == "true");
+		}
+		else if (setting.name.compare("analogClockShowDate") == 0) {
+			analogClockShowDate = (setting.value == "1" || setting.value == "true");
+		}
+		else if (setting.name.compare("analogClockPixelSize") == 0) {
+			int v = stoi(setting.value);
+			// 将任意配置值映射到菜单预设集合（128..512，步进32）的最近值
+			static const int kPixSizes[] = {128,160,192,224,256,288,320,352,384,416,448,480,512};
+			int nearest = kPixSizes[0];
+			int bestDiff = (v >= nearest) ? (v - nearest) : (nearest - v);
+			for (size_t i = 1; i < sizeof(kPixSizes)/sizeof(kPixSizes[0]); ++i) {
+				int s = kPixSizes[i];
+				int d = (v >= s) ? (v - s) : (s - v);
+				if (d < bestDiff) { bestDiff = d; nearest = s; }
+			}
+			analogClockPixelSize = nearest;
+		}
+	}
+
+	// 不单独持久化时间流速：根据“系统同步/冻结时间”状态进行对齐
+	// 开启系统同步 -> 锁定为现实时间 1秒/秒（索引 2）
+	if (featureTimeSynced) {
+		if (timeFlowRateIndex != 2) {
+			timeFlowRateIndex = 2;
+			timeFlowRateChanged = true;
+		}
+	}
+	// 开启冻结时间 -> 交由更新逻辑设置为 0，并刷新状态
+	else if (featureFreezeTime) {
+		featureFreezeTimeUpdated = true;
+	}
+	// 二者都未开启 -> 使用默认 30秒/秒（索引 14）
+	else {
+		if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
+			timeFlowRateChanged = true;
 		}
 	}
 }
 
 void add_time_generic_settings(std::vector<StringPairSettingDBRow>* results) {
 	results->push_back(StringPairSettingDBRow{ "timeSpeedIndexWhileAiming", std::to_string(timeSpeedIndexWhileAiming) });
-	results->push_back(StringPairSettingDBRow{ "timeFlowRateIndex", std::to_string(timeFlowRateIndex) });
 	results->push_back(StringPairSettingDBRow{ "HotkeyFlowRateIndex", std::to_string(HotkeyFlowRateIndex) });
+	results->push_back(StringPairSettingDBRow{ "analogClockStyleIndex", std::to_string(analogClockStyleIndex) });
+	results->push_back(StringPairSettingDBRow{ "analogClockTimeSourceIndex", std::to_string(analogClockTimeSourceIndex) });
+	results->push_back(StringPairSettingDBRow{ "analogClockPosX", std::to_string(analogClockPosX) });
+	results->push_back(StringPairSettingDBRow{ "analogClockPosY", std::to_string(analogClockPosY) });
+	results->push_back(StringPairSettingDBRow{ "analogClockShowLabel", std::to_string(analogClockShowLabel ? 1 : 0) });
+	results->push_back(StringPairSettingDBRow{ "analogClockShowDigital", std::to_string(analogClockShowDigital ? 1 : 0) });
+	results->push_back(StringPairSettingDBRow{ "analogClockShowDate", std::to_string(analogClockShowDate ? 1 : 0) });
+	results->push_back(StringPairSettingDBRow{ "analogClockPixelSize", std::to_string(analogClockPixelSize) });
 }
 
+static inline void apply_freeze_time_state(bool suppressStatus = false);
+
 void update_time_features(Player player) {
-	// 时间同步
-	if (featureTimeSynced) {
-		if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
-			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE, timeFlowRateChanged = true;
+    // 处理“冻结时间”复选框状态变化（优先），并确保与“系统同步”互斥
+    // 首次加载配置会将 updateFlag 置为 true，这里用静态量抑制初次提示
+    static bool freezeStateInitialized = false;
 
-		}
+    if (featureFreezeTimeUpdated) {
+        featureFreezeTimeUpdated = false;
+        if (featureFreezeTime) {
+            // 当开启冻结时间时，关闭系统时间同步
+            featureTimeSynced = false;
+        }
+        // 仅在“冻结时间”为关闭且首次加载时抑制“时间已解冻”提示
+        apply_freeze_time_state(!featureFreezeTime && !freezeStateInitialized);
+        freezeStateInitialized = true;
+    }
 
-		time_t now = time(0);
-		tm t;
-		localtime_s(&t, &now);
-		TIME::SET_CLOCK_TIME(t.tm_hour, t.tm_min, t.tm_sec);
-	}
+    // 处理“时间与电脑系统同步”复选框状态变化，并确保与“冻结时间”互斥
+    if (featureTimeSyncedUpdated) {
+        featureTimeSyncedUpdated = false;
+        if (featureTimeSynced) {
+            // 开启系统同步时，关闭冻结时间（如果已开启），并将“时间流速”显示为“现实时间 (1秒/秒)”
+            if (featureFreezeTime) {
+                featureFreezeTime = false;
+                apply_freeze_time_state(!featureFreezeTime && !freezeStateInitialized);
+                freezeStateInitialized = true;
+            }
+            if (timeFlowRateIndex != 2) { // 索引 2 -> 现实时间 (1秒/秒)
+                timeFlowRateIndex = 2;
+                timeFlowRateChanged = true;
+            }
+            requireRefreshOfTime = true;
+        } else {
+            // 关闭系统同步：若未处于冻结状态且当前流速非0，才恢复默认 30秒/秒
+            // 避免在加载时覆盖“冻结时间”的 0 秒/秒状态
+            if (!featureFreezeTime && timeFlowRateIndex != 0 && timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+                timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
+                timeFlowRateChanged = true;
+            }
+            requireRefreshOfTime = true;
+        }
+    }
+
+    // 处理模拟时钟开关状态变化
+    if (featureAnalogClockEnabledUpdated) {
+        featureAnalogClockEnabledUpdated = false;
+        if (featureAnalogClockEnabled) {
+            set_status_text("模拟时钟 已开启");
+        } else {
+            set_status_text("模拟时钟 已关闭");
+        }
+    }
+
+    // 时间同步
+    if (featureTimeSynced) {
+        // 保持“时间流速”显示为现实时间 (1秒/秒)，并以系统时间强制同步
+        if (timeFlowRateIndex != 2) {
+            timeFlowRateIndex = 2; // 现实时间
+            timeFlowRateChanged = true;
+        }
+
+        time_t now = time(0);
+        tm t;
+        localtime_s(&t, &now);
+        TIME::SET_CLOCK_TIME(t.tm_hour, t.tm_min, t.tm_sec);
+    }
 
 	if ((PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0) && featureSpeedAimInVeh) || !featureSpeedAimInVeh) slow_aim = true;
 	if (!PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), 0) && featureSpeedAimInVeh) slow_aim = false;
@@ -1003,7 +1190,7 @@ void update_time_features(Player player) {
 		timeFactor = timeFlowRateIndex == 0 ? -1.0f : 1000.0f / TIME_FLOW_RATE_VALUES.at(timeFlowRateIndex);
 		SYSTEM::SETTIMERA(0);
 	}
-	if (timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
+	if (!featureTimeSynced && timeFlowRateIndex != DEFAULT_TIME_FLOW_RATE) {
 		TIME::PAUSE_CLOCK(true);
 		if (timeFlowRateIndex > 0) {
 			int hours, minutes, seconds = static_cast<int>(static_cast<float>(SYSTEM::TIMERA()) / timeFactor);
@@ -1273,4 +1460,402 @@ void update_time_features(Player player) {
 		}
 	}
 
+	// 绘制模拟时钟（最后绘制，避免被菜单遮挡）
+	if (featureAnalogClockEnabled) {
+		ensure_clock_textures_loaded();
+		draw_analog_clock();
+	}
+
 } // 更新时间功能结束
+static inline void apply_freeze_time_state(bool suppressStatus) {
+	if (featureFreezeTime) {
+		if (timeFlowRateIndex != 0) {
+			frozentimestate = timeFlowRateIndex;
+		}
+		timeFlowRateIndex = 0;
+		timeFlowRateChanged = true;
+		if (!suppressStatus) set_status_text("~y~时间已冻结！");
+		requireRefreshOfTime = true;
+	}
+	else {
+		if (frozentimestate != -1) {
+			timeFlowRateIndex = frozentimestate;
+		}
+		else {
+			timeFlowRateIndex = DEFAULT_TIME_FLOW_RATE;
+		}
+		timeFlowRateChanged = true;
+		if (!suppressStatus) set_status_text("~g~时间已解冻！");
+		requireRefreshOfTime = true;
+	}
+}
+
+// ================= 模拟时钟：菜单与渲染 =================
+
+static const std::vector<std::string> ANALOG_STYLE_CAPTIONS{ "默认", "风格 1", "风格 2", "风格 3", "风格 4", "风格 5", "风格 6", "风格 7", "风格 8", "风格 9", "风格 10", "风格 11", "风格 12", "风格 13", "风格 14" };
+static const std::vector<std::string> ANALOG_TIME_SOURCE_CAPTIONS{ "游戏时间", "现实时间" };
+
+// 贴图名称改为按样式索引动态拼接（与速度表一致的命名匹配方式）
+// 示例：Clock0_face / Clock0_handh / Clock0_handm / Clock0_hands
+
+static void onchange_analog_style(int value, SelectFromListMenuItem* source){
+	analogClockStyleIndex = value;
+}
+
+static void onchange_analog_time_source(int value, SelectFromListMenuItem* source){
+	analogClockTimeSourceIndex = value;
+}
+
+static void onchange_analog_pos_x(int value, SelectFromListMenuItem* source){
+	analogClockPosX = (value * 5) / 1000.0f; // value是索引(步进5)
+	// 任意移动X/Y即视为自定义
+	analogClockPresetIndex = 4;
+	if (gAnalogPresetItem) gAnalogPresetItem->value = 4;
+}
+
+static void onchange_analog_pos_y(int value, SelectFromListMenuItem* source){
+	analogClockPosY = (value * 5) / 1000.0f;
+	analogClockPresetIndex = 4;
+	if (gAnalogPresetItem) gAnalogPresetItem->value = 4;
+}
+
+void process_analog_clock_menu(){
+	std::vector<MenuItem<int>*> menuItems;
+	ToggleMenuItem<int>* togItem;
+	SelectFromListMenuItem* listItem;
+
+	// 启用模拟时钟
+	togItem = new ToggleMenuItem<int>();
+	togItem->caption = "启用模拟时钟";
+	togItem->value = 0;
+	togItem->toggleValue = &featureAnalogClockEnabled;
+	togItem->toggleValueUpdated = &featureAnalogClockEnabledUpdated;
+	menuItems.push_back(togItem);
+
+	// 样式
+	listItem = new SelectFromListMenuItem(ANALOG_STYLE_CAPTIONS, onchange_analog_style);
+	listItem->wrap = false;
+	listItem->caption = "模拟时钟样式";
+	listItem->value = analogClockStyleIndex;
+	menuItems.push_back(listItem);
+
+	// 位置（将 0..1 映射到 0..1000 的整数，步进5）
+	{
+		std::vector<std::string> posx;
+		for(int i=0;i<=1000;i+=5){ posx.push_back(std::to_string(i)); }
+		int currentX = (int)(analogClockPosX * 1000.0f + 0.5f);
+		SelectFromListMenuItem* posxItem = new SelectFromListMenuItem(posx, onchange_analog_pos_x);
+		posxItem->wrap = false;
+		posxItem->caption = "时钟左右位置";
+		posxItem->value = currentX/5;
+		menuItems.push_back(posxItem);
+		gAnalogPosXItem = posxItem;
+	}
+	{
+		std::vector<std::string> posy;
+		for(int i=0;i<=1000;i+=5){ posy.push_back(std::to_string(i)); }
+		int currentY = (int)(analogClockPosY * 1000.0f + 0.5f);
+		SelectFromListMenuItem* posyItem = new SelectFromListMenuItem(posy, onchange_analog_pos_y);
+		posyItem->wrap = false;
+		posyItem->caption = "时钟上下位置";
+		posyItem->value = currentY/5;
+		menuItems.push_back(posyItem);
+		gAnalogPosYItem = posyItem;
+	}
+
+	// 时钟尺寸（像素）：按屏幕分辨率1:1绘制，保证清晰与圆形
+	{
+		static const std::vector<int> PIX_SIZES{
+			128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512
+		};
+		std::vector<std::string> captions; captions.reserve(PIX_SIZES.size());
+		int currentIndex = 0;
+		for(size_t i=0;i<PIX_SIZES.size();++i){
+			captions.push_back(std::to_string(PIX_SIZES[i]));
+			if(analogClockPixelSize == PIX_SIZES[i]) currentIndex = (int)i;
+		}
+		auto onchange_analog_size_pixels = [](int value, SelectFromListMenuItem*){
+			static const std::vector<int> PIX_SIZES_LOCAL{
+				128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512
+			};
+			int idx = value < 0 ? 0 : (value >= (int)PIX_SIZES_LOCAL.size()? (int)PIX_SIZES_LOCAL.size()-1 : value);
+			analogClockPixelSize = PIX_SIZES_LOCAL[idx];
+		};
+		listItem = new SelectFromListMenuItem(captions, onchange_analog_size_pixels);
+		listItem->wrap = false;
+		listItem->caption = "时钟尺寸（像素）";
+		listItem->value = currentIndex;
+		menuItems.push_back(listItem);
+	}
+
+	// 显示时间来源
+	listItem = new SelectFromListMenuItem(ANALOG_TIME_SOURCE_CAPTIONS, onchange_analog_time_source);
+	listItem->wrap = false;
+	listItem->caption = "时间/日期 来源";
+	listItem->value = analogClockTimeSourceIndex;
+	menuItems.push_back(listItem);
+
+	// 预设位置（含“自定义”），与 X/Y 列表联动
+	{
+		static const std::vector<std::string> PRESET_POS{ "右上", "右下", "左上", "左下", "自定义" };
+		auto onpos = [](int v, SelectFromListMenuItem*){
+			analogClockPresetIndex = v;
+			switch(v){
+				case 0: analogClockPosX = 0.90f; analogClockPosY = 0.15f; break;//右上
+				case 1: analogClockPosX = 0.90f; analogClockPosY = 0.85f; break;//右下
+				case 2: analogClockPosX = 0.10f; analogClockPosY = 0.15f; break;//左上
+				case 3: analogClockPosX = 0.10f; analogClockPosY = 0.85f; break;//左下
+				case 4: /* 自定义：不改动坐标，仅记录 */ break;//自定义
+			}
+			int newX = (int)(analogClockPosX * 1000.0f + 0.5f);
+			if(gAnalogPosXItem) gAnalogPosXItem->value = newX / 5;
+			int newY = (int)(analogClockPosY * 1000.0f + 0.5f);
+			if(gAnalogPosYItem) gAnalogPosYItem->value = newY / 5;
+		};
+        // 依据当前坐标推断预设索引（与 PRESET_POS 顺序一致：右上, 右下, 左上, 左下, 自定义）
+        int curX = (int)(analogClockPosX * 1000.0f + 0.5f);
+        int curY = (int)(analogClockPosY * 1000.0f + 0.5f);
+        int inferred = 4;
+        if (curX == 900 && curY == 150) inferred = 0; // 右上
+        else if (curX == 900 && curY == 850) inferred = 1; // 右下
+        else if (curX == 100 && curY == 150) inferred = 2; // 左上
+        else if (curX == 100 && curY == 850) inferred = 3; // 左下
+		analogClockPresetIndex = inferred;
+		SelectFromListMenuItem* preset = new SelectFromListMenuItem(PRESET_POS, onpos);
+		preset->wrap = false;
+		preset->caption = "预设位置";
+		preset->value = analogClockPresetIndex;
+		menuItems.push_back(preset);
+		gAnalogPresetItem = preset;
+	}
+
+	// 标签显示开关
+	togItem = new ToggleMenuItem<int>();
+	togItem->caption = "显示来源标签";
+	togItem->value = 0;
+	togItem->toggleValue = &analogClockShowLabel;
+	togItem->toggleValueUpdated = NULL;
+	menuItems.push_back(togItem);
+
+	// 数字时间开关
+	togItem = new ToggleMenuItem<int>();
+	togItem->caption = "显示时间";
+	togItem->value = 0;
+	togItem->toggleValue = &analogClockShowDigital;
+	togItem->toggleValueUpdated = NULL;
+	menuItems.push_back(togItem);
+	
+	// 日期显示开关
+	togItem = new ToggleMenuItem<int>();
+	togItem->caption = "显示日期";
+	togItem->value = 0;
+	togItem->toggleValue = &analogClockShowDate;
+	togItem->toggleValueUpdated = NULL;
+	menuItems.push_back(togItem);
+
+	draw_generic_menu<int>(menuItems, NULL, "模拟时钟选项", NULL, NULL, NULL, NULL);
+}
+
+// 释放模拟时钟纹理资源
+static inline void release_clock_textures(){
+	const char* dictName = "ENT_textures";
+	if(GRAPHICS::HAS_STREAMED_TEXTURE_DICT_LOADED((char*)dictName)){
+		GRAPHICS::SET_STREAMED_TEXTURE_DICT_AS_NO_LONGER_NEEDED((char*)dictName);
+	}
+}
+
+static inline void ensure_clock_textures_loaded(){
+    static bool s_prev_enabled = false;
+    
+    // 检测功能开关状态变化
+    if(s_prev_enabled != featureAnalogClockEnabled){
+        s_prev_enabled = featureAnalogClockEnabled;
+        // 如果是关闭操作，释放纹理资源
+        if(!featureAnalogClockEnabled){
+            release_clock_textures();
+            return;
+        } else {
+            // 开启时立即请求并进行轻量预热，减少首次空白帧
+            const char* dictWarm = "ENT_textures";
+            GRAPHICS::REQUEST_STREAMED_TEXTURE_DICT((char*)dictWarm, false);
+            for (int i = 0; i < 3; ++i) {
+                if (GRAPHICS::HAS_STREAMED_TEXTURE_DICT_LOADED((char*)dictWarm)) break;
+                WAIT(0);
+                GRAPHICS::REQUEST_STREAMED_TEXTURE_DICT((char*)dictWarm, false);
+            }
+        }
+    }
+    
+    // 功能未启用，不处理
+    if(!featureAnalogClockEnabled) return;
+    
+    // 请求加载纹理字典；如果已加载则跳过重复请求（早退）
+    const char* dictName = "ENT_textures";
+    if (GRAPHICS::HAS_STREAMED_TEXTURE_DICT_LOADED((char*)dictName)) {
+        return;
+    }
+    GRAPHICS::REQUEST_STREAMED_TEXTURE_DICT((char*)dictName, false);
+}
+
+static inline void draw_analog_clock(){
+    int hour=0, minute=0, second=0;
+    if(analogClockTimeSourceIndex==0){
+        hour = TIME::GET_CLOCK_HOURS();
+        minute = TIME::GET_CLOCK_MINUTES();
+        second = TIME::GET_CLOCK_SECONDS();
+    }else{
+        time_t now = time(0);
+        tm t; localtime_s(&t, &now);
+        hour = t.tm_hour; minute = t.tm_min; second = t.tm_sec;
+    }
+    //分针时针改为连续平滑移动方式，分针与时针都会随秒细微移动，满足更自然的模拟时钟效果。
+    float secDeg = 6.0f * (float)second; // 1秒=6°，保持不变
+    float minDeg = (6.0f * (float)minute) + ((6.0f / 60.0f) * (float)second); // 每秒贡献0.1°
+    float hourDeg = (30.0f * (float)(hour % 12))
+                  + ((30.0f / 60.0f)   * (float)minute)   // 每分钟贡献0.5°
+                  + ((30.0f / 3600.0f) * (float)second);  // 每秒贡献约0.00833°
+
+    // 按屏幕分辨率进行1:1像素绘制，避免压缩与模糊
+    int screenW = 0, screenH = 0;
+    GRAPHICS::_GET_SCREEN_ACTIVE_RESOLUTION(&screenW, &screenH);
+    float onePixelW = screenW > 0 ? (1.0f / (float)screenW) : 0.0005f;
+    float onePixelH = screenH > 0 ? (1.0f / (float)screenH) : 0.0005f;
+    // 防御像素尺寸异常值（保持合理范围）
+    int pxSize = analogClockPixelSize;
+    if (pxSize < 128) pxSize = 128; else if (pxSize > 512) pxSize = 512;
+    float sizeX = pxSize * onePixelW;
+    float sizeY = pxSize * onePixelH;
+
+	// 将中心点对齐到最近的像素，减少采样模糊
+    float centerX = analogClockPosX;
+    float centerY = analogClockPosY;
+    // 归一化坐标夹取到屏幕范围
+    if (centerX < 0.0f) centerX = 0.0f; else if (centerX > 1.0f) centerX = 1.0f;
+    if (centerY < 0.0f) centerY = 0.0f; else if (centerY > 1.0f) centerY = 1.0f;
+    centerX = ((float)((int)(centerX * screenW + 0.5f))) * onePixelW;
+    centerY = ((float)((int)(centerY * screenH + 0.5f))) * onePixelH;
+
+	// 字典未加载则跳过绘制但保持功能开启
+	const char* dictCheck = "ENT_textures";
+	if(!GRAPHICS::HAS_STREAMED_TEXTURE_DICT_LOADED((char*)dictCheck)){
+		return;
+	}
+
+	const char* dict = "ENT_textures"; // 必须与注册名一致
+	int styleIdx = analogClockStyleIndex;
+	// 防御样式索引越界（当前支持 0到11）
+	if (styleIdx < 0) styleIdx = 0; else if (styleIdx > 14) styleIdx = 14;
+	// 动态拼接贴图名称（便于后期直接添加新样式贴图）
+	char face[32];  char handh[32]; char handm[32]; char hands[32];
+	sprintf_s(face,  "Clock%d_face",  styleIdx);
+	sprintf_s(handh, "Clock%d_handh", styleIdx);
+	sprintf_s(handm, "Clock%d_handm", styleIdx);
+	sprintf_s(hands, "Clock%d_hands", styleIdx);
+
+	// 贴图存在性检查：找不到对应贴图则跳过该层绘制，避免出现白色占位图
+	auto has_texture = [](const char* d, const char* n) -> bool {
+		Vector3 res = GRAPHICS::GET_TEXTURE_RESOLUTION((char*)d, (char*)n);
+		return (res.x > 0.0f && res.y > 0.0f);
+	};
+
+	if (has_texture(dict, face)) {
+		GRAPHICS::DRAW_SPRITE((char*)dict, face, centerX, centerY, sizeX, sizeY, 0.0f, 255,255,255,255);
+	}
+	if (has_texture(dict, handh)) {
+		GRAPHICS::DRAW_SPRITE((char*)dict, handh, centerX, centerY, sizeX, sizeY, hourDeg, 255,255,255,255);
+	}
+	if (has_texture(dict, handm)) {
+		GRAPHICS::DRAW_SPRITE((char*)dict, handm, centerX, centerY, sizeX, sizeY, minDeg, 255,255,255,255);
+	}
+	if (has_texture(dict, hands)) {
+		GRAPHICS::DRAW_SPRITE((char*)dict, hands, centerX, centerY, sizeX, sizeY, secDeg, 255,255,255,255);
+	}
+
+	// 下方标签与数字时间（固定字号，位置可自适应）
+	if(analogClockShowLabel || analogClockShowDigital || analogClockShowDate){
+		float bottomY = centerY + (sizeY * 0.5f);
+		float topY    = centerY - (sizeY * 0.5f);
+		const int textOffsetPx = 10;   // 钟与第一行文字距离（固定像素）
+		const int lineSpacingPx = 40;  // 行间距（固定像素）
+
+		// 需要的行数：第一行(标签/时间合并一行) + 日期(可选)
+		int firstLineNeeded = (analogClockShowLabel || analogClockShowDigital) ? 1 : 0;
+		int dateLineNeeded  = analogClockShowDate ? 1 : 0;
+		int totalLines = firstLineNeeded + dateLineNeeded;
+
+		// 选择在下方还是上方绘制
+		bool drawBelow = true;
+		if ((bottomY + ((textOffsetPx + totalLines*lineSpacingPx) * onePixelH)) > (1.0f - 6*onePixelH)){
+			drawBelow = false; // 底部空间不足，移至上方
+		}
+
+		// 当需在上方绘制时，第一行应紧贴钟表上缘；其余行向上堆叠
+		// 计算文本高度，用于上方绘制时避免文本与时钟重叠
+		float firstLineHeight = UI::_GET_TEXT_SCALE_HEIGHT(0.38f, fontStatus);
+		float labelY = drawBelow
+			? (bottomY + (textOffsetPx * onePixelH))
+			: (topY - (textOffsetPx * onePixelH) - firstLineHeight);
+		labelY = ((float)((int)(labelY * screenH + 0.5f))) * onePixelH; // 像素对齐
+
+		UI::SET_TEXT_FONT(fontStatus);
+		UI::SET_TEXT_SCALE(0.0, 0.38);
+		UI::SET_TEXT_PROPORTIONAL(1);
+		UI::SET_TEXT_COLOUR(255, 242, 0, 220);
+		UI::SET_TEXT_EDGE(3, 0, 0, 0, 255);
+		UI::SET_TEXT_DROPSHADOW(10, 10, 10, 10, 255);
+		UI::SET_TEXT_OUTLINE();
+		UI::SET_TEXT_CENTRE(1);
+		UI::_SET_TEXT_ENTRY("STRING");
+		char line[64] = {0};
+		if(analogClockShowLabel && analogClockShowDigital){
+			snprintf(line, sizeof(line), "%s %02d:%02d:%02d", analogClockTimeSourceIndex==0? "游戏时间:" : "现实时间:", hour, minute, second);
+		}else if(analogClockShowLabel){
+			snprintf(line, sizeof(line), "%s", analogClockTimeSourceIndex==0? "游戏时间" : "现实时间");
+		}else if(analogClockShowDigital){
+			snprintf(line, sizeof(line), "%02d:%02d:%02d", hour, minute, second);
+		}
+		if(firstLineNeeded){
+			UI::_ADD_TEXT_COMPONENT_SCALEFORM(line);
+			UI::_DRAW_TEXT(centerX, labelY);
+		}
+
+		// 日期行（固定字号，固定行距）
+		if(analogClockShowDate){
+			// 当在上方绘制时，日期应位于第一行之上（向屏幕上方偏移）
+			float dateY;
+			if(firstLineNeeded){
+				dateY = drawBelow
+					? (labelY + (lineSpacingPx * onePixelH))
+					: (labelY - (lineSpacingPx * onePixelH));
+			}else{
+				dateY = labelY;
+			}
+			dateY = ((float)((int)(dateY * screenH + 0.5f))) * onePixelH;
+			UI::SET_TEXT_FONT(fontStatus);
+			UI::SET_TEXT_SCALE(0.0, 0.38);
+			UI::SET_TEXT_PROPORTIONAL(1);
+			UI::SET_TEXT_COLOUR(255, 242, 0, 220);
+			UI::SET_TEXT_EDGE(3, 0, 0, 0, 255);
+			UI::SET_TEXT_DROPSHADOW(10, 10, 10, 10, 255);
+			UI::SET_TEXT_OUTLINE();
+			UI::SET_TEXT_CENTRE(1);
+			UI::_SET_TEXT_ENTRY("STRING");
+			char dateLine[64] = {0};
+			if(analogClockTimeSourceIndex==0){
+				int year = TIME::GET_CLOCK_YEAR();
+				int month = TIME::GET_CLOCK_MONTH();
+				int day = TIME::GET_CLOCK_DAY_OF_MONTH();
+				std::string weekday = get_day_of_game_week();
+				snprintf(dateLine, sizeof(dateLine), "%04d/%02d/%02d %s", year, month, day, weekday.c_str());
+			}else{
+				time_t now = time(0);
+				tm t; localtime_s(&t, &now);
+				const char* weekdays[] = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+				snprintf(dateLine, sizeof(dateLine), "%04d/%02d/%02d %s", 
+					t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, weekdays[t.tm_wday]);
+			}
+			UI::_ADD_TEXT_COMPONENT_SCALEFORM(dateLine);
+			UI::_DRAW_TEXT(centerX, dateY);
+		}
+	}
+}

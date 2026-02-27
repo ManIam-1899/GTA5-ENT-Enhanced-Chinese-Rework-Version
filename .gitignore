@@ -275,3 +275,9 @@ __pycache__/
 # tools/
 *.vcxproj
 EnhancedNativeTrainer/inc/types.h
+
+# 忽略 Cursor 项目规则目录
+.cursor/rules/
+
+# 忽略 Windsurf 项目规则目录
+.windsurf/rules

@@ -13,6 +13,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "vehicles.h"
 #include "../../inc/nativeCaller.h"
 #include "prison_break.h"
+#include "weapons.h"
 
 int areaeffect_ped_level_menu_index = 0;
 int areaeffect_veh_level_menu_index = 0;
@@ -445,9 +446,11 @@ void process_areaeffect_peds_weapons_menu() {
 	listItem->value = pedWeaponSetIndex;
 	menuItems.push_back(listItem);
 
-	listItem = new SelectFromListMenuItem(PED_WEAPONS_SELECTIVE_CAPTIONS, onchange_ped_weapons_selective_index);
+	// 使用本地化标题替换自定义武器的模型名显示，保持索引与值不变
+	std::vector<std::string> pedSelLocalized = localize_weapon_models(PED_WEAPONS_SELECTIVE_CAPTIONS);
+	listItem = new SelectFromListMenuItem(pedSelLocalized, onchange_ped_weapons_selective_index);
 	listItem->wrap = false;
-	listItem->caption = "自定义武器";
+	listItem->caption = "自定义武器：";
 	listItem->value = PedWeaponsSelectiveIndex;
 	menuItems.push_back(listItem);
 

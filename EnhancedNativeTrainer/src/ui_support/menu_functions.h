@@ -520,6 +520,7 @@ class MenuParameters{
 	void(*onExit)(bool returnValue) = NULL;
 	bool(*interruptCheck)(void) = NULL;
 	MenuItemImage*(*lineImageProvider)(MenuItem<T> value) = NULL;
+	std::string(*cornerInfoProvider)(MenuItem<T> value) = NULL; // 右下角信息提供者
 
 	int get_menu_selection_index(){
 		return *menuSelectionPtr;
@@ -1191,10 +1192,6 @@ bool draw_generic_menu(MenuParameters<T> params){
 			continue;
 		}
 
-		if(menu_per_frame_call != NULL){
-			menu_per_frame_call();
-		}
-
 		const int currentLine = floor((double) currentSelectionIndex / (double) itemsPerLine);
 
 		const int originalIndex = currentSelectionIndex;
@@ -1206,6 +1203,11 @@ bool draw_generic_menu(MenuParameters<T> params){
 		// 用于菜单绘制
 		DWORD maxTickCount = GetTickCount() + waitTime;//用于在切换项目行后,暂停
 		do{
+			// 每帧调用回调函数（如绘制红圈等），确保在按键等待期间也持续调用
+			if(menu_per_frame_call != NULL){
+				menu_per_frame_call();
+			}
+
 			std::string sanit_header = params.sanitiseHeaderText ? sanitise_menu_header_text(params.headerText) : params.headerText;
 
 			// 更改标题和菜单等，在这里！！！
@@ -1241,26 +1243,79 @@ bool draw_generic_menu(MenuParameters<T> params){
 			}
 
 			if(image != NULL){
-				int screen_w, screen_h; // 这段代码用于计算游戏内，车辆预览图的坐标。
+				int screen_w, screen_h; // 这段代码用于计算游戏内，人物和车辆预览图的坐标。
 				GRAPHICS::GET_SCREEN_RESOLUTION(&screen_w, &screen_h);
 
 				float lineXPx;
-				// 判断菜单左侧偏移是否大于预览图左右判断依据，自动切换预览图显示位置
-				if(menuLeftOffset > previewPositionThreshold) {
+				// 根据预览图类型计算不同的宽度和设置
+				float previewWidth;
+				float currentPreviewResolutionScale;
+				float currentPreviewSpacing;
+				float currentPreviewPositionThreshold;
+				
+				if (image->dict && strncmp(image->dict, "ENT_ped_previews", 16) == 0) {
+					// 人物预览图（dict 以 "ENT_ped_previews" 开头）
+					// 支持多个人物 ytd 文件：ENT_ped_previews, ENT_ped_previews_1, ENT_ped_previews_2, ENT_ped_previews_3
+					extern float pedPreviewResolutionScale;
+					extern float pedPreviewSpacing;
+					extern float pedPreviewPositionThreshold;
+					previewWidth = 128.0f * screen_w / pedPreviewResolutionScale;
+					currentPreviewResolutionScale = pedPreviewResolutionScale;
+					currentPreviewSpacing = pedPreviewSpacing;
+					currentPreviewPositionThreshold = pedPreviewPositionThreshold;
+				} else {
+					// 车辆预览图设置（默认）
+					extern float previewResolutionScale;
+					extern float previewSpacing;
+					extern float previewPositionThreshold;
+					previewWidth = 256.0f * screen_w / previewResolutionScale;
+					currentPreviewResolutionScale = previewResolutionScale;
+					currentPreviewSpacing = previewSpacing;
+					currentPreviewPositionThreshold = previewPositionThreshold;
+				}
+				
+				// 判断菜单左侧偏移是否大于预览图左右判断依据，根据当前预览图类型，自动切换预览图显示位置。
+				if(menuLeftOffset > currentPreviewPositionThreshold) {
 					// 菜单在右侧，预览图显示在左侧
-					lineXPx = menuLeftOffset - (256.0f * screen_w / previewResolutionScale) - previewSpacing;
+					// lineXPx 应该是预览图的左上角位置，间距控制预览图右边缘和菜单左边缘之间的距离
+					lineXPx = menuLeftOffset - currentPreviewSpacing - previewWidth;
 				} else {
 					// 菜单在左侧，预览图显示在右侧
-					lineXPx = menuLeftOffset + menuWidth + previewSpacing;
+					// lineXPx 应该是预览图的左上角位置，间距控制预览图左边缘和菜单右边缘之间的距离
+					lineXPx = menuLeftOffset + menuWidth + currentPreviewSpacing;
 				}
 				float lineXGame = lineXPx / (float) screen_w;
 				float lineYGame = activeLineY / (float) screen_h;
 
-				draw_ingame_sprite(image, lineXGame, lineYGame, 256, 128);
+				// 根据预览图类型设置不同的尺寸
+				// 车辆预览图：宽度256，高度128
+				// 人物预览图：宽度128，高度256
+				int imageWidth, imageHeight;
+				if (image->dict && strncmp(image->dict, "ENT_ped_previews", 16) == 0) {
+					// 人物预览图（dict 以 "ENT_ped_previews" 开头）
+					// 支持多个人物 ytd 文件：ENT_ped_previews, ENT_ped_previews_1, ENT_ped_previews_2, ENT_ped_previews_3
+					imageWidth = 128;
+					imageHeight = 256;
+				} else {
+					// 车辆预览图（默认）
+					imageWidth = 256;
+					imageHeight = 128;
+				}
+				
+				draw_ingame_sprite(image, lineXGame, lineYGame, imageWidth, imageHeight);
 			}
 
 			if(periodic_feature_call != NULL){
 				periodic_feature_call();
+			}
+
+			// 在菜单右下角显示额外信息（如果有的话）
+			if(params.cornerInfoProvider != NULL){
+				std::string cornerInfo = params.cornerInfoProvider(*params.items[currentSelectionIndex]);
+				// 如果返回的字符串不为空，就在屏幕右下角绘制该信息
+				if(!cornerInfo.empty()){
+					draw_menu_corner_info(cornerInfo);
+				}
 			}
 
 			WAIT(0); // 等待 0 毫秒（让出 CPU 时间片，避免忙等待）
@@ -1461,6 +1516,9 @@ void set_status_text_centre_screen(std::string str, DWORD time = 2500, bool isGx
 // 要显示的文本内容，文本显示的持续时间（默认值为 2500 毫秒）是否为 GXT 条目（默认值为 false）
 
 void update_centre_screen_status_text();
+
+// 在菜单右下角显示额外信息（如模型名称）
+void draw_menu_corner_info(std::string infoText);
 
 void menu_beep();
 
