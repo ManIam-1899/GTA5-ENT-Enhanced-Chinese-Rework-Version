@@ -45,7 +45,7 @@ int chopshop_tick = 0;
 bool chopshop_init = false;
 bool on_island = false;
 
-//Load House On The Hill Automatically
+// 自动加载 “山中安全屋” （豪宅）
 bool featureHouseOnHill = false;
 int househill_tick = 0;
 bool househill_init = false;
@@ -2382,7 +2382,7 @@ void update_teleport_features(){
 		cayo_tick = 0;
 	}
 
-	// 自动加载山中安全屋（豪宅）
+	// 自动加载 “山中安全屋” （豪宅）
 	if (featureHouseOnHill && ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID()) && househill_init == false)
 	{
 		househill_tick = househill_tick + 1;
