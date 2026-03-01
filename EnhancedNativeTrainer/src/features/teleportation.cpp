@@ -45,6 +45,11 @@ int chopshop_tick = 0;
 bool chopshop_init = false;
 bool on_island = false;
 
+//Load House On The Hill Automatically
+bool featureHouseOnHill = false;
+int househill_tick = 0;
+bool househill_init = false;
+
 struct tele_location{
 	std::string text;
 	float x;
@@ -381,6 +386,11 @@ const std::vector<tele_location> LOCATIONS_ONLINE = {
 	{ "IAA 服务器中心", 2168.08900000f, 2920.89000000f, -84.8038f, { "xm_x17dlc_int_placement_interior_5_x17dlc_int_facility2_milo_" }, {}, {}, false },
 	{ "IAA 地下设施中心", 2047.0f, 2942.0f, -61.9652f, { "xm_x17dlc_int_placement_interior_4_x17dlc_int_facility_milo_" }, {}, {}, false },
 	{ "隆银行办公室：风格 1", -1573.849f, -571.0254f, 108.5193f, { "ex_sm_13_office_01a" }, {}, {}, false },
+	//{ "山中安全屋 (豪宅内部) A", -1666.36800000f, 478.92710000f, 128.22160000f, { "m25_2_ch1_06e_mansion_interior_a" }, {}, { IPL_PROPS_MANSION }, false },
+	{ "山中安全屋 (豪宅内部) A", -1666.36800000f, 478.92710000f, 128.22160000f, IPL_PROPS_MANSION, {}, {}, false },
+	{ "山中安全屋 (豪宅内部) B", -1679.87700000f, 493.59600000f, 112.93510000f, { "m25_2_ch1_06e_mansion_interior_b" }, {}, {}, false },
+	{ "山中安全屋 (豪宅内部) C", -1649.63000000f, 480.97790000f, 117.36450000f, { "m25_2_ch1_06e_mansion_interior_c" }, {}, {}, false },
+	//{ "山中安全屋 (豪宅内部) D", -1679.87700000f, 493.59600000f, 56.45711000f, { "m25_2_ch1_06e_mansion_interior_d" }, {}, {}, false },
 	{ "迷宫银行德尔佩罗办公室：风格 1", -1384.564f, -478.2699f, 72.0383f, { "ex_sm_15_office_01a" }, {}, {}, false },
 	{ "梅利威瑟研发中心", -1873.463f, 3751.5134f, -99.8484f, { "M23_1_int_placement_m23_1_interior_2_dlc_int_01_m23_1_milo_" }, {}, {}, false },
 	{ "任务分局地下胜利车库", 400.0961f, -956.6787f, -99.0073f},
@@ -413,6 +423,12 @@ const std::vector<tele_location> LOCATIONS_ONLINE = {
 	{ "威兹尔广场公寓 9号", -909.1017f, -438.1903f, 115.3959f, { "hw1_blimp_interior_v_apartment_high_milo__9" }, {}, {}, false },
 	{ "威兹尔广场公寓 11号", -889.3030f, -451.7751f, 120.3234f, { "hw1_blimp_interior_v_apartment_high_milo__11" }, {}, {}, false },
 	//
+	//{ "山中安全屋 09 号 (豪宅内部) A", -2586.06500000f, 1909.99500000f, 166.37540000f, { "m25_2_ch1_09_mansion_interior_a" }, {}, {}, false },
+	//{ "山中安全屋 09 号 (豪宅内部) B", -2587.49600000f, 1893.19300000f, 155.51830000f, { "m25_2_ch1_09_mansion_interior_b" }, {}, {}, false },
+	//{ "山中安全屋 09 号 (豪宅内部) C", -2568.93400000f, 1920.20300000f, 151.08980000f, { "m25_2_ch1_09_mansion_interior_c" }, {}, {}, false },
+	//{ "山中安全屋 04 号 (豪宅内部) A", 539.70120000f, 749.08940000f, 201.36170000f, { "m25_2_ch2_04_mansion_interior_a" }, {}, {}, false },
+	//{ "山中安全屋 04 号 (豪宅内部) B", 547.49550000f, 734.13600000f, 190.50450000f, { "m25_2_ch2_04_mansion_interior_b" }, {}, {}, false },
+	//{ "山中安全屋 04 号 (豪宅内部) C", 548.69640000f, 766.88680000f, 186.07600000f, { "m25_2_ch2_04_mansion_interior_c" }, {}, {}, false },
 	//{ "大亨工作室", -24.58899000f, -73.79967000f, -75.00000000f, { "m25_1_int_placement_interior_int_tycoon_studio_lo_milo_" }, {}, {}, false },
 	//{ "大亨工坊", 60.36966000f, -80.91821000f, -75.00000000f, { "m25_1_int_placement_interior_int_tycoon_studio_mid_milo_" }, {}, {}, false },
 }; 
@@ -2019,6 +2035,12 @@ bool process_teleport_menu(int categoryIndex){
 		menuItems.push_back(togItem);
 
 		togItem = new ToggleMenuItem<int>();
+		togItem->caption = "自动加载山中安全屋";
+		togItem->value = 8;
+		togItem->toggleValue = &featureHouseOnHill;
+		menuItems.push_back(togItem);
+
+		togItem = new ToggleMenuItem<int>();
 		togItem->caption = "自动加载额外地图内容";
 		togItem->value = 8;
 		togItem->toggleValue = &featureChoshopCargoship;
@@ -2064,6 +2086,7 @@ void reset_teleporter_globals()
 	featureLandAtDestination = true;
 	featureShowCoords = false;
 	featureCayoPerico = false;
+	featureHouseOnHill = false;
 	featureChoshopCargoship = false;
 
 	lastChosenCategory = 0;
@@ -2084,6 +2107,7 @@ void add_teleporter_feature_enablements(std::vector<FeatureEnabledLocalDefinitio
 	results->push_back(FeatureEnabledLocalDefinition{"featureTeleportAutomatically", &featureTeleportAutomatically});
 	results->push_back(FeatureEnabledLocalDefinition{"featureLandAtDestination", &featureLandAtDestination});
 	results->push_back(FeatureEnabledLocalDefinition{"featureCayoPerico", &featureCayoPerico});
+	results->push_back(FeatureEnabledLocalDefinition{"featureHouseOnHill", &featureHouseOnHill});
 	results->push_back(FeatureEnabledLocalDefinition{"featureChoshopCargoship", &featureChoshopCargoship});
 	results->push_back(FeatureEnabledLocalDefinition{"featureShowCoords", &featureShowCoords});
 }
@@ -2291,15 +2315,13 @@ void update_teleport_features(){
 	{
 		cayo_tick = cayo_tick + 1;
 		if (cayo_tick > 300) { // 1000
-			//INTERIOR::SET_ISLAND_HOPPER_ENABLED("HeistIsland", true);
-
 			for (int i = 0; i < IPLS_CAYO_PERICO.size(); i++) {
 				if (!STREAMING::IS_IPL_ACTIVE(IPLS_CAYO_PERICO[i]))
 				{
 					STREAMING::REQUEST_IPL(IPLS_CAYO_PERICO[i]);
 				}
 			}
-
+			
 			//int CayointeriorID = INTERIOR::GET_INTERIOR_AT_COORDS(4439.82300000f, -4461.71700000f, 4.69976800f); // 5010.101f, -5753.549f, 27.8444f
 			//if (INTERIOR::IS_VALID_INTERIOR(CayointeriorID))
 			//{
@@ -2309,6 +2331,7 @@ void update_teleport_features(){
 			//	if (INTERIOR::IS_INTERIOR_CAPPED(CayointeriorID)) INTERIOR::CAP_INTERIOR(CayointeriorID, 0);
 			//	INTERIOR::REFRESH_INTERIOR(CayointeriorID);
 			//}
+			
 			perico_init = true;
 		}
 	}
@@ -2332,7 +2355,12 @@ void update_teleport_features(){
 			AUDIO::SET_STATIC_EMITTER_ENABLED("se_dlc_hei4_island_beach_party_music_new_02_right", true);
 			AUDIO::SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT("AZL_DLC_Hei4_Island_Zones", true, true);
 			AUDIO::SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT("AZL_DLC_Hei4_Island_Disabled_Zones", false, true);
-			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) WATER::_SET_WAVES_INTENSITY(0.1); // 它防止波浪穿过水面
+
+			AI::SET_SCENARIO_GROUP_ENABLED("Heist_Island_Peds", true);
+			INTERIOR::_0xF74B1FFA4A15FBEA(1);
+			INTERIOR::_0XDD3D5F9CA0C715D0(true);
+
+			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) WATER::_SET_WAVES_INTENSITY(0.1); // 它可以防止波浪穿透表面
 			on_island = true;
 		}
 		if (Cayo_dist_diff >= 1200 && on_island == true) { // 2000
@@ -2340,6 +2368,11 @@ void update_teleport_features(){
 			AUDIO::SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT("AZL_DLC_Hei4_Island_Disabled_Zones", false, false);
 			AUDIO::SET_STATIC_EMITTER_ENABLED("se_dlc_hei4_island_beach_party_music_new_01_left", false);
 			AUDIO::SET_STATIC_EMITTER_ENABLED("se_dlc_hei4_island_beach_party_music_new_02_right", false);
+
+			AI::SET_SCENARIO_GROUP_ENABLED("Heist_Island_Peds", false);
+			INTERIOR::_0xF74B1FFA4A15FBEA(0);
+			INTERIOR::_0XDD3D5F9CA0C715D0(false);
+
 			if (WORLD_WAVES_VALUES[WorldWavesIndex] == -1) WATER::_RESET_WAVES_INTENSITY();
 			on_island = false;
 		}
@@ -2347,6 +2380,116 @@ void update_teleport_features(){
 	if ((!featureCayoPerico && cayo_tick > 0) || DLC2::GET_IS_LOADING_SCREEN_ACTIVE()) {
 		perico_init = false;
 		cayo_tick = 0;
+	}
+
+	// 自动加载山中安全屋（豪宅）
+	if (featureHouseOnHill && ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID()) && househill_init == false)
+	{
+		househill_tick = househill_tick + 1;
+		if (househill_tick > 400) { // 1000
+			for (int i = 0; i < IPL_PROPS_MANSION.size(); i++) {
+				if (!STREAMING::IS_IPL_ACTIVE(IPL_PROPS_MANSION[i]))
+				{
+					STREAMING::REQUEST_IPL(IPL_PROPS_MANSION[i]);
+				}
+			}
+			int MansionTop = INTERIOR::GET_INTERIOR_AT_COORDS(-1666.36f, 478.92f, 128.22f);
+			int MansionLow = INTERIOR::GET_INTERIOR_AT_COORDS(-1649.63f, 480.97f, 117.36f);
+			int MansionGarage = INTERIOR::GET_INTERIOR_AT_COORDS(-1679.87f, 493.59f, 112.93f);
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "m25_2_ch1_06e_mansion_interior_a");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionLow, "m25_2_ch1_06e_mansion_interior_c");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionGarage, "m25_2_ch1_06e_mansion_interior_b");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_ELEV_LOFT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_LOFT_SHELVING_PLANTER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionLow, "SET_BASE_VAULT_08");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionLow, "SET_ELEV_STD");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionLow, "SET_VAULT_DOOR_OPEN");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_AI_TABLETS_01");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_ART_COASTAL");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_ELEV_LOFT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_LOFT_SHELVING_PLANTER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_LOFT_TROPHY_PLANTER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_STEP_COLLISION");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_STYLE_LOFT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_STYLE_LOFT_TINT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(MansionTop, "SET_WALLPAPER_DECO");
+			
+			INTERIOR::REFRESH_INTERIOR(MansionTop);
+			INTERIOR::REFRESH_INTERIOR(MansionLow);
+			INTERIOR::REFRESH_INTERIOR(MansionGarage);
+
+			int Mansion2Top = INTERIOR::GET_INTERIOR_AT_COORDS(539.7012f, 749.089f, 201.36f);
+			int Mansion2Low = INTERIOR::GET_INTERIOR_AT_COORDS(547.4955f, 734.136f, 190.5f);
+			int Mansion2Garage = INTERIOR::GET_INTERIOR_AT_COORDS(548.6964f, 766.88f, 186.07f);
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "m25_2_ch2_04_mansion_interior_a");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Low, "m25_2_ch2_04_mansion_interior_c");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Garage, "m25_2_ch2_04_mansion_interior_b");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Low, "SET_BASE_VAULT_08");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Low, "SET_ELEV_STD");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Low, "SET_VAULT_DOOR_OPEN");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_AFTERPARTY");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_AI_TABLETS_02");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_ARCADE_BLOCKER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_ELEV_CALI");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_MICHAEL_CARD");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_PET_CAT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_PODIUM_BLOCKER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_REG_SHELVING_PLANTER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_STEP_COLLISION");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_STYLE_CALI");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_STYLE_CALI_TINT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_TROPHY_PLANTER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_WALLPAPER_POPART");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion2Top, "SET_ART_LOFT");
+
+			INTERIOR::REFRESH_INTERIOR(Mansion2Top);
+			INTERIOR::REFRESH_INTERIOR(Mansion2Low);
+			INTERIOR::REFRESH_INTERIOR(Mansion2Garage);
+
+			int Mansion3Top = INTERIOR::GET_INTERIOR_AT_COORDS(-2586.065f, 1909.995f, 166.37f);
+			int Mansion3Low = INTERIOR::GET_INTERIOR_AT_COORDS(-2587.495f, 1893.193f, 155.51f);
+			int Mansion3Garage = INTERIOR::GET_INTERIOR_AT_COORDS(-2568.933f, 1920.202f, 151.08f);
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "m25_2_ch1_09_mansion_interior_a");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Low, "m25_2_ch1_09_mansion_interior_c");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Garage, "m25_2_ch1_09_mansion_interior_b");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Low, "SET_BASE_VAULT_08");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Low, "SET_ELEV_STD");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Low, "SET_VAULT_DOOR_OPEN");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_AI_TABLETS_03");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_ARCADE_BLOCKER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_BIRTHDAY");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_ELEV_HOLLY");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_MICHAEL_CARD");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_PET_DOG");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_PODIUM_BLOCKER");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_STEP_COLLISION");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_STYLE_HOLLY");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_STYLE_REG_TINT");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_TROPHY_SHELVES");
+			INTERIOR::_ENABLE_INTERIOR_PROP(Mansion3Top, "SET_ART_REGENCY");
+						
+			INTERIOR::REFRESH_INTERIOR(Mansion3Top);
+			INTERIOR::REFRESH_INTERIOR(Mansion3Low);
+			INTERIOR::REFRESH_INTERIOR(Mansion3Garage);
+
+			househill_init = true;
+		}
+	}
+	if (featureHouseOnHill && ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID()) && househill_init == true) {
+		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_casino_door_01l"), 520.7849f, 744.874f, 198.984f, 0, 0.0, 50.0, 0);
+		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_casino_door_01l"), -2604.295f, 1916.571f, 163.9978f, 0, 0.0, 50.0, 0);
+		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_lrggate_01c_l"), -2559.193f, 1910.86f, 169.0709f, 0, 0.0, 50.0, 0);
+		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_lrggate_01c_r"), -2556.658f, 1915.716f, 169.0709f, 0, 0.0, 50.0, 0);
+		if (STREAMING::IS_IPL_ACTIVE("apa_ch2_04_props_original")) STREAMING::REMOVE_IPL("apa_ch2_04_props_original");
+		if (STREAMING::IS_IPL_ACTIVE("hei_ch1_06e_props_original")) STREAMING::REMOVE_IPL("hei_ch1_06e_props_original");
+		if (STREAMING::IS_IPL_ACTIVE("hei_ch1_09_props_original")) STREAMING::REMOVE_IPL("hei_ch1_09_props_original");
+		if (STREAMING::IS_IPL_ACTIVE("apa_ch2_04_mansion_original")) STREAMING::REMOVE_IPL("apa_ch2_04_mansion_original");
+		if (STREAMING::IS_IPL_ACTIVE("hei_ch1_06e_mansion_original")) STREAMING::REMOVE_IPL("hei_ch1_06e_mansion_original");
+		if (STREAMING::IS_IPL_ACTIVE("hei_ch1_09_mansion_original")) STREAMING::REMOVE_IPL("hei_ch1_09_mansion_original");
+	}
+	if ((!featureHouseOnHill && househill_tick > 0) || DLC2::GET_IS_LOADING_SCREEN_ACTIVE()) {
+		househill_init = false;
+		househill_tick = 0;
 	}
 
 	// 自动加载额外地图内容
@@ -2391,30 +2534,90 @@ void update_teleport_features(){
 		chopshop_init = false;
 		chopshop_tick = 0;
 	}
-	
-	//if (featureChoshopCargoship && ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID()) && chopshop_init == true) {
-	//	Vector3 my_coords = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), 0);
-	//	//	float ChopCargo_dist_diff = SYSTEM::VDIST(my_coords.x, my_coords.y, my_coords.z, -400.0109f, -4124.138f, 24.34268f);
-	//	//	if (ChopCargo_dist_diff < 10) { // 2000
-	//	float MichaelBalcony_dist_diff = SYSTEM::VDIST(my_coords.x, my_coords.y, my_coords.z, -816.8055f, 177.0992f, 77.14575f);
-	//	if (MichaelBalcony_dist_diff < 10) { // 2000
-	//		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_door_balcony_right"), -8.074844f, 5.368828f, 5.982437f, 0, 0.0, 50.0, 0);
-	//		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_door_balcony_right"), -807.343f, 174.9807f, 71.0f, 0, 0.0, 50.0, 0);
-	//		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_door_balcony_right"), -816.8055f, 177.0992f, 77.14575f, 0, 0.0, 50.0, 0);
-	//		
-	//		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_door_balcony_left"), -8.074419f, 7.334337f, 5.98529f, 0, 0.0, 50.0, 0);
-	//		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_door_balcony_left"), -807.343f, 174.9807f, 71.0f, 0, 0.0, 50.0, 0);
-	//		OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_door_balcony_left"), -817.5095f, 178.9343f, 77.14861f, 0, 0.0, 50.0, 0);
-	//
-	//		std::stringstream ss55;
-	//		ss55 << "\n MichaelBalcony_dist_diff: " << MichaelBalcony_dist_diff;
-	//		//ss55 << "\n temp_bodyguard: " << temp_bodyguard;
-	//		//ss55 << "\n dist_diff: " << dist_diff;
-	//		//ss55 << "\n temp_dist: " << temp_dist;
-	//		callsPerFrame = 0;
-	//		set_status_text_centre_screen(ss55.str());
-	//	}
-	//}
+	if (featureChoshopCargoship && ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID())) {
+		eGameVersion version = getGameVersion();
+
+		//VER_1_0_3095_0_ 
+		if (version >= 85)
+		{
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fb_doorshortl"), -1045.12f, -232.004f, 39.43794f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fb_doorshortr"), -1046.516f, -229.3581f, 39.43794f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_gtdoor02"), -1042.518f, -240.6915f, 38.11796f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_door_orange"), -1050.967f, -236.6299f, 39.88301f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_docks_ld"), -202.6151f, -2515.309f, 5.047173f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_docks_ld"), -187.3406f, -2515.309f, 5.047173f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_lester_doorfront"), 1273.815f, -1720.697f, 54.92143f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("tr_prop_tr_gate_l_01a"), -2148.653f, 1101.464f, -23.5492f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("tr_prop_tr_gate_r_01a"), -2148.653f, 1110.646f, -23.5492f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_mm_doorm_l"), -816.716f, 179.098f, 72.82738f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_mm_doorm_r"), -816.1068f, 177.5109f, 72.82738f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_bh1_48_backdoor_l"), -796.5657f, 177.2214f, 73.04045f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_bh1_48_backdoor_r"), -794.5051f, 178.0124f, 73.04045f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_bh1_48_backdoor_l"), -793.3943f, 180.5075f, 73.04045f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_bh1_48_backdoor_r"), -794.1853f, 182.568f, 73.04045f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fh_frontdoor"), 7.518359f, 539.5268f, 176.1776f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_trevtraildr"), 1972.769f, 3815.366f, 33.66326f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_docks_ld"), 10.64414f, -2542.213f, 5.047173f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_docks_ld"), 19.40451f, -2529.702f, 5.047173f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fibl_door02"), 106.3793f, -742.6982f, 46.18171f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fibl_door01"), 105.7607f, -746.646f, 46.18266f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_rc_door3_r"), -592.7109f, -1628.986f, 27.15931f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_rc_door3_l"), -592.9376f, -1631.577f, 27.15931f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_rc_door1_st"), -590.8198f, -1621.436f, 33.16059f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_rc_door1_st"), -589.5237f, -1621.55f, 33.16059f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_rc_door3_l"), -608.7289f, -1610.315f, 27.15894f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_rc_door3_r"), -611.32f, -1610.089f, 27.15894f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_roc_door4"), -565.1712f, 276.6259f, 83.28626f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_casino_door_01b"), 2500.835f, -271.2239f, -58.57317f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_ch_service_door_02b"), 2506.721f, -268.5107f, -58.57315f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_ch_service_door_02b"), 2506.721f, -270.5107f, -58.57315f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_ch_gendoor_01"), 2515.308f, -281.5983f, -64.57317f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_ch_tunnel_door_01_l"), 2464.183f, -278.2036f, -71.6943f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_ch_tunnel_door_01_r"), 2464.183f, -280.2885f, -71.6943f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_casino_door_01g"), 2509.743f, -260.3417f, -38.973f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_tort_door"), 134.3954f, -2204.097f, 7.514325f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("ch_prop_casino_door_01c"), 2500.935f, -278.3725f, -58.57317f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_bl_shutter2"), 3627.713f, 3746.716f, 27.69009f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_bl_shutter2"), 3620.843f, 3751.527f, 27.69009f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_bank4door02"), -111.48f, 6463.94f, 31.98499f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_bank4door01"), -109.65f, 6462.11f, 31.98499f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_docks_ld"), 476.3276f, -3115.925f, 5.162354f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_docks_ld"), 492.2758f, -3115.934f, 5.162354f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_epsstoredoor"), 241.3621f, 361.047f, 105.8883f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_ch3_01_trlrdoor_l"), 2333.235f, 2574.973f, 47.03088f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_ch3_01_trlrdoor_r"), 2329.655f, 2576.642f, 47.03088f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_cs_door"), 482.8112f, -1311.953f, 29.35057f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_com_gar_door_01"), 484.5642f, -1315.574f, 30.20331f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_trev_doorfront"), -1149.709f, -1521.088f, 10.78267f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_prison_01"), 1844.998f, 2604.813f, 44.63978f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_gate_prison_01"), 1818.543f, 2604.813f, 44.611f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_ron_door_01"), 1083.547f, -1975.435f, 31.62222f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_ss_door7"), 719.3815f, -975.418f, 25.00606f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_ss_door8"), 716.7805f, -975.4207f, 25.00606f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("p_jewel_door_r1"), -630.4265f, -238.4376f, 38.20653f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("p_jewel_door_l"), -631.9554f, -236.3333f, 38.20653f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fb_door02"), -1080.974f, -259.0203f, 38.1867f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fb_door01"), -1083.62f, -260.4166f, 38.1867f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_roc_door4"), -561.2866f, 293.5044f, 87.77851f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_stad_fdoor"), -259.4862f, -2031.936f, 30.52077f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_stad_fdoor"), -257.4934f, -2029.561f, 30.52077f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_stad_fdoor"), -256.0783f, -2027.875f, 30.52077f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_stad_fdoor"), -254.0855f, -2025.5f, 30.52077f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_stad_fdoor"), -252.6704f, -2023.813f, 30.52077f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_stad_fdoor"), -250.6776f, -2021.438f, 30.52077f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_fa_frontdoor"), -14.86892f, -1441.182f, 31.19323f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_abbmaindoor"), 962.0066f, -2183.816f, 31.06194f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_abbmaindoor2"), 961.705f, -2187.069f, 31.06195f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_janitor_frontdoor"), -107.5373f, -9.018098f, 70.67085f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_com_ls_door_01"), -356.0905f, -134.7714f, 40.01295f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_id2_11_gdoor"), 723.116f, -1088.831f, 23.23201f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("prop_com_ls_door_01"), -1145.898f, -1991.144f, 14.18357f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_carmod3door"), 1174.654f, 2645.222f, 38.63961f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_carmod3door"), 1182.306f, 2645.232f, 38.63961f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_carmod3door"), 108.8502f, 6617.876f, 32.67305f, 0, 0.0, 50.0, 0);
+			OBJECT::_DOOR_CONTROL(GAMEPLAY::GET_HASH_KEY("v_ilev_carmod3door"), 114.3135f, 6623.233f, 32.67305f, 0, 0.0, 50.0, 0);
+		}
+	}
 	if ((!featureChoshopCargoship && chopshop_tick > 0) || DLC2::GET_IS_LOADING_SCREEN_ACTIVE()) {
 		chopshop_init = false;
 		chopshop_tick = 0;
