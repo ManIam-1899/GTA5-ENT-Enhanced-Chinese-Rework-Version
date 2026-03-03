@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 2025.9.19 修改，已包含GTA5全部人物1093个！汉化：随梦&而飞 -->
+<!-- 2026.3.3 修改，已包含GTA5全部人物1105个！汉化：随梦&而飞 -->
 <peds>
-	<category name="主角 [6]">
+	<category name="主角 [7]">
 		<ped model="player_zero" title="迈克尔·德圣塔" />
 		<ped model="player_one" title="富兰克林·克林顿" />
 		<ped model="player_two" title="崔佛·菲利普" />
 		<ped model="p_franklin_02" title="富兰克林·克林顿 (老年)" />
+		<ped model="p_michael_02" title="迈克尔·德圣塔 (老年)" />
 		<ped model="mp_f_freemode_01" title="线上模式女主角" />
 		<ped model="mp_m_freemode_01" title="线上模式男主角" />
 	</category>
-	<category name="动物 [42]">
+	<category name="动物 [43]">
 		<ped model="a_c_boar" title="野猪" />
 		<ped model="a_c_boar_02" title="野猪 (万圣节)" />
 		<ped model="a_c_cat_01" title="小猫" />
+		<ped model="a_c_cat_02" title="小猫 (白猫)" />
 		<ped model="a_c_chickenhawk" title="老鹰" />
 		<ped model="a_c_chimp_02" title="黑猩猩" />
 		<ped model="a_c_chimp" title="黑猩猩 (万圣节)" />
@@ -280,8 +282,9 @@
 		<ped model="a_m_y_beach_04" title="海滩年轻男性 4" />
 		<ped model="a_m_y_clubcust_04" title="俱乐部顾客男性 4" />
 	</category>
-	<category name="过场动画 [220]">
+	<category name="过场动画 [223]">
 		<ped model="cs_amandatownley" title="阿曼达·德圣塔" />
+		<ped model="cs_amandatownley_02" title="阿曼达·德圣塔（老年）" />
 		<ped model="cs_andreas" title="安德烈亚斯·桑切斯" />
 		<ped model="cs_ashley" title="阿什莉·巴特勒" />
 		<ped model="cs_bankman" title="银行经理" />
@@ -382,6 +385,7 @@
 		<ped model="csb_avery" title="艾弗里·杜根" />
 		<ped model="csb_avischwartzman_02" title="艾维斯·施瓦茨曼 2" />
 		<ped model="csb_avischwartzman_03" title="艾维斯·施瓦茨曼 3" />
+		<ped model="csb_avi_04" title="CSB 艾维斯·施瓦茨曼 4" />
 		<ped model="csb_avon" title="艾冯·赫兹" />
 		<ped model="csb_ballas_leader" title="巴拉斯帮头目" />
 		<ped model="csb_ballasog" title="巴拉斯帮老大" />
@@ -499,6 +503,7 @@
 		<ped model="csb_wendy" title="温迪" />
 		<ped model="csb_yusufamir" title="优素福·阿米尔" />
 		<ped model="csb_weiss" title="CSB 韦斯" />
+		<ped model="csb_faber_02" title="CSB 毛巾男" />
 		<ped model="csb_valentina" title="CSB 瓦伦蒂娜" />
 		<ped model="csb_rafdeangelis" title="拉夫·德安杰利斯" />
 	</category>
@@ -511,7 +516,7 @@
 		<ped model="g_f_m_undeadmage" title="亡灵法师女性" />
 		<ped model="g_f_m_fooliganz_01" title="傻瓜帮女性成员" />
 	</category>
-	<category name="帮派男性 [49]">
+	<category name="帮派男性 [50]">
 		<ped model="g_m_importexport_01" title="帮派男性 (进出口)" />
 		<ped model="g_m_m_armboss_01" title="亚美尼亚老大" />
 		<ped model="g_m_m_armgoon_01" title="亚美尼亚小弟" />
@@ -561,8 +566,9 @@
 		<ped model="g_m_m_maragrande_01" title="玛拉格兰德 1" />
 		<ped model="g_m_m_genthug_01" title="普通暴徒" />
 		<ped model="g_m_m_goons_01" title="打手暴徒" />
+		<ped model="g_m_m_knoway_01" title="诺威帮打手" />
 	</category>
-	<category name="故事模式 [250]"> 
+	<category name="故事模式 [255]"> 
 		<ped model="ig_abigail" title="阿比盖尔·马瑟斯" />
 		<ped model="ig_acidlabcook" title="酸实验室厨师" />
 		<ped model="ig_agatha" title="阿加莎·贝克" />
@@ -570,6 +576,7 @@
 		<ped model="ig_agent_02" title="女性特工" />
 		<ped model="ig_ahronward" title="阿伦·沃德 (赃车店)" />
 		<ped model="ig_amandatownley" title="阿曼达·德圣塔" />
+		<ped model="ig_amandatownley_02" title="阿曼达·德圣塔（老年）" />
 		<ped model="ig_andreas" title="安德烈亚斯·桑切斯" />
 		<ped model="ig_armsmanufac_01" title="武器制造商 1" />
 		<ped model="ig_ary" title="艾瑞" />
@@ -578,6 +585,7 @@
 		<ped model="ig_avery" title="艾弗里·杜根" />
 		<ped model="ig_avischwartzman_02" title="艾维斯·施瓦茨曼 2" />
 		<ped model="ig_avischwartzman_03" title="艾维斯·施瓦茨曼 3" />
+		<ped model="ig_avi_04" title="IG 艾维斯·施瓦茨曼 4" />
 		<ped model="ig_avon" title="艾冯·赫兹" />
 		<ped model="ig_ballas_leader" title="巴拉斯帮头目" />
 		<ped model="ig_ballasog" title="巴拉斯帮老大" />
@@ -639,8 +647,10 @@
 		<ped model="ig_englishdave" title="英格兰戴夫" />
 		<ped model="ig_entourage_a" title="随行人员 A" />
 		<ped model="ig_entourage_b" title="随行人员 B" />
+		<ped model="ig_faber_02" title="IG 毛巾男" />
 		<ped model="ig_fabien" title="法比安·科奇" />
 		<ped model="ig_fbisuit_01" title="联邦调查局特工" />
+		<Ped model="ig_fibleader_01" title="联邦调查局局长" />
 		<ped model="ig_floyd" title="弗洛伊德·赫伯特" />
 		<ped model="ig_fooliganz_01" title="傻瓜帮派 1" />
 		<ped model="ig_fooliganz_02" title="傻瓜帮派 2" />
@@ -770,6 +780,7 @@
 		<ped model="ig_tylerdix_02" title="泰勒·迪克森 2" />
 		<ped model="ig_vagos_leader" title="瓦戈斯帮头目" />
 		<ped model="ig_vagspeak" title="瓦戈斯帮发言人" />
+		<Ped model="ig_valencheat" title="情人节背叛者" />
 		<ped model="ig_vernon" title="弗农" />
 		<ped model="ig_vincent" title="文森特 (赌场)" />
 		<ped model="ig_vincent_2" title="文森特 (赌场) 2" />
@@ -808,7 +819,7 @@
 		<ped model="ig_sss" title="桑德恩 2" />
 		<ped model="ig_warehouseboss" title="仓库老板" />
 		<ped model="ig_mason_duggan" title="梅森·杜根" />
-		<ped model="ig_madrazodriver_01" title="马德拉佐司机 1" />
+		<ped model="ig_madrazodriver_01" title="马丁·马德拉佐 1" />
 		<ped model="ig_martinmadrazo_02" title="马丁·马德拉佐 2" />
 		<ped model="ig_rafdeangelis" title="拉夫·德安杰利斯" />
 		<ped model="ig_valentina" title="IG 瓦伦蒂娜" />
@@ -887,7 +898,7 @@
 		<ped model="s_f_y_clubbar_01" title="酒吧俱乐部·招待女性" />
 		<ped model="s_f_y_clubbar_02" title="酒吧俱乐部·招待女性 2" />
 	</category>
-	<category name="场景男性 [120]">
+	<category name="场景男性 [121]">
 		<ped model="s_m_m_Autoshop_03" title="汽车修理工 3" />
 		<ped model="s_m_m_ammucountry" title="军火国度乡村店员" />
 		<ped model="s_m_m_armoured_01" title="装甲运钞车保安" />
@@ -917,6 +928,7 @@
 		<ped model="s_m_m_highsec_02" title="高级保安 2" />
 		<ped model="s_m_m_highsec_03" title="高级保安 3" />
 		<ped model="s_m_m_highsec_05" title="高级保安 5" />
+		<ped model="s_m_m_highsec_06" title="高级保安 6" />
 		<ped model="s_m_m_janitor" title="清洁工" />
 		<ped model="s_m_m_lathandy_01" title="拉丁裔员工男性" />
 		<ped model="s_m_m_lifeinvad_01" title="生活入侵者男性" />
@@ -1122,7 +1134,6 @@
 		<ped model="g_m_m_zombie_05" title="僵尸 5" />
 		<ped model="ig_skeleton_01" title="骷髅铠甲 1" />
 	</category>
-	<category name="人物总数 (1093个)">
+	<category name="人物总数 (1105个)">
 	</category>
 </peds>
-<!-- 2025.9.19 修改，已包含GTA5全部人物1093个！汉化：随梦&而飞 -->
