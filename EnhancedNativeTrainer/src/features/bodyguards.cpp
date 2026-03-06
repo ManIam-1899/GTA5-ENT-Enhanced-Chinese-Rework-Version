@@ -3286,7 +3286,7 @@ bool process_custom_peds_bodyguard_menu() {
 	// 确保人物预览图已加载
 	ensure_custom_ped_previews_loaded();
 	
-	MenuParameters<std::string> params(items, "新增角色模型分类 1");
+	MenuParameters<std::string> params(items, "新增角色模型 1");
 	params.menuSelectionPtr = &selCat;
 	params.onConfirmation = onconfirm;
 	params.lineImageProvider = ped_image_preview_finder;
@@ -3373,7 +3373,7 @@ bool process_custom_peds2_bodyguard_menu() {
 	// 确保人物预览图已加载
 	ensure_custom_ped_previews_loaded();
 	
-	MenuParameters<std::string> params(items, "新增角色模型分类 2");
+	MenuParameters<std::string> params(items, "新增角色模型 2");
 	params.menuSelectionPtr = &selCat2;
 	params.onConfirmation = onconfirm;
 	params.lineImageProvider = ped_image_preview_finder;

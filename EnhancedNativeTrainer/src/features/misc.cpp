@@ -3000,7 +3000,7 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 		UI::_SET_TEXT_ENTRY("STRING"); // 设置文本条目类型为字符串  
 		UI::_ADD_TEXT_COMPONENT_SCALEFORM(fps_to_show_char_modifiable); // 将 fps_to_show_char_modifiable 中的文本添加到文本组件中  
 		UI::_DRAW_TEXT(0.005, 0.135); // 在屏幕坐标 ( x=0.005, y=0.135 ) 处绘制文本  
-		GRAPHICS::DRAW_RECT(0.0, 0.15, 0.05, 0.03, 10, 10, 10, 180); 
+		GRAPHICS::DRAW_RECT(0.005, 0.15, 0.06, 0.03, 10, 10, 10, 180); 
 		// 在屏幕坐标 ( x=0.0, y=0.15 ) 处绘制一个矩形，宽度为 0.05，高度为 0.03，颜色为深灰色（RGB: 10, 10, 10），透明度为 150  
 	}
 	

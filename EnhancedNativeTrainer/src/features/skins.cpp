@@ -674,7 +674,7 @@ bool process_custom_peds_menu(){
         process_custom_peds_category_menu(choice.value);
         return false;
     };
-    return draw_generic_menu<std::string>(items, &selCat, "新增角色模型分类 1", onconfirm, NULL, NULL);
+    return draw_generic_menu<std::string>(items, &selCat, "新增角色模型 1", onconfirm, NULL, NULL);
 }
 
 static bool process_custom_peds2_category_menu(const std::string& category){
@@ -742,7 +742,7 @@ bool process_custom_peds2_menu(){
         process_custom_peds2_category_menu(choice.value);
         return false;
     };
-    return draw_generic_menu<std::string>(items, &selCat2, "新增角色模型分类 2", onconfirm, NULL, NULL);
+    return draw_generic_menu<std::string>(items, &selCat2, "新增角色模型 2", onconfirm, NULL, NULL);
 }
 
 // Export functions for bodyguards module
