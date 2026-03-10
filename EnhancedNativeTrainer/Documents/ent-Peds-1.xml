@@ -650,7 +650,7 @@
 		<ped model="ig_faber_02" title="IG 毛巾男" />
 		<ped model="ig_fabien" title="法比安·科奇" />
 		<ped model="ig_fbisuit_01" title="联邦调查局特工" />
-		<Ped model="ig_fibleader_01" title="联邦调查局局长" />
+		<ped model="ig_fibleader_01" title="联邦调查局局长" />
 		<ped model="ig_floyd" title="弗洛伊德·赫伯特" />
 		<ped model="ig_fooliganz_01" title="傻瓜帮派 1" />
 		<ped model="ig_fooliganz_02" title="傻瓜帮派 2" />
@@ -780,7 +780,7 @@
 		<ped model="ig_tylerdix_02" title="泰勒·迪克森 2" />
 		<ped model="ig_vagos_leader" title="瓦戈斯帮头目" />
 		<ped model="ig_vagspeak" title="瓦戈斯帮发言人" />
-		<Ped model="ig_valencheat" title="情人节背叛者" />
+		<ped model="ig_valencheat" title="情人节背叛者" />
 		<ped model="ig_vernon" title="弗农" />
 		<ped model="ig_vincent" title="文森特 (赌场)" />
 		<ped model="ig_vincent_2" title="文森特 (赌场) 2" />
@@ -899,7 +899,7 @@
 		<ped model="s_f_y_clubbar_02" title="酒吧俱乐部·招待女性 2" />
 	</category>
 	<category name="场景男性 [121]">
-		<ped model="s_m_m_Autoshop_03" title="汽车修理工 3" />
+		<ped model="s_m_m_autoshop_03" title="汽车修理工 3" />
 		<ped model="s_m_m_ammucountry" title="军火国度乡村店员" />
 		<ped model="s_m_m_armoured_01" title="装甲运钞车保安" />
 		<ped model="s_m_m_armoured_02" title="装甲运钞车保安 2" />
@@ -1090,7 +1090,7 @@
 		<ped model="u_m_y_danceburl_01" title="夜店男舞者 (滑稽戏风格)" />
 		<ped model="u_m_y_dancelthr_01" title="夜店男舞者 (皮革风格)" />
 		<ped model="u_m_y_dancerave_01" title="夜店男舞者 (狂欢风格)" />
-		<ped model="U_M_M_Yeti" title="野人雪怪 (猩猩)" />
+		<ped model="u_m_m_yeti" title="野人雪怪 (猩猩)" />
 		<ped model="u_m_m_aldinapoli" title="阿尔·迪·勒斯男性" />
 		<ped model="u_m_m_glenstank_01" title="格伦-斯坦克男性" />
 		<ped model="u_m_m_bankman" title="银行经理男性" />
