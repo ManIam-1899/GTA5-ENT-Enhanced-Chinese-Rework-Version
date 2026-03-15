@@ -1258,10 +1258,10 @@ void update_time_features(Player player) {
 	}
 
 	// 显示当前时间
-	// 修改时间显示逻辑：当菜单左侧偏移量>=150时不隐藏时间，但自由移动和物体摆放模式时仍隐藏
+	// 修改时间显示逻辑：当菜单左侧偏移量>=110时不隐藏时间，但自由移动和物体摆放模式时仍隐藏
 	bool shouldShowTime = featureShowtime && 
 		(menu_showing == false || 
-		 (menu_showing == true && menuLeftOffset >= 120.0f)) &&
+		 (menu_showing == true && menuLeftOffset >= 110.0f)) &&
 		!(is_in_airbrake_mode() || is_in_prop_placement_mode());
 	
 	if (shouldShowTime) {
@@ -1357,9 +1357,9 @@ void update_time_features(Player player) {
 		char year_to_show_char_modifiable[12]; // 年，增加到12字节
 		char month_to_show_char_modifiable[12]; // 月，增加到12字节
 		char day_to_show_char_modifiable[12]; // 日，增加到12字节
-		snprintf(year_to_show_char_modifiable, sizeof(year_to_show_char_modifiable), "%04d 年", calYear); // 将年份格式化为四位数 + " 年"
-		snprintf(month_to_show_char_modifiable, sizeof(month_to_show_char_modifiable), "%02d 月", calMon); // 将月份格式化为两位数 + " 月"
-		snprintf(day_to_show_char_modifiable, sizeof(day_to_show_char_modifiable), "%02d 日", calDay); // 将日期格式化为两位数 + " 日"
+		snprintf(year_to_show_char_modifiable, sizeof(year_to_show_char_modifiable), "年 : %04d", calYear); // 将年份格式化为四位数 + "年"
+		snprintf(month_to_show_char_modifiable, sizeof(month_to_show_char_modifiable), "月 : %02d", calMon); // 将月份格式化为两位数 + "月"
+		snprintf(day_to_show_char_modifiable, sizeof(day_to_show_char_modifiable), "日 : %02d", calDay); // 将日期格式化为两位数 + "日"
 
 		// 星期处理
 		char* week_to_show_char = "未知星期"; // 默认值

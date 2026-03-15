@@ -16,6 +16,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\..\inc\main.h"
 #include "..\ui_support\menu_functions.h"
 #include "..\joaat.hpp"
+#include "..\storage\database.h"
 #include <string>
 #include <map>
 #include <vector>
