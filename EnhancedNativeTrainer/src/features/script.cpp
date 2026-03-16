@@ -120,7 +120,7 @@ static volatile LONG g_auto_save_notify_pending = 0;
 
 // 自动保存提示频率控制
 static int g_auto_save_count = 0;
-static const int AUTO_SAVE_NOTIFY_INTERVAL = 10; // 每10次自动保存才显示一次提示（1次大约60秒）
+static const int AUTO_SAVE_NOTIFY_INTERVAL = 90; // 每90次自动保存，才显示一次提示（每3600帧，自动保存一次）。
 
 // 功能
 bool featurePlayerInvincible = false;

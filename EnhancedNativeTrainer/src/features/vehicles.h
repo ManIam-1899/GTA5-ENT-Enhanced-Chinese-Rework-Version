@@ -948,8 +948,6 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("REEVER"), "lgm_dlc_security", "reever" },
 	{ RAGE_JOAAT("SHINOBI"), "lgm_dlc_security", "shinobi" },
 	{ RAGE_JOAAT("ZENO"), "lgm_dlc_security", "zeno" },
-	//{ RAGE_JOAAT("YOUGA4"), "lgm_dlc_security", "youga4" },
-	//{ RAGE_JOAAT("MULE5"), "lgm_dlc_security", "mule5" },
 	{ RAGE_JOAAT("BUFFALO4"), "sssa_dlc_security", "buffalo4" },
 	{ RAGE_JOAAT("GRANGER2"), "sssa_dlc_security", "granger2" },
 	{ RAGE_JOAAT("IWAGEN"), "sssa_dlc_security", "iwagen" },
@@ -982,14 +980,12 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("BOOR"), "sssa_dlc_xmas2022", "boor" },
 	{ RAGE_JOAAT("BRICKADE2"), "candc_xmas2022", "brickade2" },
 	{ RAGE_JOAAT("BROADWAY"), "lgm_dlc_xmas2022", "broadway" },
-	//{ RAGE_JOAAT("CARGOPLANE2"), "sssa_dlc_xmas2022", "cargoplane2" },
 	{ RAGE_JOAAT("CARGOPLANE2"), "ENT_vehicle_previews", "VP_CARGO" },
 	{ RAGE_JOAAT("ENTITY3"), "lgm_dlc_xmas2022", "entity3" },
 	{ RAGE_JOAAT("EUDORA"), "sssa_dlc_xmas2022", "eudora" },
 	{ RAGE_JOAAT("EVERON2"), "sssa_dlc_xmas2022", "everon2" },
 	{ RAGE_JOAAT("ISSI8"), "sssa_dlc_xmas2022", "issi8" },
 	{ RAGE_JOAAT("JOURNEY2"), "sssa_dlc_xmas2022", "journey2" },
-	//{ RAGE_JOAAT("MANCHEZ3"), "sssa_dlc_xmas2022", "manchez3" },
 	{ RAGE_JOAAT("MANCHEZ3"), "sssa_dlc_biker", "manchez" },
 	{ RAGE_JOAAT("PANTHERE"), "lgm_dlc_xmas2022", "panthere" },
 	{ RAGE_JOAAT("POWERSURGE"), "lgm_dlc_xmas2022", "powersurge" },
@@ -1004,16 +1000,13 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("CLIQUE2"), "sssa_dlc_2023_01", "clique2" },
 	{ RAGE_JOAAT("RATEL"), "sssa_dlc_2023_01", "ratel" },
 	{ RAGE_JOAAT("L35"), "sssa_dlc_2023_01", "l35" },
-	//{ RAGE_JOAAT("AVENGER3"), "candc_2023_01", "avenger3" },
 	{ RAGE_JOAAT("AVENGER3"), "candc_chopper", "banner_0" },
 	{ RAGE_JOAAT("AVENGER4"), "ENT_vehicle_previews", "VP_AVENGER" },
-	//{ RAGE_JOAAT("AVENGER1"), "ENT_vehicle_previews", "VP_AVENGER" },
 	{ RAGE_JOAAT("RAIJU"), "candc_2023_01", "raiju" },
 	{ RAGE_JOAAT("STREAMER216"), "candc_2023_01", "streamer216" },
 	{ RAGE_JOAAT("BUFFALO5"), "lgm_dlc_2023_01", "buffalo5" },
 	{ RAGE_JOAAT("BRIGHAM"), "sssa_dlc_2023_01", "brigham" },
 	{ RAGE_JOAAT("COUREUR"), "lgm_dlc_2023_01", "coureur" },
-	//{ RAGE_JOAAT("SPEEDO5"), "pandm_dlc_2023_01", "speedo5" },
 	{ RAGE_JOAAT("SPEEDO5"), "ENT_vehicle_previews", "VP_SPEEDO" },
 	{ RAGE_JOAAT("CONADA2"), "candc_2023_01", "conada2" },
 	{ RAGE_JOAAT("GAUNTLET6"), "sssa_dlc_2023_01", "gauntlet6" },
@@ -1056,6 +1049,8 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("TVTRAILER2"), "ENT_vehicle_previews", "VP_TRAILERPANIC" },//
 	{ RAGE_JOAAT("BOATTRAILER2"), "ENT_vehicle_previews", "VP_BOATTRAILER3" },//
 	{ RAGE_JOAAT("BOATTRAILER3"), "ENT_vehicle_previews", "VP_BOATTRAILER2" },//
+	//{ RAGE_JOAAT("POPGAUNTLET"), "ENT_vehicle_previews", "VP_GAUNTLETHELLFIRE" },
+	//{ RAGE_JOAAT("GAUNTLET5"), "ENT_vehicle_previews", "VP_GAUNTLETHELLFIRE" },
 	// 2024 夏季 - 赏金 DLC
 	{ RAGE_JOAAT("DRAFTER"), "lgm_dlc_vinewood", "drafter" },
 	{ RAGE_JOAAT("EMERUS"), "lgm_dlc_vinewood", "emerus" },
@@ -1080,7 +1075,7 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("PIZZABOY"), "sssa_dlc_2024_1", "pizzaboy" },
 	{ RAGE_JOAAT("VORSCHLAG"), "sssa_dlc_2024_1", "vorschlag" },
 	{ RAGE_JOAAT("YOSEMITE1500"), "ENT_vehicle_previews", "VP_YOSEMITE4" },
-	{ RAGE_JOAAT("POLDOM10"), "candc_dlc_2024_1", "poldom10" },
+	//{ RAGE_JOAAT("POLDOM10"), "candc_dlc_2024_1", "poldom10" },// POLDOM10 模型名称错误！真实的模型名称为 POLDOMINATOR10
 	{ RAGE_JOAAT("POLDORADO"), "candc_dlc_2024_1", "poldorado" },
 	{ RAGE_JOAAT("POLGREENWOOD"), "ENT_vehicle_previews", "VP_POLGREENW" },
 	{ RAGE_JOAAT("POLIMPALER5"), "candc_dlc_2024_1", "polimpaler5" },
@@ -1091,24 +1086,33 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("DRIFTCYPHER"), "ENT_vehicle_previews", "VP_CYPHER" }, //
 	{ RAGE_JOAAT("DRIFTSENTINEL"), "ENT_vehicle_previews", "VP_SENTINELWIDE" }, //
 	{ RAGE_JOAAT("POLICET3"), "ENT_vehicle_previews", "VP_BURRITOBAIL" },
-	{ RAGE_JOAAT("POLDOMINATOR10"), "ENT_vehicle_previews", "VP_DOMINATORFX" }, //
+	{ RAGE_JOAAT("POLDOMINATOR10"), "candc_dlc_2024_1", "poldom10" }, // POLDOMINATOR10 真实的预览图为 poldom10
 	// 2024 圣诞节 - 联邦调查局 DLC
 	{ RAGE_JOAAT("CHAVOSV6"), "sssa_dlc_2024_2", "chavosv6" },
+	{ RAGE_JOAAT("DRIFTCHAVOSV6"), "sssa_dlc_2024_2", "chavosv6" },
 	{ RAGE_JOAAT("FIREBOLT"), "sssa_dlc_2024_2", "firebolt" },
 	{ RAGE_JOAAT("URANUS"), "sssa_dlc_2024_2", "uranus" },
+	{ RAGE_JOAAT("DRIFTCHEBUREK"), "ENT_vehicle_previews", "VP_CHEBUREK" },
 	{ RAGE_JOAAT("CARGOBOB5"), "candc_dlc_2024_2", "cargobob5" },
 	{ RAGE_JOAAT("POLCARACAR"), "candc_dlc_2024_2", "polcaracar" },
 	{ RAGE_JOAAT("POLCOQUTT4"), "candc_dlc_2024_2", "polcoqutt4" },
 	{ RAGE_JOAAT("POLFCTION2"), "candc_dlc_2024_2", "polfction2" },
 	{ RAGE_JOAAT("POLTERMINU"), "candc_dlc_2024_2", "polterminu" },
 	{ RAGE_JOAAT("PREDATOR"), "candc_dlc_2024_2", "predator" }, //
-	//{ RAGE_JOAAT("TACO"), "candc_dlc_2024_2", "taco" }, // 自定义预览存在于 ENT 预览中。
 	{ RAGE_JOAAT("TITAN2"), "candc_dlc_2024_2", "titan2" }, //
 	{ RAGE_JOAAT("BANSHEE3"), "lgm_dlc_2024_2", "banshee3" }, //
 	{ RAGE_JOAAT("COQUETTE6"), "lgm_dlc_2024_2", "coquette6" }, //
 	{ RAGE_JOAAT("JESTER5"), "lgm_dlc_2024_2", "jester5" },
+	{ RAGE_JOAAT("DRIFTJESTER3"), "ENT_vehicle_previews", "VP_DRIFTJESTER3" },
 	{ RAGE_JOAAT("DUSTER2"), "elt_dlc_2024_2", "duster2" },
-	//Summer 2025 - Money Fronts
+	{ RAGE_JOAAT("POLCOQUETTE4"), "ENT_vehicle_previews", "VP_POLCOQUETTE4" },
+	{ RAGE_JOAAT("POLCARACARA"), "ENT_vehicle_previews", "VP_POLCARACARA" },
+	{ RAGE_JOAAT("POLFACTION2"), "ENT_vehicle_previews", "VP_POLFACTION2" },
+	{ RAGE_JOAAT("FREIGHTCAR3"), "ENT_vehicle_previews", "VP_FREIGHTCAR3" },
+	{ RAGE_JOAAT("POLTERMINUS"), "ENT_vehicle_previews", "VP_POLTERMINUS" },
+	{ RAGE_JOAAT("DRIFTFUTO2"), "ENT_vehicle_previews", "VP_FUTO" },
+	{ RAGE_JOAAT("YOUGA5"), "ENT_vehicle_previews", "VP_YOUGA4" },
+	// 2025 夏季 - 此地无银 DLC
 	{ RAGE_JOAAT("POLICEB2"), "candc_dlc_2025_1", "policeb2" },
 	{ RAGE_JOAAT("STOCKADE4"), "candc_dlc_2025_1", "stockade4" },
 	{ RAGE_JOAAT("CHEETAH3"), "lgm_dlc_2025_1", "cheetah3" },
@@ -1117,12 +1121,33 @@ const std::vector<VehicleImage> INGAME_VEH_IMAGES =
 	{ RAGE_JOAAT("SENTINEL5"), "lgm_dlc_2025_1", "sentinel5" },
 	{ RAGE_JOAAT("SUZUME"), "lgm_dlc_2025_1", "suzume" },
 	{ RAGE_JOAAT("DRIFTL352"), "sssa_dlc_2025_1", "driftl352" },
+	{ RAGE_JOAAT("FLATBED2"), "ENT_vehicle_previews", "VP_FLATBED2" },
 	{ RAGE_JOAAT("HARDY"), "sssa_dlc_2025_1", "hardy" },
 	{ RAGE_JOAAT("L352"), "sssa_dlc_2025_1", "l352" },
 	{ RAGE_JOAAT("MINIMUS"), "sssa_dlc_2025_1", "minimus" },
 	{ RAGE_JOAAT("TAMPA4"), "sssa_dlc_2025_1", "tampa4" },
 	{ RAGE_JOAAT("WOODLANDER"), "sssa_dlc_2025_1", "woodlander" },
 	{ RAGE_JOAAT("MAVERICK2"), "elt_default", "maverick" },
+	{ RAGE_JOAAT("DRIFTHARDY"), "sssa_dlc_2025_1", "hardy" },
+	{ RAGE_JOAAT("DRIFTGAUNTLET4"), "ENT_vehicle_previews", "VP_GAUNTLETHELLFIRE" },
+	{ RAGE_JOAAT("DRIFTDOMINATOR10"), "ENT_vehicle_previews", "VP_DOMINATORFX" },
+	//{ RAGE_JOAAT("DOMINATOR10"), "ENT_vehicle_previews", "VP_DOMINATORFX" },
+	// 山中安全屋 (豪宅) DLC
+	{ RAGE_JOAAT("POLBUFFALO"), "candc_dlc_2025_2", "polbuffalo" },
+	{ RAGE_JOAAT("POLBUFFALO6"), "candc_dlc_2025_2", "polbuffalo6" },
+	{ RAGE_JOAAT("ASTRALE"), "lgm_dlc_2025_2", "astrale" },
+	{ RAGE_JOAAT("FMJ2"), "lgm_dlc_2025_2", "fmj2" },
+	{ RAGE_JOAAT("GT750"), "lgm_dlc_2025_2", "gt750" },
+	{ RAGE_JOAAT("ITALI2"), "lgm_dlc_2025_2", "itali2" },
+	{ RAGE_JOAAT("LUIVA"), "lgm_dlc_2025_2", "luiva" },
+	{ RAGE_JOAAT("XTREME"), "lgm_dlc_2025_2", "xtreme" },
+	{ RAGE_JOAAT("SENTINEL6"), "sssa_dlc_2025_2", "sentinel6" },
+	{ RAGE_JOAAT("KEITORA"), "sssa_dlc_2025_2", "keitora" },
+	{ RAGE_JOAAT("VIVANITE2"), "ENT_vehicle_previews", "VP_VIVANITE2" }, 
+	{ RAGE_JOAAT("DRIFTDOMINATOR9"), "sssa_dlc_2023_2", "dominator9" }, 
+	{ RAGE_JOAAT("DRIFTKEITORA"), "sssa_dlc_2025_2", "keitora" }, 
+	{ RAGE_JOAAT("DRIFTRT3000"), "sssa_dlc_tuner", "rt3000" }, 
+	{ RAGE_JOAAT("DRIFTSENTINEL2"), "sssa_dlc_business2", "sentinel" }
 };
 
 /***

@@ -2637,7 +2637,7 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 	// 默认菜单标签
 	if (MISC_DEF_MANUTAB_VALUES[DefMenuTabIndex] > -2 && PLAYER::IS_PLAYER_CONTROL_ON(PLAYER::PLAYER_ID()) == 1 && !CUTSCENE::IS_CUTSCENE_PLAYING() && keyboard_on_screen_already == false) {
 		int GetHash = GAMEPLAY::GET_HASH_KEY("FE_MENU_VERSION_SP_PAUSE");
-		if (IsKeyDown(VK_ESCAPE) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, INPUT_FRONTEND_PAUSE)/* || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 199) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 200)*/) {
+		if (IsKeyDown(VK_ESCAPE)/*CONTROLS::IS_CONTROL_JUST_PRESSED(2, INPUT_FRONTEND_PAUSE_ALTERNATE)*/ || CONTROLS::IS_CONTROL_JUST_PRESSED(2, INPUT_FRONTEND_PAUSE)/* || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 199) || CONTROLS::IS_CONTROL_JUST_PRESSED(2, 200)*/) {
 			UI::ACTIVATE_FRONTEND_MENU(GetHash, featureGamePause, MISC_DEF_MANUTAB_VALUES[DefMenuTabIndex]);
 			AUDIO::SET_AUDIO_FLAG("PlayMenuMusic", true);
 		} else AUDIO::SET_AUDIO_FLAG("PlayMenuMusic", false);
@@ -2968,10 +2968,10 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 	if (featureNoStuntJumps && GAMEPLAY::IS_STUNT_JUMP_IN_PROGRESS()) GAMEPLAY::CANCEL_STUNT_JUMP();
 
 	// FPS 计数器
-	// 修改FPS显示逻辑：当菜单左侧偏移量>=35时不隐藏FPS，但自由移动和物体摆放模式时仍隐藏
+	// 修改FPS显示逻辑：当菜单左侧偏移量>=100时不隐藏FPS，但自由移动和物体摆放模式时仍隐藏
 	bool shouldShowFPS = featureShowFPS && 
 		(menu_showing == false || 
-		 (menu_showing == true && menuLeftOffset >= 35.0f)) &&
+		 (menu_showing == true && menuLeftOffset >= 100.0f)) &&
 		!(is_in_airbrake_mode() || is_in_prop_placement_mode());
 	
 	if (shouldShowFPS) {
@@ -2989,7 +2989,7 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 			frames = 0;
 		}
 			
-		sprintf(fps_to_show_char_modifiable, "%d", fps); // 将 fps 值格式化为字符串并存储到 fps_to_show_char_modifiable 中  
+		sprintf(fps_to_show_char_modifiable, "帧率 : %d", fps); // 将 fps 值格式化为字符串并存储到 fps_to_show_char_modifiable 中  
 		UI::SET_TEXT_FONT(fontStatus); // 设置 FPS 字体类型 4
 		UI::SET_TEXT_SCALE(0.0, 0.45); // 设置文本的缩放比例，宽度为 0.0，高度为 0.45  
 		UI::SET_TEXT_PROPORTIONAL(1); // 启用文本的比例缩放，保持文本比例不变  
@@ -3000,7 +3000,7 @@ void update_misc_features(BOOL playerExists, Ped playerPed){
 		UI::_SET_TEXT_ENTRY("STRING"); // 设置文本条目类型为字符串  
 		UI::_ADD_TEXT_COMPONENT_SCALEFORM(fps_to_show_char_modifiable); // 将 fps_to_show_char_modifiable 中的文本添加到文本组件中  
 		UI::_DRAW_TEXT(0.005, 0.135); // 在屏幕坐标 ( x=0.005, y=0.135 ) 处绘制文本  
-		GRAPHICS::DRAW_RECT(0.0, 0.15, 0.05, 0.03, 10, 10, 10, 180); 
+		GRAPHICS::DRAW_RECT(0.035, 0.15, 0.08, 0.03, 10, 10, 10, 180); 
 		// 在屏幕坐标 ( x=0.0, y=0.15 ) 处绘制一个矩形，宽度为 0.05，高度为 0.03，颜色为深灰色（RGB: 10, 10, 10），透明度为 150  
 	}
 	
