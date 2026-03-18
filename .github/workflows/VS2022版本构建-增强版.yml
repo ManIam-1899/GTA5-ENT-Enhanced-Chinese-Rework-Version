@@ -1,4 +1,4 @@
-name: VS2022版本环境构建-副分支-增强版
+name: VS2022版本构建-增强版
 
 on:
   push:
@@ -16,12 +16,12 @@ jobs:
     runs-on: windows-2022
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v2
       with:
         vs-version: '[17.0, 18.0)'
 
