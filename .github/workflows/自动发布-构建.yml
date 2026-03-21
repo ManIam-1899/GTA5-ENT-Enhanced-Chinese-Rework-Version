@@ -1,0 +1,222 @@
+name: 自动发布版本
+run-name: 发布版本：${{ github.event.workflow_run.display_title }}
+
+on:
+  workflow_run:
+    workflows:
+      - "VS2022版本构建-传承版(Beta)"
+      - "VS2022版本构建-增强版(Beta)"
+    types:
+      - completed
+    branches:
+      - "ENT-Chinese-Legacy-version-Beta"
+      - "ENT-Chinese-Enhanced-version-Beta"
+
+env:
+  SOLUTION_FILE_PATH: ./EnhancedNativeTrainer.sln
+  BUILD_CONFIGURATION: Release
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: windows-2022
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+        ref: ${{ github.event.workflow_run.head_sha }}
+
+    - name: 设置发布变量
+      id: set_release_vars
+      run: |
+        $versionLine = Get-Content -Path "EnhancedNativeTrainer/src/version.h" | Where-Object { $_ -match 'VERSION_STRING' }
+        $mainVersion = $versionLine -replace '.*"(\d+)\..*', '$1'
+        $subVersion = $versionLine -replace '.*std::to_string\((\d+)\).*', '$1'
+        $versionNumber = "$mainVersion.$subVersion"
+        $branch = "${{ github.event.workflow_run.head_branch }}"
+        $releaseDate = (Get-Date).ToString('yyyy-MM-dd')
+        
+        if ($branch -eq "ENT-Chinese-Legacy-version-Beta") {
+          $releaseTag = "v${versionNumber}_cn_legacy-beta"
+          $releaseTitle = "ENT_${versionNumber}_CN_Legacy-Beta"
+          $packageName = "EnhancedNativeTrainer_${versionNumber}_CN_Legacy-Beta"
+          $releaseAsiName = "${packageName}.asi"
+          $configZip = "EnhancedNativeTrainer\Documents\Legacy Config File\Enhanced Native Trainer (Legacy).zip"
+          $artifactName = "EnhancedNativeTrainer [VS2022-Release-Legacy-Beta]"
+          $tagPattern = "v*_cn_legacy-beta"
+        } elseif ($branch -eq "ENT-Chinese-Enhanced-version-Beta") {
+          $releaseTag = "v${versionNumber}_cn_enhanced-beta"
+          $releaseTitle = "ENT_${versionNumber}_CN_Enhanced-Beta"
+          $packageName = "EnhancedNativeTrainer_${versionNumber}_CN_Enhanced-Beta"
+          $releaseAsiName = "${packageName}.asi"
+          $configZip = "EnhancedNativeTrainer\Documents\Enhanced Config File\Enhanced Native Trainer (Enhanced).zip"
+          $artifactName = "EnhancedNativeTrainer [VS2022-Release-Enhanced-Beta]"
+          $tagPattern = "v*_cn_enhanced-beta"
+        } else {
+          Write-Host "不支持的发布分支：$branch"
+          exit 1
+        }
+        
+        echo "VERSION_NUMBER=$versionNumber" >> $env:GITHUB_ENV
+        echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_ENV
+        echo "RELEASE_TITLE=$releaseTitle" >> $env:GITHUB_ENV
+        echo "PACKAGE_NAME=$packageName" >> $env:GITHUB_ENV
+        echo "RELEASE_ASI_NAME=$releaseAsiName" >> $env:GITHUB_ENV
+        echo "CONFIG_ZIP=$configZip" >> $env:GITHUB_ENV
+        echo "ARTIFACT_NAME=$artifactName" >> $env:GITHUB_ENV
+        echo "RELEASE_DATE=$releaseDate" >> $env:GITHUB_ENV
+        echo "TAG_PATTERN=$tagPattern" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: 检查标签是否已存在
+      id: check_version_change
+      run: |
+        $currentTag = "${{ env.RELEASE_TAG }}"
+        $tagExists = git tag -l "$currentTag"
+        if ([bool]$tagExists) {
+          echo "版本 $currentTag 已存在，跳过发布"
+          echo "should_release=false" >> $env:GITHUB_OUTPUT
+          exit 0
+        }
+        
+        $lastTag = git tag --merged HEAD --sort=-creatordate --list "${{ env.TAG_PATTERN }}" | Select-Object -First 1
+        if ($lastTag) {
+          echo "LAST_TAG=$lastTag" >> $env:GITHUB_ENV
+          echo "HISTORY_LINE=$lastTag" >> $env:GITHUB_ENV
+        } else {
+          echo "LAST_TAG=" >> $env:GITHUB_ENV
+          echo "HISTORY_LINE=首次发布（无历史版本标签）" >> $env:GITHUB_ENV
+        }
+        
+        echo "版本 $currentTag 是新版本，准备发布"
+        echo "should_release=true" >> $env:GITHUB_OUTPUT
+        echo "VERSION=$currentTag" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: 下载构建产物
+      uses: actions/download-artifact@v4
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        run-id: ${{ github.event.workflow_run.id }}
+        name: ${{ env.ARTIFACT_NAME }}
+        path: build_artifacts
+      if: ${{ steps.check_version_change.outputs.should_release == 'true' }}
+
+    - name: 解压配置文件
+      run: |
+        New-Item -ItemType Directory -Path "temp_config" -Force
+        Expand-Archive -Path "${{ env.CONFIG_ZIP }}" -DestinationPath "temp_config"
+        echo "解压后的配置文件："
+        dir temp_config
+      shell: pwsh
+      if: ${{ steps.check_version_change.outputs.should_release == 'true' }}
+
+    - name: 准备发布文件
+      run: |
+        New-Item -ItemType Directory -Path "release" -Force
+        
+        # 复制ASI文件（从下载的构建产物中获取）
+        Copy-Item -Path "build_artifacts\EnhancedNativeTrainer.asi" -Destination "release\EnhancedNativeTrainer.asi"
+        Copy-Item -Path "build_artifacts\EnhancedNativeTrainer.asi" -Destination "${{ env.RELEASE_ASI_NAME }}"
+        
+        # 复制配置文件
+        Copy-Item -Path "temp_config\*" -Destination "release\" -Recurse
+        
+        echo "发布文件准备完成："
+        dir release -Recurse
+      shell: pwsh
+      if: ${{ steps.check_version_change.outputs.should_release == 'true' }}
+
+    - name: 生成更新记录
+      id: generate_changelog
+      env:
+        HEAD_COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
+      run: |
+        $maxBodyLength = 8000
+        $truncateHint = "`n`n- **更新记录过长，已自动截断显示**"
+        $lastTag = "${{ env.LAST_TAG }}"
+        
+        if ($lastTag) {
+          $lastTag = $lastTag.Trim()
+          $commits = git --no-pager log "$lastTag..HEAD" --no-merges --pretty=format:"- %s"
+        } else {
+          $commits = git --no-pager log --no-merges --pretty=format:"- %s"
+        }
+        
+        $commitLines = ""
+        if ($commits) {
+          if ($commits -is [array]) {
+            $commitLines = $commits -join "`n"
+          } else {
+            $commitLines = $commits
+          }
+        }
+        
+        if (-not $commitLines) {
+          $fallbackMsg = $env:HEAD_COMMIT_MESSAGE
+          if ($fallbackMsg) {
+            $fallbackLines = $fallbackMsg -split "`n" | Where-Object { $_.Trim() -ne "" } | ForEach-Object { "- $_" }
+            $commitLines = $fallbackLines -join "`n"
+          } else {
+            $commitLines = "- 无新的提交记录"
+          }
+        }
+        
+        $branchName = "${{ github.event.workflow_run.head_branch }}"
+        
+        $packageName = "$env:PACKAGE_NAME"
+        $asiName = "$env:RELEASE_ASI_NAME"
+        
+        $fileInfo = "**使用说明：**`n`n" +
+                    "- ``${packageName}.zip```n" + 
+                    "  此文件里包含 **ASI** 文件及所有配置文件，下载解压后将全部内容放入游戏根目录即可。`n`n" +
+                    
+                    "- ``${asiName}```n" + 
+                    "  仅 **ASI** 文件，如果您已有配置文件，可下载此文件(重命名EnhancedNativeTrainer后)替换即可。`n`n" +
+                    
+                    "- [Script Hook V 下载](http://www.dev-c.com/gtav/scripthookv/)`n" +
+                    "  必须下载安装，最新版本的(Script Hook V)放入您游戏的根目录。"
+                    
+        $changelogContent = "发布日期：${{ env.RELEASE_DATE }}`n发布分支：$branchName`n历史版本：${{ env.HISTORY_LINE }}`n`n$fileInfo`n`n<details><summary><strong>更新记录：</strong></summary>`n`n$commitLines`n`n</details>"
+        
+        if ($changelogContent.Length -gt $maxBodyLength) {
+          $allowedLength = $maxBodyLength - $truncateHint.Length
+          if ($allowedLength -lt 1) {
+            $allowedLength = 1
+          }
+          $changelogContent = $changelogContent.Substring(0, $allowedLength) + $truncateHint
+        }
+        
+        echo "生成的更新内容如下："
+        echo $changelogContent
+        Set-Content -Path "release_notes.md" -Value $changelogContent -Encoding utf8
+      shell: pwsh
+      if: ${{ steps.check_version_change.outputs.should_release == 'true' }}
+      
+    - name: 打包发布文件
+      run: |
+        Compress-Archive -Path "release\*" -DestinationPath "${{ env.PACKAGE_NAME }}.zip"
+      shell: pwsh
+      if: ${{ steps.check_version_change.outputs.should_release == 'true' }}
+
+    - name: 创建发布
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.RELEASE_TAG }}
+        name: ${{ env.RELEASE_TITLE }}
+        body_path: release_notes.md
+        files: |
+          ${{ env.PACKAGE_NAME }}.zip
+          ${{ env.RELEASE_ASI_NAME }}
+        draft: false
+        prerelease: true
+      if: ${{ steps.check_version_change.outputs.should_release == 'true' }}
