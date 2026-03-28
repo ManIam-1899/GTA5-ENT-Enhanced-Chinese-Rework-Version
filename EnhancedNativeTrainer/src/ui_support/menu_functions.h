@@ -638,10 +638,11 @@ inline void draw_menu_header_line(std::string caption, float lineWidth, float li
 
 	float lineWidthScaled = lineWidth / (float) screen_w; // 行宽度
 	float lineTopScaled = lineTop / (float) screen_h; // 行顶部偏移量
-	float textLeftScaled = textLeft / (float) screen_w; // 文本左侧偏移量
 	float lineHeightScaled = lineHeight / (float) screen_h; // 行高度
 
 	float lineLeftScaled = lineLeft / (float) screen_w;
+	textLeft += lineLeft;
+	float textLeftScaled = textLeft / (float) screen_w; // 文本左侧偏移量
 
 	float textHeightScaled = TEXT_HEIGHT_TITLE / (float) screen_h;
 

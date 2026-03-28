@@ -4699,7 +4699,7 @@ void process_misc_menu_layout_settings_menu() {
 
     // 添加重置按钮
     MenuItem<int>* resetItem = new MenuItem<int>();
-    resetItem->caption = "重置默认布局";
+    resetItem->caption = "重置为默认布局";
     resetItem->value = -0xA1B2C3; // 使用一个特殊值，避免与下拉菜单的索引冲突
     resetItem->isLeaf = true;
     menuItems.push_back(resetItem);
@@ -4714,15 +4714,8 @@ void process_misc_menu_layout_settings_menu() {
     // 添加菜单左侧偏移量设置
     listItem = new SelectFromListMenuItem(MISC_MENU_LEFT_OFFSET_CAPTIONS, onchange_misc_menu_left_offset_index);
     listItem->wrap = false;
-    listItem->caption = "菜单 左右位置";
+    listItem->caption = "菜单 位置";
     listItem->value = MenuLeftOffsetIndex;
-    menuItems.push_back(listItem);
-
-    // 添加菜单项顶部偏移量设置
-    listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_TOP_OFFSET_CAPTIONS, onchange_misc_menu_item_top_offset_index);
-    listItem->wrap = false;
-    listItem->caption = "菜单项 上下位置";
-    listItem->value = MenuItemTopOffsetIndex;
     menuItems.push_back(listItem);
 
     // 添加菜单顶部偏移量设置
@@ -4732,39 +4725,46 @@ void process_misc_menu_layout_settings_menu() {
     listItem->value = MenuTopOffsetIndex;
     menuItems.push_back(listItem);
 
+    // 添加菜单项顶部偏移量设置
+    listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_TOP_OFFSET_CAPTIONS, onchange_misc_menu_item_top_offset_index);
+    listItem->wrap = false;
+    listItem->caption = "项目栏 上下位置";
+    listItem->value = MenuItemTopOffsetIndex;
+    menuItems.push_back(listItem);
+
     // 添加菜单高度设置
     listItem = new SelectFromListMenuItem(MISC_MENU_HEIGHT_CAPTIONS, onchange_misc_menu_height_index);
     listItem->wrap = false;
-    listItem->caption = "标题栏 厚度";
+    listItem->caption = "标题栏 高度";
     listItem->value = MenuHeightIndex;
     menuItems.push_back(listItem);
 
     // 添加菜单项高度设置
     listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_HEIGHT_CAPTIONS, onchange_misc_menu_item_height_index);
     listItem->wrap = false;
-    listItem->caption = "菜单项 厚度";
+    listItem->caption = "项目栏 高度";
     listItem->value = MenuItemHeightIndex;
+    menuItems.push_back(listItem);
+
+    // 添加菜单项间距设置
+    listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_SPACING_CAPTIONS, onchange_misc_menu_item_spacing_index);
+    listItem->wrap = false;
+    listItem->caption = "项目栏 间距";
+    listItem->value = MenuItemSpacingIndex;
     menuItems.push_back(listItem);
 
     // 添加菜单文本左侧偏移量设置
     listItem = new SelectFromListMenuItem(MISC_MENU_TEXT_LEFT_OFFSET_CAPTIONS, onchange_misc_menu_text_left_offset_index);
     listItem->wrap = false;
-    listItem->caption = "标题文本 左右位置";
+    listItem->caption = "标题文本 左右边距";
     listItem->value = MenuTextLeftOffsetIndex;
     menuItems.push_back(listItem);
 
     // 添加菜单项文本偏移量设置
     listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_TEXT_OFFSET_CAPTIONS, onchange_misc_menu_item_text_offset_index);
     listItem->wrap = false;
-    listItem->caption = "菜单文本 左右位置";
+    listItem->caption = "项目文本 左右边距";
     listItem->value = MenuItemTextOffsetIndex;
-    menuItems.push_back(listItem);
-
-    // 添加菜单项间距设置
-    listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_SPACING_CAPTIONS, onchange_misc_menu_item_spacing_index);
-    listItem->wrap = false;
-    listItem->caption = "菜单项 间距";
-    listItem->value = MenuItemSpacingIndex;
     menuItems.push_back(listItem);
 
     draw_generic_menu<int>(menuItems, &activeLineIndexMenuLayout, caption, onconfirm_menu_layout_reset, NULL, NULL);
