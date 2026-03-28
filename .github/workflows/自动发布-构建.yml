@@ -77,15 +77,32 @@ jobs:
         echo "TAG_PATTERN=$tagPattern" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: 检查标签是否已存在
+    - name: 检查发布前置条件
       id: check_version_change
       run: |
+        $versionFile = "EnhancedNativeTrainer/src/version.h"
+        $hasParentCommit = (git rev-list --count HEAD) -gt 1
+        $versionChanged = $false
+        
+        if ($hasParentCommit) {
+          $changedFiles = git diff --name-only HEAD^ HEAD -- "$versionFile"
+          if ($changedFiles) {
+            $versionChanged = $true
+          }
+        } else {
+          $versionChanged = $true
+        }
+        
+        if (-not $versionChanged) {
+          Write-Error "检测到 version.h 未变更，已中断发布。"
+          exit 1
+        }
+        
         $currentTag = "${{ env.RELEASE_TAG }}"
         $tagExists = git tag -l "$currentTag"
         if ([bool]$tagExists) {
-          echo "版本 $currentTag 已存在，跳过发布"
-          echo "should_release=false" >> $env:GITHUB_OUTPUT
-          exit 0
+          Write-Error "版本 $currentTag 已存在，已中断发布。"
+          exit 1
         }
         
         $lastTag = git tag --merged HEAD --sort=-creatordate --list "${{ env.TAG_PATTERN }}" | Select-Object -First 1
