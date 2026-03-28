@@ -3157,6 +3157,8 @@ void add_misc_generic_settings(std::vector<StringPairSettingDBRow>* results){
 	results->push_back(StringPairSettingDBRow{"MenuItemHeightIndex", std::to_string(MenuItemHeightIndex)});
 	results->push_back(StringPairSettingDBRow{"MenuItemSpacingIndex", std::to_string(MenuItemSpacingIndex)});
 	results->push_back(StringPairSettingDBRow{"MenuItemTextOffsetIndex", std::to_string(MenuItemTextOffsetIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuToggleIconRightMarginIndex", std::to_string(MenuToggleIconRightMarginIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuWantedStarRightMarginIndex", std::to_string(MenuWantedStarRightMarginIndex)});
 	results->push_back(StringPairSettingDBRow{"MenuItemTopOffsetIndex", std::to_string(MenuItemTopOffsetIndex)});
 	// 添加预览图设置
 	results->push_back(StringPairSettingDBRow{"PreviewPositionThresholdIndex", std::to_string(PreviewPositionThresholdIndex)});
@@ -3291,6 +3293,20 @@ void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings)
 			if (MenuItemTextOffsetIndex >= (int)MISC_MENU_ITEM_TEXT_OFFSET_CAPTIONS.size()) MenuItemTextOffsetIndex = (int)MISC_MENU_ITEM_TEXT_OFFSET_CAPTIONS.size() - 1;
 			menuItemTextOffset = MISC_MENU_ITEM_TEXT_OFFSET_VALUES[MenuItemTextOffsetIndex];
 			MenuItemTextOffsetChanged = true;
+		}
+		else if (setting.name.compare("MenuToggleIconRightMarginIndex") == 0) {
+			MenuToggleIconRightMarginIndex = stoi(setting.value);
+			if (MenuToggleIconRightMarginIndex < 0) MenuToggleIconRightMarginIndex = 0;
+			if (MenuToggleIconRightMarginIndex >= (int)MISC_MENU_TOGGLE_ICON_RIGHT_MARGIN_CAPTIONS.size()) MenuToggleIconRightMarginIndex = (int)MISC_MENU_TOGGLE_ICON_RIGHT_MARGIN_CAPTIONS.size() - 1;
+			menuItemToggleIconRightMargin = MISC_MENU_TOGGLE_ICON_RIGHT_MARGIN_VALUES[MenuToggleIconRightMarginIndex];
+			MenuToggleIconRightMarginChanged = true;
+		}
+		else if (setting.name.compare("MenuWantedStarRightMarginIndex") == 0) {
+			MenuWantedStarRightMarginIndex = stoi(setting.value);
+			if (MenuWantedStarRightMarginIndex < 0) MenuWantedStarRightMarginIndex = 0;
+			if (MenuWantedStarRightMarginIndex >= (int)MISC_MENU_WANTED_STAR_RIGHT_MARGIN_CAPTIONS.size()) MenuWantedStarRightMarginIndex = (int)MISC_MENU_WANTED_STAR_RIGHT_MARGIN_CAPTIONS.size() - 1;
+			menuItemWantedStarRightMargin = MISC_MENU_WANTED_STAR_RIGHT_MARGIN_VALUES[MenuWantedStarRightMarginIndex];
+			MenuWantedStarRightMarginChanged = true;
 		}
 		else if (setting.name.compare("MenuItemTopOffsetIndex") == 0) {
 			MenuItemTopOffsetIndex = stoi(setting.value);
@@ -3570,6 +3586,12 @@ bool MenuItemSpacingChanged = false;
 int MenuItemTextOffsetIndex = MENU_ITEM_TEXT_OFFSET_DEFAULT_INDEX; // 使用默认索引常量
 bool MenuItemTextOffsetChanged = false;
 
+int MenuToggleIconRightMarginIndex = MENU_TOGGLE_ICON_RIGHT_MARGIN_DEFAULT_INDEX; // 使用默认索引常量
+bool MenuToggleIconRightMarginChanged = false;
+
+int MenuWantedStarRightMarginIndex = MENU_WANTED_STAR_RIGHT_MARGIN_DEFAULT_INDEX; // 使用默认索引常量
+bool MenuWantedStarRightMarginChanged = false;
+
 int MenuItemTopOffsetIndex = MENU_ITEM_TOP_OFFSET_DEFAULT_INDEX; // 使用默认索引常量
 bool MenuItemTopOffsetChanged = false;
 
@@ -3677,6 +3699,18 @@ void onchange_misc_menu_item_text_offset_index(int value, SelectFromListMenuItem
     MenuItemTextOffsetChanged = true;
 }
 
+void onchange_misc_menu_toggle_icon_right_margin_index(int value, SelectFromListMenuItem* source) {
+	MenuToggleIconRightMarginIndex = value;
+	menuItemToggleIconRightMargin = MISC_MENU_TOGGLE_ICON_RIGHT_MARGIN_VALUES[value];
+	MenuToggleIconRightMarginChanged = true;
+}
+
+void onchange_misc_menu_wanted_star_right_margin_index(int value, SelectFromListMenuItem* source) {
+	MenuWantedStarRightMarginIndex = value;
+	menuItemWantedStarRightMargin = MISC_MENU_WANTED_STAR_RIGHT_MARGIN_VALUES[value];
+	MenuWantedStarRightMarginChanged = true;
+}
+
 // 预览图设置相关函数实现
 void onchange_misc_preview_position_threshold_index(int value, SelectFromListMenuItem* source) {
 	PreviewPositionThresholdIndex = value;
@@ -3759,6 +3793,14 @@ void reset_menu_layout_to_defaults() {
     MenuItemTextOffsetIndex = MENU_ITEM_TEXT_OFFSET_DEFAULT_INDEX;
     menuItemTextOffset = MISC_MENU_ITEM_TEXT_OFFSET_VALUES[MenuItemTextOffsetIndex];
     MenuItemTextOffsetChanged = true;
+
+    MenuToggleIconRightMarginIndex = MENU_TOGGLE_ICON_RIGHT_MARGIN_DEFAULT_INDEX;
+    menuItemToggleIconRightMargin = MISC_MENU_TOGGLE_ICON_RIGHT_MARGIN_VALUES[MenuToggleIconRightMarginIndex];
+    MenuToggleIconRightMarginChanged = true;
+
+    MenuWantedStarRightMarginIndex = MENU_WANTED_STAR_RIGHT_MARGIN_DEFAULT_INDEX;
+    menuItemWantedStarRightMargin = MISC_MENU_WANTED_STAR_RIGHT_MARGIN_VALUES[MenuWantedStarRightMarginIndex];
+    MenuWantedStarRightMarginChanged = true;
 
     MenuItemTopOffsetIndex = MENU_ITEM_TOP_OFFSET_DEFAULT_INDEX;
     menuItemTopOffset = MISC_MENU_ITEM_TOP_OFFSET_VALUES[MenuItemTopOffsetIndex];
@@ -4765,6 +4807,18 @@ void process_misc_menu_layout_settings_menu() {
     listItem->wrap = false;
     listItem->caption = "项目文本 左右边距";
     listItem->value = MenuItemTextOffsetIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_MENU_TOGGLE_ICON_RIGHT_MARGIN_CAPTIONS, onchange_misc_menu_toggle_icon_right_margin_index);
+    listItem->wrap = false;
+    listItem->caption = "复选框 右侧边距";
+    listItem->value = MenuToggleIconRightMarginIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_MENU_WANTED_STAR_RIGHT_MARGIN_CAPTIONS, onchange_misc_menu_wanted_star_right_margin_index);
+    listItem->wrap = false;
+    listItem->caption = "通缉星 右侧边距";
+    listItem->value = MenuWantedStarRightMarginIndex;
     menuItems.push_back(listItem);
 
     draw_generic_menu<int>(menuItems, &activeLineIndexMenuLayout, caption, onconfirm_menu_layout_reset, NULL, NULL);

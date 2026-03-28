@@ -25,6 +25,8 @@ float menuItemHeight = 30.0f;    // 菜单项高度
 float menuItemTopOffset = 75.0f; // 菜单项与标题距离
 float menuItemSpacing = 8.0f;    // 菜单项间距
 float menuItemTextOffset = 10.0f; // 菜单项文本偏移量
+float menuItemToggleIconRightMargin = 20.0f; // 复选框右边距
+float menuItemWantedStarRightMargin = 10.0f; // 通缉星右边距
 
 // 预览图设置全局变量初始化
 float previewPositionThreshold = 500.0f; // 预览图左右判断依据
@@ -65,6 +67,14 @@ void set_menu_showing(bool showing){
 
 bool is_menu_showing(){
 	return menu_showing;
+}
+
+float get_menu_item_toggle_icon_right_margin(){
+	return menuItemToggleIconRightMargin;
+}
+
+float get_menu_item_wanted_star_right_margin(){
+	return menuItemWantedStarRightMargin;
 }
 
 void draw_menu_line(std::string caption, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool title, bool rescaleText){

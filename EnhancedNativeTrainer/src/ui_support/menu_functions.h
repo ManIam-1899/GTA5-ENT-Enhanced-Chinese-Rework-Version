@@ -48,6 +48,8 @@ extern float menuItemHeight;   // 菜单项高度
 extern float menuItemTopOffset; // 菜单项与标题距离
 extern float menuItemSpacing;  // 菜单项间距
 extern float menuItemTextOffset; // 菜单项文本偏移量
+extern float menuItemToggleIconRightMargin; // 复选框右边距
+extern float menuItemWantedStarRightMargin; // 通缉星右边距
 
 // 预览图设置全局变量
 extern float previewPositionThreshold; // 预览图左右判断依据
@@ -571,6 +573,9 @@ void draw_rect(float A_0, float A_1, float A_2, float A_3, int A_4, int A_5, int
 
 void draw_ingame_sprite(MenuItemImage *image, float x, float y, int w, int h);
 
+float get_menu_item_toggle_icon_right_margin();
+float get_menu_item_wanted_star_right_margin();
+
 /* 清理标题：如果字符不是字母数字 ASCII、空或无效的 UTF-8（检查字符的高位是否设置），则移除该字符，否则返回完整标题 */
 inline std::string sanitise_menu_header_text(std::string input){
 	std::string caption(input);
@@ -735,7 +740,7 @@ void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, f
 	float leftMarginScaled = textLeftScaled - lineLeftScaled; // 计算左侧边距的归一化值
 
 	float textHeightScaled = TEXT_HEIGHT_NORMAL / (float) screen_h; // 将文本高度（TEXT_HEIGHT_NORMAL）转换为归一化坐标
-	float rightMarginScaled = 30.0f / (float) screen_w; // 将右侧边距（30.0f）转换为归一化坐标
+	float rightMarginScaled = get_menu_item_toggle_icon_right_margin() / (float) screen_w; // 将右侧边距转换为归一化坐标
 
 	// 这是原始脚本中的实现方式
 
@@ -994,7 +999,7 @@ void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, f
 		textY = lineTopScaled + (0.5f * (lineHeightScaled - (TEXT_HEIGHT_NONLEAF / (float) screen_h)));
 	}
 	else if(WantedSymbolItem* wantedItem = dynamic_cast<WantedSymbolItem*>(item)){ // 如果当前项是 WantedSymbolItem 类型
-		rightMarginScaled = 10.0f / (float) screen_w; // 计算右侧边距的缩放值
+		rightMarginScaled = get_menu_item_wanted_star_right_margin() / (float) screen_w; // 计算右侧边距的缩放值
 		float starTextScale = 0.6f; // 设置星号文本的缩放比例
 
 		UI::SET_TEXT_FONT(fontWanted);
