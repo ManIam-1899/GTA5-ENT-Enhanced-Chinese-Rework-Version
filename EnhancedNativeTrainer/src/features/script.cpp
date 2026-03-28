@@ -3063,7 +3063,7 @@ bool onconfirm_main_menu(MenuItem<int> choice){
 
 void process_main_menu(){
 	std::ostringstream captionSS;
-	captionSS << "~HUD_COLOUR_MENU_YELLOW~增强型 ~HUD_COLOUR_WHITE~修改器 ~HUD_COLOUR_GREY~版本 ";
+	captionSS << "~HUD_COLOUR_MENU_YELLOW~增强型 ~HUD_COLOUR_WHITE~ 原生修改器 ~HUD_COLOUR_GREY~ ";
 	captionSS << VERSION_STRING;
 
 	std::vector<MenuItem<int>*> menuItems;

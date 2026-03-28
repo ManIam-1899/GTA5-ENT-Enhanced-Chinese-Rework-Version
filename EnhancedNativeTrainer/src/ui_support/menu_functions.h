@@ -582,6 +582,52 @@ inline std::string sanitise_menu_header_text(std::string input){
 	return caption;
 }
 
+inline void draw_main_menu_header_line(std::string caption, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool rescaleText = true){
+	float text_scale = rescaleText ? 0.60 : 0.35;// 设置文本的缩放比例：如果 rescaleText 为 true，则使用 0.60，否则使用 0.35
+	bool outline = false;// 是否绘制文本轮廓（默认为 false）
+	bool dropShadow = false;// 是否绘制文本阴影（默认为 false）
+
+	int screen_w, screen_h;
+	GRAPHICS::GET_SCREEN_RESOLUTION(&screen_w, &screen_h);
+
+	float lineWidthScaled = lineWidth / (float) screen_w; // 行宽度
+	float lineTopScaled = lineTop / (float) screen_h; // 行顶部偏移量
+	float lineHeightScaled = lineHeight / (float) screen_h; // 行高度
+
+	float lineLeftScaled = lineLeft / (float) screen_w;
+
+	// 获取字体的实际高度以实现绝对竖向居中
+	float actualTextHeight = UI::_GET_TEXT_SCALE_HEIGHT(text_scale, fontHeader);
+
+	UI::SET_TEXT_FONT(fontHeader);
+	UI::SET_TEXT_SCALE(0.0, text_scale);
+	UI::SET_TEXT_COLOUR(ENTColor::colsMenu[0].rgba[0], ENTColor::colsMenu[0].rgba[1], ENTColor::colsMenu[0].rgba[2], ENTColor::colsMenu[0].rgba[3]);
+	UI::SET_TEXT_CENTRE(1); // 开启横向居中对齐
+
+	if(outline){
+		UI::SET_TEXT_OUTLINE();
+	}
+
+	if(dropShadow){
+		UI::SET_TEXT_DROPSHADOW(5, 0, 78, 255, 255);
+	}
+
+	UI::SET_TEXT_EDGE(0, 0, 0, 0, 0);
+	UI::_SET_TEXT_ENTRY("STRING");
+	UI::_ADD_TEXT_COMPONENT_STRING((LPSTR) caption.c_str());
+
+	draw_rect(lineLeftScaled, lineTopScaled, lineWidthScaled, lineHeightScaled,
+			  ENTColor::colsMenu[1].rgba[0], ENTColor::colsMenu[1].rgba[1], ENTColor::colsMenu[1].rgba[2], ENTColor::colsMenu[1].rgba[3]);
+
+	// 计算横向中心位置：菜单左边缘 + 菜单宽度的一半
+	float textX = lineLeftScaled + (lineWidthScaled / 2.0f);
+	
+	// 计算竖向中心位置：行顶部 + (行高 - 文本实际高度) / 2
+	float textY = lineTopScaled + (0.5f * (lineHeightScaled - actualTextHeight));
+
+	UI::_DRAW_TEXT(textX, textY);
+}
+
 inline void draw_menu_header_line(std::string caption, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool rescaleText = true, int curPage = 1, int pageCount = 1){
 	float text_scale = rescaleText ? 0.60 : 0.35;// 设置文本的缩放比例：如果 rescaleText 为 true，则使用 0.60，否则使用 0.35
 	bool outline = false;// 是否绘制文本轮廓（默认为 false）
@@ -1211,17 +1257,31 @@ bool draw_generic_menu(MenuParameters<T> params){
 			std::string sanit_header = params.sanitiseHeaderText ? sanitise_menu_header_text(params.headerText) : params.headerText;
 
 			// 更改标题和菜单等，在这里！！！
-			draw_menu_header_line(sanit_header,// 菜单标题文本
-								  menuWidth, // 标题的宽度
-								  menuHeight, // 标题的高度
-								  menuTopOffset, // 标题的 顶部 偏移量（Y 坐标）
-								  menuLeftOffset, // 标题的 左侧 偏移量（X 坐标）
-								  menuTextLeftOffset, // 标题文本的 左侧 偏移量
-								  false, // 是否显示背景（false 表示不显示）
-								  true, // 是否显示边框（true 表示显示）
-								  (currentLine + 1),// 当前行号（从 1 开始）
-								  lineCount
-			);
+			// 通过判断标题文本是否包含特定字符串，来确认是否为首页标题
+			static const std::string mainHeaderPrefix = "~HUD_COLOUR_MENU_YELLOW~增强型 ~HUD_COLOUR_WHITE~ 原生修改器 ~HUD_COLOUR_GREY~ ";
+			if(sanit_header.rfind(mainHeaderPrefix, 0) == 0){
+				draw_main_menu_header_line(sanit_header,// 菜单标题文本
+									  menuWidth, // 标题的宽度
+									  menuHeight, // 标题的高度
+									  menuTopOffset, // 标题的 顶部 偏移量（Y 坐标）
+									  menuLeftOffset, // 标题的 左侧 偏移量（X 坐标）
+									  menuTextLeftOffset, // 标题文本的 左侧 偏移量
+									  false, // 是否显示背景（false 表示不显示）
+									  true // 是否显示边框（true 表示显示）
+				);
+			} else {
+				draw_menu_header_line(sanit_header,// 菜单标题文本
+									  menuWidth, // 标题的宽度
+									  menuHeight, // 标题的高度
+									  menuTopOffset, // 标题的 顶部 偏移量（Y 坐标）
+									  menuLeftOffset, // 标题的 左侧 偏移量（X 坐标）
+									  menuTextLeftOffset, // 标题文本的 左侧 偏移量
+									  false, // 是否显示背景（false 表示不显示）
+									  true, // 是否显示边框（true 表示显示）
+									  (currentLine + 1),// 当前行号（从 1 开始）
+									  lineCount
+				);
+			}
 
 			float activeLineY = 0; // 用于存储当前选中菜单项的（ Y 坐标）
 
