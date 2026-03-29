@@ -811,12 +811,12 @@ void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, f
 		}
 
 		if(toggleItem->get_toggle_value() == true){
-			// 排行榜投票图标
+			// 复选框图标，使用 lineTopScaled + (lineHeightScaled / 2.0f) 实现绝对垂直居中
 			// (参数：纹理字典名称, 纹理名称, 屏幕X坐标, 屏幕Y坐标, X轴缩放, Y轴缩放, 旋转角度, 颜色R, 颜色G, 颜色B, 颜色A)
-			GRAPHICS::DRAW_SPRITE("cellphone_badger", "t", lineLeftScaled + lineWidthScaled - rightMarginScaled, textY + 0.01f, 0.026, 0.034, 0, 255, 255, 255, 255);
+			GRAPHICS::DRAW_SPRITE("cellphone_badger", "t", lineLeftScaled + lineWidthScaled - rightMarginScaled, lineTopScaled + (lineHeightScaled / 2.0f), 0.026, 0.034, 0, 255, 255, 255, 255);
 		}
 		else{
-			GRAPHICS::DRAW_SPRITE("cellphone_badger", "u", lineLeftScaled + lineWidthScaled - rightMarginScaled, textY + 0.01f, 0.026, 0.034, 0, 0, 0, 0, 255);
+			GRAPHICS::DRAW_SPRITE("cellphone_badger", "u", lineLeftScaled + lineWidthScaled - rightMarginScaled, lineTopScaled + (lineHeightScaled / 2.0f), 0.026, 0.034, 0, 0, 0, 0, 255);
 		}
 
 		UI::_DRAW_TEXT(lineLeftScaled + lineWidthScaled - rightMarginScaled, textY);
