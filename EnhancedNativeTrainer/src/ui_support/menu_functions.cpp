@@ -27,6 +27,11 @@ float menuItemSpacing = 8.0f;    // 菜单项间距
 float menuItemTextOffset = 10.0f; // 菜单项文本偏移量
 float menuItemToggleIconRightMargin = 20.0f; // 复选框右边距
 float menuItemWantedStarRightMargin = 10.0f; // 通缉星右边距
+float menuMainHeaderFontScale = 0.60f; //首页标题文本大小
+float menuHeaderFontScale = 0.60f; //普通标题文本大小
+float menuItemFontScale = 0.35f; //项目栏文本大小
+float menuWantedFontScale = 0.60f; //通缉星图标大小
+float menuItemHighlightTextScale = 0.0f; //菜单高亮文本放大量
 
 // 预览图设置全局变量初始化
 float previewPositionThreshold = 500.0f; // 预览图左右判断依据
@@ -78,19 +83,20 @@ float get_menu_item_wanted_star_right_margin(){
 }
 
 void draw_menu_line(std::string caption, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool title, bool rescaleText){
-	float text_scale = 0.35;//用于控制文本的缩放比例或大小
+	float text_scale = menuItemFontScale;//用于控制文本的缩放比例或大小
 	bool outline = false;//用于控制文本是否有轮廓
 	bool dropShadow = false;//用于控制文本是否带有阴影效果
 
 	// 校正活动行的值
 	if (active) { // 如果当前项是活动的（被选中或高亮）
 		if (rescaleText) { // 如果需要重新缩放文本
-			text_scale = 0.40; // 设置文本缩放比例为 0.40
+			// 高亮行的文本放大值由“菜单布局设置 -> 菜单高亮 文本放大”控制
+			text_scale = (menuItemFontScale + menuItemHighlightTextScale > 1.0f ? 1.0f : menuItemFontScale + menuItemHighlightTextScale); // 根据菜单高亮文本放大量动态放大
 		}
 	}
 	else if (title) { // 如果当前项是标题
 		if (rescaleText) { // 如果需要重新缩放文本
-			text_scale = 0.60; // 设置文本缩放比例为 0.60
+			text_scale = menuHeaderFontScale; // 设置文本缩放比例为 0.60
 		}
 	}
 	else { // 如果上述条件均不满足
@@ -109,7 +115,7 @@ void draw_menu_line(std::string caption, float lineWidth, float lineHeight, floa
 
 	float lineLeftScaled = lineLeft / (float) screen_w;
 
-	float textHeightScaled = (title ? TEXT_HEIGHT_TITLE : TEXT_HEIGHT_NORMAL) / (float) screen_h;
+	float textHeightScaled = (title ? (TEXT_HEIGHT_TITLE * (text_scale / 0.60f)) : (TEXT_HEIGHT_NORMAL * (text_scale / 0.35f))) / (float) screen_h; //按“基准字号比例”线性缩放文字高度，保证纵向居中计算跟字号同步变化。
 
 	// 这就是原始脚本中的做法
 

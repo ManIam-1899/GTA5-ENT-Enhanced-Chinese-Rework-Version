@@ -3160,6 +3160,11 @@ void add_misc_generic_settings(std::vector<StringPairSettingDBRow>* results){
 	results->push_back(StringPairSettingDBRow{"MenuToggleIconRightMarginIndex", std::to_string(MenuToggleIconRightMarginIndex)});
 	results->push_back(StringPairSettingDBRow{"MenuWantedStarRightMarginIndex", std::to_string(MenuWantedStarRightMarginIndex)});
 	results->push_back(StringPairSettingDBRow{"MenuItemTopOffsetIndex", std::to_string(MenuItemTopOffsetIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuMainHeaderFontScaleIndex", std::to_string(MenuMainHeaderFontScaleIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuHeaderFontScaleIndex", std::to_string(MenuHeaderFontScaleIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuItemFontScaleIndex", std::to_string(MenuItemFontScaleIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuWantedFontScaleIndex", std::to_string(MenuWantedFontScaleIndex)});
+	results->push_back(StringPairSettingDBRow{"MenuItemHighlightTextScaleIndex", std::to_string(MenuItemHighlightTextScaleIndex)});
 	// 添加预览图设置
 	results->push_back(StringPairSettingDBRow{"PreviewPositionThresholdIndex", std::to_string(PreviewPositionThresholdIndex)});
 	results->push_back(StringPairSettingDBRow{"PreviewResolutionScaleIndex", std::to_string(PreviewResolutionScaleIndex)});
@@ -3314,6 +3319,41 @@ void handle_generic_settings_misc(std::vector<StringPairSettingDBRow>* settings)
 			if (MenuItemTopOffsetIndex >= (int)MISC_MENU_ITEM_TOP_OFFSET_CAPTIONS.size()) MenuItemTopOffsetIndex = (int)MISC_MENU_ITEM_TOP_OFFSET_CAPTIONS.size() - 1;
 			menuItemTopOffset = MISC_MENU_ITEM_TOP_OFFSET_VALUES[MenuItemTopOffsetIndex];
 			MenuItemTopOffsetChanged = true;
+		}
+		else if (setting.name.compare("MenuMainHeaderFontScaleIndex") == 0) {
+			MenuMainHeaderFontScaleIndex = stoi(setting.value);
+			if (MenuMainHeaderFontScaleIndex < 0) MenuMainHeaderFontScaleIndex = 0;
+			if (MenuMainHeaderFontScaleIndex >= (int)MISC_MENU_MAIN_HEADER_FONT_SCALE_CAPTIONS.size()) MenuMainHeaderFontScaleIndex = (int)MISC_MENU_MAIN_HEADER_FONT_SCALE_CAPTIONS.size() - 1;
+			menuMainHeaderFontScale = MISC_MENU_MAIN_HEADER_FONT_SCALE_VALUES[MenuMainHeaderFontScaleIndex];
+			MenuMainHeaderFontScaleChanged = true;
+		}
+		else if (setting.name.compare("MenuHeaderFontScaleIndex") == 0) {
+			MenuHeaderFontScaleIndex = stoi(setting.value);
+			if (MenuHeaderFontScaleIndex < 0) MenuHeaderFontScaleIndex = 0;
+			if (MenuHeaderFontScaleIndex >= (int)MISC_MENU_HEADER_FONT_SCALE_CAPTIONS.size()) MenuHeaderFontScaleIndex = (int)MISC_MENU_HEADER_FONT_SCALE_CAPTIONS.size() - 1;
+			menuHeaderFontScale = MISC_MENU_HEADER_FONT_SCALE_VALUES[MenuHeaderFontScaleIndex];
+			MenuHeaderFontScaleChanged = true;
+		}
+		else if (setting.name.compare("MenuItemFontScaleIndex") == 0) {
+			MenuItemFontScaleIndex = stoi(setting.value);
+			if (MenuItemFontScaleIndex < 0) MenuItemFontScaleIndex = 0;
+			if (MenuItemFontScaleIndex >= (int)MISC_MENU_ITEM_FONT_SCALE_CAPTIONS.size()) MenuItemFontScaleIndex = (int)MISC_MENU_ITEM_FONT_SCALE_CAPTIONS.size() - 1;
+			menuItemFontScale = MISC_MENU_ITEM_FONT_SCALE_VALUES[MenuItemFontScaleIndex];
+			MenuItemFontScaleChanged = true;
+		}
+		else if (setting.name.compare("MenuWantedFontScaleIndex") == 0) {
+			MenuWantedFontScaleIndex = stoi(setting.value);
+			if (MenuWantedFontScaleIndex < 0) MenuWantedFontScaleIndex = 0;
+			if (MenuWantedFontScaleIndex >= (int)MISC_MENU_WANTED_FONT_SCALE_CAPTIONS.size()) MenuWantedFontScaleIndex = (int)MISC_MENU_WANTED_FONT_SCALE_CAPTIONS.size() - 1;
+			menuWantedFontScale = MISC_MENU_WANTED_FONT_SCALE_VALUES[MenuWantedFontScaleIndex];
+			MenuWantedFontScaleChanged = true;
+		}
+		else if (setting.name.compare("MenuItemHighlightTextScaleIndex") == 0) {
+			MenuItemHighlightTextScaleIndex = stoi(setting.value);
+			if (MenuItemHighlightTextScaleIndex < 0) MenuItemHighlightTextScaleIndex = 0;
+			if (MenuItemHighlightTextScaleIndex >= (int)MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_CAPTIONS.size()) MenuItemHighlightTextScaleIndex = (int)MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_CAPTIONS.size() - 1;
+			menuItemHighlightTextScale = MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_VALUES[MenuItemHighlightTextScaleIndex];
+			MenuItemHighlightTextScaleChanged = true;
 		}
 		// 添加预览图设置的加载
 		else if (setting.name.compare("PreviewPositionThresholdIndex") == 0) {
@@ -3595,6 +3635,21 @@ bool MenuWantedStarRightMarginChanged = false;
 int MenuItemTopOffsetIndex = MENU_ITEM_TOP_OFFSET_DEFAULT_INDEX; // 使用默认索引常量
 bool MenuItemTopOffsetChanged = false;
 
+int MenuMainHeaderFontScaleIndex = MENU_MAIN_HEADER_FONT_SCALE_DEFAULT_INDEX;
+bool MenuMainHeaderFontScaleChanged = false;
+
+int MenuHeaderFontScaleIndex = MENU_HEADER_FONT_SCALE_DEFAULT_INDEX;
+bool MenuHeaderFontScaleChanged = false;
+
+int MenuItemFontScaleIndex = MENU_ITEM_FONT_SCALE_DEFAULT_INDEX;
+bool MenuItemFontScaleChanged = false;
+
+int MenuWantedFontScaleIndex = MENU_WANTED_FONT_SCALE_DEFAULT_INDEX;
+bool MenuWantedFontScaleChanged = false;
+
+int MenuItemHighlightTextScaleIndex = MENU_ITEM_HIGHLIGHT_TEXT_SCALE_DEFAULT_INDEX;
+bool MenuItemHighlightTextScaleChanged = false;
+
 // 预览图设置变量定义
 int PreviewPositionThresholdIndex = PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX; // 预览图左右判断依据
 bool PreviewPositionThresholdChanged = false;
@@ -3711,6 +3766,36 @@ void onchange_misc_menu_wanted_star_right_margin_index(int value, SelectFromList
 	MenuWantedStarRightMarginChanged = true;
 }
 
+void onchange_misc_menu_main_header_font_scale_index(int value, SelectFromListMenuItem* source) {
+	MenuMainHeaderFontScaleIndex = value;
+	menuMainHeaderFontScale = MISC_MENU_MAIN_HEADER_FONT_SCALE_VALUES[value];
+	MenuMainHeaderFontScaleChanged = true;
+}
+
+void onchange_misc_menu_header_font_scale_index(int value, SelectFromListMenuItem* source) {
+	MenuHeaderFontScaleIndex = value;
+	menuHeaderFontScale = MISC_MENU_HEADER_FONT_SCALE_VALUES[value];
+	MenuHeaderFontScaleChanged = true;
+}
+
+void onchange_misc_menu_item_font_scale_index(int value, SelectFromListMenuItem* source) {
+	MenuItemFontScaleIndex = value;
+	menuItemFontScale = MISC_MENU_ITEM_FONT_SCALE_VALUES[value];
+	MenuItemFontScaleChanged = true;
+}
+
+void onchange_misc_menu_wanted_font_scale_index(int value, SelectFromListMenuItem* source) {
+	MenuWantedFontScaleIndex = value;
+	menuWantedFontScale = MISC_MENU_WANTED_FONT_SCALE_VALUES[value];
+	MenuWantedFontScaleChanged = true;
+}
+
+void onchange_misc_menu_item_highlight_text_scale_index(int value, SelectFromListMenuItem* source) {
+	MenuItemHighlightTextScaleIndex = value;
+	menuItemHighlightTextScale = MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_VALUES[value];
+	MenuItemHighlightTextScaleChanged = true;
+}
+
 // 预览图设置相关函数实现
 void onchange_misc_preview_position_threshold_index(int value, SelectFromListMenuItem* source) {
 	PreviewPositionThresholdIndex = value;
@@ -3805,6 +3890,26 @@ void reset_menu_layout_to_defaults() {
     MenuItemTopOffsetIndex = MENU_ITEM_TOP_OFFSET_DEFAULT_INDEX;
     menuItemTopOffset = MISC_MENU_ITEM_TOP_OFFSET_VALUES[MenuItemTopOffsetIndex];
     MenuItemTopOffsetChanged = true;
+
+    MenuMainHeaderFontScaleIndex = MENU_MAIN_HEADER_FONT_SCALE_DEFAULT_INDEX;
+    menuMainHeaderFontScale = MISC_MENU_MAIN_HEADER_FONT_SCALE_VALUES[MenuMainHeaderFontScaleIndex];
+    MenuMainHeaderFontScaleChanged = true;
+
+    MenuHeaderFontScaleIndex = MENU_HEADER_FONT_SCALE_DEFAULT_INDEX;
+    menuHeaderFontScale = MISC_MENU_HEADER_FONT_SCALE_VALUES[MenuHeaderFontScaleIndex];
+    MenuHeaderFontScaleChanged = true;
+
+    MenuItemFontScaleIndex = MENU_ITEM_FONT_SCALE_DEFAULT_INDEX;
+    menuItemFontScale = MISC_MENU_ITEM_FONT_SCALE_VALUES[MenuItemFontScaleIndex];
+    MenuItemFontScaleChanged = true;
+
+    MenuWantedFontScaleIndex = MENU_WANTED_FONT_SCALE_DEFAULT_INDEX;
+    menuWantedFontScale = MISC_MENU_WANTED_FONT_SCALE_VALUES[MenuWantedFontScaleIndex];
+    MenuWantedFontScaleChanged = true;
+
+    MenuItemHighlightTextScaleIndex = MENU_ITEM_HIGHLIGHT_TEXT_SCALE_DEFAULT_INDEX;
+    menuItemHighlightTextScale = MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_VALUES[MenuItemHighlightTextScaleIndex];
+    MenuItemHighlightTextScaleChanged = true;
 
     // 重置预览图设置
     PreviewPositionThresholdIndex = PREVIEW_POSITION_THRESHOLD_DEFAULT_INDEX;
@@ -4819,6 +4924,37 @@ void process_misc_menu_layout_settings_menu() {
     listItem->wrap = false;
     listItem->caption = "通缉星 右侧边距";
     listItem->value = MenuWantedStarRightMarginIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_MENU_MAIN_HEADER_FONT_SCALE_CAPTIONS,     onchange_misc_menu_main_header_font_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "首页标题 文本大小";
+    listItem->value = MenuMainHeaderFontScaleIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_MENU_HEADER_FONT_SCALE_CAPTIONS,     onchange_misc_menu_header_font_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "普通标题 文本大小";
+    listItem->value = MenuHeaderFontScaleIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_FONT_SCALE_CAPTIONS,     onchange_misc_menu_item_font_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "项目栏 文本大小";
+    listItem->value = MenuItemFontScaleIndex;
+    menuItems.push_back(listItem);
+
+    listItem = new SelectFromListMenuItem(MISC_MENU_WANTED_FONT_SCALE_CAPTIONS,     onchange_misc_menu_wanted_font_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "通缉星 图标大小";
+    listItem->value = MenuWantedFontScaleIndex;
+    menuItems.push_back(listItem);
+
+    // 菜单高亮文本放大：默认关闭，用户可按需选择放大量
+    listItem = new SelectFromListMenuItem(MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_CAPTIONS, onchange_misc_menu_item_highlight_text_scale_index);
+    listItem->wrap = false;
+    listItem->caption = "菜单高亮 文本放大";
+    listItem->value = MenuItemHighlightTextScaleIndex;
     menuItems.push_back(listItem);
 
     draw_generic_menu<int>(menuItems, &activeLineIndexMenuLayout, caption, onconfirm_menu_layout_reset, NULL, NULL);

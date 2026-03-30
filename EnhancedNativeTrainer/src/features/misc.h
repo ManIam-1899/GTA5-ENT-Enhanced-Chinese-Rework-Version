@@ -190,6 +190,41 @@ const int MENU_WANTED_STAR_RIGHT_MARGIN_DEFAULT_INDEX = 0;
 extern int MenuWantedStarRightMarginIndex;
 extern bool MenuWantedStarRightMarginChanged;
 
+// 首页标题 文本大小 - 默认 0.60f
+const std::vector<std::string> MISC_MENU_MAIN_HEADER_FONT_SCALE_CAPTIONS{ "默认", "0.10", "0.15", "0.20", "0.25", "0.30", "0.35", "0.40", "0.45", "0.50", "0.55", "0.65", "0.70", "0.75", "0.80", "0.85", "0.90", "0.95", "1.00" };
+const float MISC_MENU_MAIN_HEADER_FONT_SCALE_VALUES[] = { 0.60f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f, 0.65f, 0.70f, 0.75f, 0.80f, 0.85f, 0.90f, 0.95f, 1.00f };
+const int MENU_MAIN_HEADER_FONT_SCALE_DEFAULT_INDEX = 0;
+extern int MenuMainHeaderFontScaleIndex;
+extern bool MenuMainHeaderFontScaleChanged;
+
+// 普通标题 文本大小 - 默认 0.60f
+const std::vector<std::string> MISC_MENU_HEADER_FONT_SCALE_CAPTIONS{ "默认", "0.10", "0.15", "0.20", "0.25", "0.30", "0.35", "0.40", "0.45", "0.50", "0.55", "0.65", "0.70", "0.75", "0.80", "0.85", "0.90", "0.95", "1.00" };
+const float MISC_MENU_HEADER_FONT_SCALE_VALUES[] = { 0.60f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f, 0.65f, 0.70f, 0.75f, 0.80f, 0.85f, 0.90f, 0.95f, 1.00f };
+const int MENU_HEADER_FONT_SCALE_DEFAULT_INDEX = 0;
+extern int MenuHeaderFontScaleIndex;
+extern bool MenuHeaderFontScaleChanged;
+
+// 项目栏 文本大小 - 默认 0.35f
+const std::vector<std::string> MISC_MENU_ITEM_FONT_SCALE_CAPTIONS{ "默认", "0.10", "0.15", "0.20", "0.25", "0.30", "0.40", "0.45", "0.50", "0.55", "0.60", "0.65", "0.70", "0.75", "0.80", "0.85", "0.90", "0.95", "1.00" };
+const float MISC_MENU_ITEM_FONT_SCALE_VALUES[] = { 0.35f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.40f, 0.45f, 0.50f, 0.55f, 0.60f, 0.65f, 0.70f, 0.75f, 0.80f, 0.85f, 0.90f, 0.95f, 1.00f };
+const int MENU_ITEM_FONT_SCALE_DEFAULT_INDEX = 0;
+extern int MenuItemFontScaleIndex;
+extern bool MenuItemFontScaleChanged;
+
+// 通缉星 图标大小 - 默认 0.60f
+const std::vector<std::string> MISC_MENU_WANTED_FONT_SCALE_CAPTIONS{ "默认", "0.10", "0.15", "0.20", "0.25", "0.30", "0.35", "0.40", "0.45", "0.50", "0.55", "0.65", "0.70", "0.75", "0.80", "0.85", "0.90", "0.95", "1.00" };
+const float MISC_MENU_WANTED_FONT_SCALE_VALUES[] = { 0.60f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f, 0.65f, 0.70f, 0.75f, 0.80f, 0.85f, 0.90f, 0.95f, 1.00f };
+const int MENU_WANTED_FONT_SCALE_DEFAULT_INDEX = 0;
+extern int MenuWantedFontScaleIndex;
+extern bool MenuWantedFontScaleChanged;
+
+// 菜单高亮 文本放大 - 默认 关闭
+const std::vector<std::string> MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_CAPTIONS{ "关闭", "0.05", "0.10", "0.15", "0.20" };
+const float MISC_MENU_ITEM_HIGHLIGHT_TEXT_SCALE_VALUES[] = { 0.0f, 0.05f, 0.10f, 0.15f, 0.20f };
+const int MENU_ITEM_HIGHLIGHT_TEXT_SCALE_DEFAULT_INDEX = 0;
+extern int MenuItemHighlightTextScaleIndex;
+extern bool MenuItemHighlightTextScaleChanged;
+
 ////////////////////////////////////////// 结束【菜单布局选项】结束 //////////////////////////////////////////
 
 // 车辆预览图左右判断依据 - 默认 500.0f
@@ -341,6 +376,12 @@ void onchange_misc_font_header_index(int value, SelectFromListMenuItem* source);
 void onchange_misc_font_item_index(int value, SelectFromListMenuItem* source);
 
 void onchange_misc_menu_item_top_offset_index(int value, SelectFromListMenuItem* source);
+
+void onchange_misc_menu_main_header_font_scale_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_menu_header_font_scale_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_menu_item_font_scale_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_menu_wanted_font_scale_index(int value, SelectFromListMenuItem* source);
+void onchange_misc_menu_item_highlight_text_scale_index(int value, SelectFromListMenuItem* source);
 
 void onchange_misc_font_wanted_index(int value, SelectFromListMenuItem* source);
 

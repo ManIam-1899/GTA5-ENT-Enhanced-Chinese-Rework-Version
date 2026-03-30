@@ -50,6 +50,11 @@ extern float menuItemSpacing;  // 菜单项间距
 extern float menuItemTextOffset; // 菜单项文本偏移量
 extern float menuItemToggleIconRightMargin; // 复选框右边距
 extern float menuItemWantedStarRightMargin; // 通缉星右边距
+extern float menuMainHeaderFontScale; //首页标题文本大小
+extern float menuHeaderFontScale; //普通标题文本大小
+extern float menuItemFontScale; //项目栏文本大小
+extern float menuWantedFontScale; //通缉星图标大小
+extern float menuItemHighlightTextScale; //菜单高亮文本放大量
 
 // 预览图设置全局变量
 extern float previewPositionThreshold; // 预览图左右判断依据
@@ -588,7 +593,7 @@ inline std::string sanitise_menu_header_text(std::string input){
 }
 
 inline void draw_main_menu_header_line(std::string caption, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool rescaleText = true){
-	float text_scale = rescaleText ? 0.60 : 0.35;// 设置文本的缩放比例：如果 rescaleText 为 true，则使用 0.60，否则使用 0.35
+	float text_scale = rescaleText ? menuMainHeaderFontScale : 0.35f;// 设置文本的缩放比例：如果 rescaleText 为 true，则使用 0.60，否则使用 0.35
 	bool outline = false;// 是否绘制文本轮廓（默认为 false）
 	bool dropShadow = false;// 是否绘制文本阴影（默认为 false）
 
@@ -634,7 +639,7 @@ inline void draw_main_menu_header_line(std::string caption, float lineWidth, flo
 }
 
 inline void draw_menu_header_line(std::string caption, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool rescaleText = true, int curPage = 1, int pageCount = 1){
-	float text_scale = rescaleText ? 0.60 : 0.35;// 设置文本的缩放比例：如果 rescaleText 为 true，则使用 0.60，否则使用 0.35
+	float text_scale = rescaleText ? menuHeaderFontScale : 0.35f;// 设置文本的缩放比例：如果 rescaleText 为 true，则使用 0.60，否则使用 0.35
 	bool outline = false;// 是否绘制文本轮廓（默认为 false）
 	bool dropShadow = false;// 是否绘制文本阴影（默认为 false）
 
@@ -649,7 +654,7 @@ inline void draw_menu_header_line(std::string caption, float lineWidth, float li
 	textLeft += lineLeft;
 	float textLeftScaled = textLeft / (float) screen_w; // 文本左侧偏移量
 
-	float textHeightScaled = TEXT_HEIGHT_TITLE / (float) screen_h;
+	float textHeightScaled = (TEXT_HEIGHT_TITLE * (text_scale / 0.60f)) / (float) screen_h; //按“基准字号比例”线性缩放文字高度，保证纵向居中计算跟字号同步变化。
 
 	// 这是原始脚本中的实现方式
 
@@ -712,14 +717,15 @@ inline void draw_menu_header_line(std::string caption, float lineWidth, float li
 
 template<typename T>
 void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, float lineTop, float lineLeft, float textLeft, bool active, bool rescaleText){
-	float text_scale = 0.35;// 设置文本的缩放比例为 0.35
+	float text_scale = menuItemFontScale;// 设置文本的缩放比例为 0.35
 	bool outline = false;// 是否绘制文本轮廓（默认为 false）
 	bool dropShadow = false;// 是否绘制文本阴影（默认为 false）
 
 	// 如果是激活行，则调整相关值
 	if(active){
 		if(rescaleText){
-			text_scale = 0.40;// 如果启用了文本缩放，则将缩放比例设置为 0.40
+			// 高亮行的文本放大值由“菜单布局设置 -> 菜单高亮 文本放大”控制
+			text_scale = (menuItemFontScale + menuItemHighlightTextScale > 1.0f ? 1.0f : menuItemFontScale + menuItemHighlightTextScale); // 根据菜单高亮文本放大量动态放大
 		}
 	}
 	else{
@@ -739,7 +745,7 @@ void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, f
 	float lineLeftScaled = lineLeft / (float) screen_w; // 将行的左侧位置（lineLeft）转换为归一化坐标
 	float leftMarginScaled = textLeftScaled - lineLeftScaled; // 计算左侧边距的归一化值
 
-	float textHeightScaled = TEXT_HEIGHT_NORMAL / (float) screen_h; // 将文本高度（TEXT_HEIGHT_NORMAL）转换为归一化坐标
+	float textHeightScaled = (TEXT_HEIGHT_NORMAL * (text_scale / 0.35f)) / (float) screen_h; // 将文本高度（TEXT_HEIGHT_NORMAL）转换为归一化坐标
 	float rightMarginScaled = get_menu_item_toggle_icon_right_margin() / (float) screen_w; // 将右侧边距转换为归一化坐标
 
 	// 这是原始脚本中的实现方式
@@ -1000,7 +1006,7 @@ void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, f
 	}
 	else if(WantedSymbolItem* wantedItem = dynamic_cast<WantedSymbolItem*>(item)){ // 如果当前项是 WantedSymbolItem 类型
 		rightMarginScaled = get_menu_item_wanted_star_right_margin() / (float) screen_w; // 计算右侧边距的缩放值
-		float starTextScale = 0.6f; // 设置星号文本的缩放比例
+		float starTextScale = menuWantedFontScale; // 设置星号文本的缩放比例
 
 		UI::SET_TEXT_FONT(fontWanted);
 		UI::SET_TEXT_SCALE(0.0, starTextScale);
@@ -1014,7 +1020,7 @@ void draw_menu_item_line(MenuItem<T> *item, float lineWidth, float lineHeight, f
 		UI::SET_TEXT_EDGE(0, 0, 0, 0, 0);
 
 		float starWidth = 19.5f / (float) screen_w; // 计算星号符号的宽度（归一化坐标）
-		textY = lineTopScaled + (0.5f * (lineHeightScaled - (TEXT_HEIGHT_WSTARS / (float) screen_h))); // 计算文本的垂直位置（Y 坐标）
+		textY = lineTopScaled + (0.5f * (lineHeightScaled - ((TEXT_HEIGHT_WSTARS * (starTextScale / 0.60f)) / (float) screen_h))); // 计算文本的垂直位置（Y 坐标）
 
 		std::ostringstream wantedStars; // 创建一个字符串流对象，用于构建星号字符串
 		int wantedLevel = wantedItem->get_wanted_value(); // 获取当前通缉等级
@@ -1300,8 +1306,11 @@ bool draw_generic_menu(MenuParameters<T> params){
 				float lineTop = menuItemTopOffset + (i * (lineHeight + lineSpacingY)); // 计算当前菜单项的顶部位置（Y 坐标）
 				float lineLeft = menuLeftOffset; // 菜单项的左侧位置（X 坐标）
 				float textOffset = menuItemTextOffset; // 菜单项文本的 左侧 偏移量
+				// 当“菜单高亮 文本放大”设置为“关闭(0.0)”时，不进入高亮缩放分支
+				bool enableHighlightTextScale = (menuItemHighlightTextScale > 0.0f);
 
-				draw_menu_item_line(params.items[lineStartPosition + i], lineWidth, lineHeight, lineTop, lineLeft, textOffset, i == positionOnThisLine, false);
+				// 用户选择 0.05/0.10/0.15/0.20 时才启用高亮缩放分支
+				draw_menu_item_line(params.items[lineStartPosition + i], lineWidth, lineHeight, lineTop, lineLeft, textOffset, i == positionOnThisLine, enableHighlightTextScale);
 
 				if(i == positionOnThisLine){ // 如果当前菜单项是选中的项
 					activeLineY = lineTop; // 记录当前菜单项的顶部位置（Y 坐标）
