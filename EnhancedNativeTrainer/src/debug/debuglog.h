@@ -15,8 +15,11 @@ const bool DEBUG_LOG_ENABLED = true;
 const bool DEBUG_LOG_ENABLED = false;
 #endif
 
-/**向日志文件追加一行文本。除非调试常量已设置，否则不执行任何操作*/
+/**向日志文件追加一行文本，自动过滤空内容并格式化输出*/
 void write_text_to_log_file(const std::string &text);
 
-/**清空调试日志文件。每次训练器启动时调用*/
+/**初始化日志文件。传承版重置固定日志，增强版创建新日志*/
 void clear_log_file();
+
+/**为新会话准备日志文件*/
+void prepare_log_file_for_new_session();

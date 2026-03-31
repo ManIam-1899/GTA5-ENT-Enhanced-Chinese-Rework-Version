@@ -3377,12 +3377,12 @@ void ScriptMain(){
 		set_status_text("~HUD_COLOUR_WHITE~欢迎使用 ~HUD_COLOUR_MENU_YELLOW~ENT ~HUD_COLOUR_WHITE~修改器！");
 		set_status_text("~HUD_COLOUR_MENU_YELLOW~ENT ~HUD_COLOUR_WHITE~修改器，加载完成！");
 
+		prepare_log_file_for_new_session();
+
 		// 如果文件夹不存在 - 这将尝试创建该文件夹。这不会失败，因此不会有其他问题。
 		std::string folder_path = GetCurrentModulePath() + "Enhanced Native Trainer";
 		if (CreateDirectory(folder_path.c_str(), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
 			write_text_to_log_file("ENT 文件夹已存在, 请继续！");
-	
-		clear_log_file();
 
 		write_text_to_log_file("尝试初始化存储");
 		init_storage();
