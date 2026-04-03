@@ -6,6 +6,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 
 #include "database.h"
 #include "..\features\vehmodmenu.h"
+#include "..\features\function_resolver.h"
 #include "..\debug\debuglog.h"
 #include "..\features\script.h"
 #include "..\features\fuel.h"
@@ -764,7 +765,27 @@ bool ENTDatabase::open()
 
 	write_text_to_log_file("正在打开 DB 数据库文件");
 
-	WCHAR* db_path = get_storage_dir_path("ent_enhanced_cn.db");
+	// 根据内存特征码识别到的游戏版本，智能选择对应数据库文件名
+	const char* db_file_name = "ent_legacy_cn.db";//默认选择
+	const GameVariant gameVariant = GetGameVariant();
+	switch (gameVariant)
+	{
+	case GameVariant::GTA5Legacy://传承版
+		db_file_name = "ent_legacy_cn.db";
+		break;
+	case GameVariant::GTA5Enhanced://增强版
+		db_file_name = "ent_enhanced_cn.db";
+		break;
+	default:
+		// 兜底策略：未知版本默认走增强版数据库，保持历史兼容
+		db_file_name = "ent_legacy_cn.db";//未知版本
+		break;
+	}
+	ss.str(""); ss.clear();
+	ss << "根据内存特征码匹配到游戏版本: " << ToString(gameVariant) << "，加载数据库: " << db_file_name;
+	write_text_to_log_file(ss.str());
+
+	WCHAR* db_path = get_storage_dir_path(const_cast<char*>(db_file_name));
 
 	std::wstring ws(db_path);
 	std::string fileSS(ws.begin(), ws.end());

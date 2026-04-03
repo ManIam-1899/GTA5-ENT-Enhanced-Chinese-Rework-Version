@@ -19,17 +19,17 @@ enum class GameVariant: int {
 
 inline const char* ToString(FunctionID id) {
     switch (id) {
-    case FunctionID::RegisterFile: return "RegisterFile";
-    case FunctionID::GetModelInfo: return "GetModelInfo";
-    default:                       return "Unknown";
+    case FunctionID::RegisterFile: return "注册文件";
+    case FunctionID::GetModelInfo: return "获取模型信息";
+    default:                       return "未知";
     }
 }
 
 inline const char* ToString(GameVariant id) {
     switch (id) {
-    case GameVariant::GTA5Legacy:   return "GTA5Legacy";
-    case GameVariant::GTA5Enhanced: return "GTA5Enhanced";
-    default:                        return "Unknown";
+    case GameVariant::GTA5Legacy:   return "传承版";
+    case GameVariant::GTA5Enhanced: return "增强版";
+    default:                        return "未知";
     }
 }
 
