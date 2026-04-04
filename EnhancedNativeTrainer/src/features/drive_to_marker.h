@@ -31,6 +31,13 @@ const int TEL_CHAUFFEUR_DRIVINGSTYLES_VALUES[] = { 786468, 1074528293, 262144, 1
 extern int TelChauffeur_drivingstyles_Index;
 extern bool TelChauffeur_drivingstyles_Changed;
 
+// 推开其他载具
+extern bool featurePushVehiclesAway;
+extern int PushVehiclesDistanceIndex;
+const std::vector<std::string> PUSH_VEHICLES_DISTANCE_CAPTIONS{ "5米", "7米", "10米", "12米", "15米", "20米" };
+const float PUSH_VEHICLES_DISTANCE_VALUES[] = { 5.0f, 7.0f, 10.0f, 12.0f, 15.0f, 20.0f };
+
 Vector3 get_blip_marker();
 
 void drive_to_marker();
+void process_push_vehicles_away();

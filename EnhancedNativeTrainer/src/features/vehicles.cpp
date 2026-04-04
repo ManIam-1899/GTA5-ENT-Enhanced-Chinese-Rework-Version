@@ -22,6 +22,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\io\config_io.h"
 #include "..\debug\debuglog.h"
 #include "area_effect.h"
+#include "drive_to_marker.h"
 #include <fstream>
 #include <sstream>
 #include "vehicle_weapons.h"
@@ -7861,6 +7862,7 @@ void onchange_veh_never_dirty(int value, SelectFromListMenuItem* source) {
 
 void onchange_veh_mass_index(int value, SelectFromListMenuItem* source){
 	VehMassMultIndex = value;
+	if (VehMassMultIndex > 0) featurePushVehiclesAway = false;
 	PositionChanged = true;
 }
 

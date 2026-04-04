@@ -1358,6 +1358,10 @@ void onchange_tel_chauffeur_drivingstyles_index(int value, SelectFromListMenuIte
 	TelChauffeur_drivingstyles_Changed = true;
 }
 
+void onchange_push_vehicles_distance_index(int value, SelectFromListMenuItem *source){
+	PushVehiclesDistanceIndex = value;
+}
+
 void handle_generic_settings_teleportation(std::vector<StringPairSettingDBRow>* settings){
 	for (int i = 0; i < settings->size(); i++){
 		StringPairSettingDBRow setting = settings->at(i);
@@ -1757,6 +1761,18 @@ void getTelChauffeurIndex(){
 	listItem->value = TelChauffeurIndex;
 	menuItems.push_back(listItem);
 
+	toggleItem = new ToggleMenuItem<int>();
+	toggleItem->caption = "推开其他载具";
+	toggleItem->value = i++;
+	toggleItem->toggleValue = &featurePushVehiclesAway;
+	menuItems.push_back(toggleItem);
+
+	listItem = new SelectFromListMenuItem(PUSH_VEHICLES_DISTANCE_CAPTIONS, onchange_push_vehicles_distance_index);
+	listItem->wrap = false;
+	listItem->caption = "载具推开范围";
+	listItem->value = PushVehiclesDistanceIndex;
+	menuItems.push_back(listItem);
+
 	draw_generic_menu<int>(menuItems, &activeLineIndexChauffeur, caption, onconfirm_chauffeur_menu, NULL, NULL);
 }
 
@@ -2096,6 +2112,8 @@ void reset_teleporter_globals()
 	TelChauffeur_speed_IndexN = 1;
 	TelChauffeur_altitude_Index = 5;
 	TelChauffeur_drivingstyles_Index = 0;
+	featurePushVehiclesAway = false;
+	PushVehiclesDistanceIndex = 0;
 
 	activeLineIndexChauffeur = 0;
 	activeLineIndex3dmarker = 0;
@@ -2184,6 +2202,18 @@ void add_teleporter_feature_enablements(std::vector<FeatureEnabledLocalDefinitio
 
 void update_teleport_features(){
 	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (featurePushVehiclesAway && VehMassMultIndex > 0) VehMassMultIndex = 0;
+	static bool featurePushVehiclesAwayStateInit = false;
+	static bool featurePushVehiclesAwayLastState = false;
+	if (!featurePushVehiclesAwayStateInit) {
+		featurePushVehiclesAwayLastState = featurePushVehiclesAway;
+		featurePushVehiclesAwayStateInit = true;
+	}
+	else if (featurePushVehiclesAwayLastState != featurePushVehiclesAway) {
+		if (featurePushVehiclesAway) set_status_text("推开其他载具 - ~g~已开启");
+		else set_status_text("推开其他载具 - ~r~已关闭");
+		featurePushVehiclesAwayLastState = featurePushVehiclesAway;
+	}
 
 	// Show Coordinates
 	if (featureShowCoords) {
@@ -2294,6 +2324,8 @@ void update_teleport_features(){
 		planecurrspeed = 0;
 		AI::TASK_SMART_FLEE_PED(driver_to_marker_pilot, PLAYER::PLAYER_PED_ID(), 1000, -1, true, true);
 	}
+
+	process_push_vehicles_away();
 
 	// 自动传送到标记点（优化版，参考 YimMenu）
 	// 检查是否处于特殊模式（自由移动、自由相机、物体摆放），如果是则跳过自动传送

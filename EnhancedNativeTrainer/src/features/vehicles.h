@@ -54,6 +54,7 @@ const std::vector<std::string> VEH_INVINC_MODE_CAPTIONS{ "关", "仅引擎", "�
 
 const std::vector<std::string> VEH_MASS_CAPTIONS{ "关", "3x", "5x", "10x", "30x", "50x", "混乱" };
 const int VEH_MASS_VALUES[] = { 0, 5, 10, 30, 50, 100, 50000 };
+extern int VehMassMultIndex;
 extern int current_player_forceshieldN;
 
 const std::vector<std::string> VEH_SPEEDLIMITER_CAPTIONS{ "关闭", "5 (KM/H)", "10 (KM/H)", "15 (KM/H)", "20 (KM/H)", "25 (KM/H)", "30 (KM/H)", "35 (KM/H)", "40 (KM/H)", "45 (KM/H)", "50 (KM/H)", "55 (KM/H)", "60 (KM/H)", "65 (KM/H)", "70 (KM/H)", "75 (KM/H)", "80 (KM/H)", "85 (KM/H)", "90 (KM/H)", "95 (KM/H)", "100 (KM/H)", "105 (KM/H)", "110 (KM/H)", "115 (KM/H)", "120 (KM/H)", "125 (KM/H)", "130 (KM/H)", "135 (KM/H)", "140 (KM/H)", "145 (KM/H)", "150 (KM/H)", "160 (KM/H)", "170 (KM/H)", "180 (KM/H)", "190 (KM/H)", "200 (KM/H)" };

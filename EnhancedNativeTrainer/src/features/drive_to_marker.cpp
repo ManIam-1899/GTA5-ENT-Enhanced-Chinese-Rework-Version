@@ -16,6 +16,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "..\ui_support\menu_functions.h"
 #include "..\debug\debuglog.h"
 #include "..\ent-enums.h"
+#include "..\..\inc\main.h"
 #include "script.h"
 #include <iostream>   // std::cout
 #include <string>     // std::string, std::stof
@@ -49,6 +50,9 @@ int TelChauffeur_altitude_Index = 5;
 bool TelChauffeur_altitude_Changed = true;
 int TelChauffeur_drivingstyles_Index = 0;
 bool TelChauffeur_drivingstyles_Changed = true;
+
+bool featurePushVehiclesAway = false;
+int PushVehiclesDistanceIndex = 0;
 
 ////////////////////////////////// 驾驶到标记点 ////////////////////////////////////
 // 优先级1优化：优化导航点获取逻辑（参考 YimMenu）
@@ -286,4 +290,80 @@ void drive_to_marker()
 		marker_been_set = true;
 	}
 }
+
+void process_push_vehicles_away() {
+	if (!featurePushVehiclesAway) return;
+	if (VehMassMultIndex > 0) VehMassMultIndex = 0;
+	
+	Player playerPed = PLAYER::PLAYER_PED_ID();
+	if (!PED::IS_PED_IN_ANY_VEHICLE(playerPed, false)) return;
+	
+	Vehicle curr_veh = PED::GET_VEHICLE_PED_IS_IN(playerPed, false);
+	if (!ENTITY::DOES_ENTITY_EXIST(curr_veh)) return;
+	
+	// 排除当前载具是飞行器、水上水下载具
+	int veh_class = VEHICLE::GET_VEHICLE_CLASS(curr_veh);
+	if (veh_class == 14 || veh_class == 15 || veh_class == 16 || veh_class == 19) return;
+	
+	const int arrSize = 64;
+	Vehicle surr_vehs[arrSize];
+	int count = worldGetAllVehicles(surr_vehs, arrSize);
+	
+	Vector3 my_pos = ENTITY::GET_ENTITY_COORDS(curr_veh, true);
+	Vector3 rot = ENTITY::GET_ENTITY_ROTATION(curr_veh, 2);
+	
+	float z = rot.z * 3.14159265f / 180.0f;
+	float x = rot.x * 3.14159265f / 180.0f;
+	float num = fabsf(cosf(x));
+	
+	float dir_x = -sinf(z) * num;
+	float dir_y = cosf(z) * num;
+	float dir_z = sinf(x);
+	
+	Vector3 min_dim, max_dim;
+	GAMEPLAY::GET_MODEL_DIMENSIONS(ENTITY::GET_ENTITY_MODEL(curr_veh), &min_dim, &max_dim);
+	float dim_y = max_dim.y;
+	
+	Vector3 myFrontBumper;
+	myFrontBumper.x = my_pos.x + (dir_x * dim_y);
+	myFrontBumper.y = my_pos.y + (dir_y * dim_y);
+	myFrontBumper.z = my_pos.z + (dir_z * dim_y);
+
+	Vector3 capsuleTarget;
+	capsuleTarget.x = my_pos.x + (dir_x * (3.2f + dim_y));
+	capsuleTarget.y = my_pos.y + (dir_y * (3.2f + dim_y));
+	capsuleTarget.z = my_pos.z + (dir_z * (3.2f + dim_y));
+
+	BOOL rayHit = false;
+	Vector3 rayEndCoords = my_pos;
+	Vector3 raySurfaceNormal = my_pos;
+	Entity rayEntityHit = 0;
+	int rayHandle = WORLDPROBE::START_SHAPE_TEST_CAPSULE(my_pos.x, my_pos.y, my_pos.z, capsuleTarget.x, capsuleTarget.y, capsuleTarget.z, 2.3f, 287, curr_veh, 7);
+	int rayResult = WORLDPROBE::GET_SHAPE_TEST_RESULT(rayHandle, &rayHit, &rayEndCoords, &raySurfaceNormal, &rayEntityHit);
+
+	if (rayResult == 2 && rayHit && ENTITY::DOES_ENTITY_EXIST(rayEntityHit) && ENTITY::IS_ENTITY_A_VEHICLE(rayEntityHit) && rayEntityHit != curr_veh) {
+		int target_class = VEHICLE::GET_VEHICLE_CLASS(rayEntityHit);
+		if (target_class != 14 && target_class != 15 && target_class != 16 && target_class != 19) {
+			ENTITY::APPLY_FORCE_TO_ENTITY(rayEntityHit, 1, dir_x * 10.0f, dir_y * 10.0f, dir_z * 10.0f, 0.0f, 0.0f, 0.0f, 0, false, true, true, false, true);
+		}
+	}
+	
+	float dist_limit = PUSH_VEHICLES_DISTANCE_VALUES[PushVehiclesDistanceIndex];
+	
+	for (int i = 0; i < count; i++) {
+		if (surr_vehs[i] != curr_veh && ENTITY::DOES_ENTITY_EXIST(surr_vehs[i])) {
+			// 排除目标载具是飞行器、水上水下载具
+			int target_class = VEHICLE::GET_VEHICLE_CLASS(surr_vehs[i]);
+			if (target_class == 14 || target_class == 15 || target_class == 16 || target_class == 19) continue;
+			
+			Vector3 veh_pos = ENTITY::GET_ENTITY_COORDS(surr_vehs[i], true);
+			float dist = SYSTEM::VDIST(myFrontBumper.x, myFrontBumper.y, myFrontBumper.z, veh_pos.x, veh_pos.y, veh_pos.z);
+			
+			if (dist < dist_limit) {
+				ENTITY::APPLY_FORCE_TO_ENTITY(surr_vehs[i], 1, dir_x * 10.0f, dir_y * 10.0f, dir_z * 10.0f, 0.0f, 0.0f, 0.0f, 0, false, true, true, false, true);
+			}
+		}
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
