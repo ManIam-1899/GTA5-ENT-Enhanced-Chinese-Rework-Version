@@ -16,7 +16,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include "../version.h"
 
 namespace {
-	const char* LOG_SEPARATOR = "----------------------------------------------------";
+	const char* LOG_SEPARATOR = "---------------------------------------------------------------------------";
 
 	enum GtaWindowType {
 		GTA_WINDOW_UNKNOWN = 0,
@@ -219,9 +219,23 @@ namespace {
 		return FlushFileBuffers(g_log_file_handle) != 0;
 	}
 
+	std::string format_date_ymd(){
+		SYSTEMTIME st = {};
+		GetLocalTime(&st);
+		char date_buffer[16] = {};
+		sprintf_s(
+			date_buffer,
+			"%04u-%02u-%02u",
+			static_cast<unsigned int>(st.wYear),
+			static_cast<unsigned int>(st.wMonth),
+			static_cast<unsigned int>(st.wDay)
+		);
+		return std::string(date_buffer);
+	}
+
 	bool write_log_header(HANDLE handle){
 		const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
-		const std::string header = "// GTA V Enhanced Native Trainer " + VERSION_STRING;
+		const std::string header = "// GTA V Enhanced Native Trainer " + VERSION_STRING + " [日期: " + format_date_ymd() + "]";
 		const std::string separator = std::string(LOG_SEPARATOR) + "\r\n";
 		const std::string header_line = header + "\r\n";
 		bool success = write_bytes(handle, reinterpret_cast<const char*>(bom), static_cast<DWORD>(sizeof(bom)));
@@ -333,24 +347,15 @@ namespace {
 		return GTA_WINDOW_UNKNOWN;
 	}
 
-	std::wstring build_enhanced_log_path(){
-		SYSTEMTIME st = {};
-		GetLocalTime(&st);
-
-		wchar_t file_name[128] = {};
-		swprintf_s(
-			file_name,
-			L"ent-cn_%u.%u.%u_%02u.%02u.%02u.log",
-			static_cast<unsigned int>(st.wYear),
-			static_cast<unsigned int>(st.wMonth),
-			static_cast<unsigned int>(st.wDay),
-			static_cast<unsigned int>(st.wHour),
-			static_cast<unsigned int>(st.wMinute),
-			static_cast<unsigned int>(st.wSecond)
-		);
-
+	std::wstring build_log_file_path(GtaWindowType window_type){
 		initialize_paths_if_needed();
-		return g_log_dir + L"\\" + file_name;
+		if (window_type == GTA_WINDOW_ENHANCED) {
+			return g_log_dir + L"\\ent-enhanced-cn.log";
+		}
+		if (window_type == GTA_WINDOW_LEGACY) {
+			return g_log_dir + L"\\ent-legacy-cn.log";
+		}
+		return g_log_dir + L"\\ent-cn.log";
 	}
 
 	bool prepare_log_file(bool reset_for_legacy){
@@ -359,20 +364,7 @@ namespace {
 		}
 
 		GtaWindowType window_type = get_gta_window_type();
-		if (window_type == GTA_WINDOW_ENHANCED) {
-			g_active_log_path = build_enhanced_log_path();
-			if (!initialize_log_header(g_active_log_path, true)) {
-				return false;
-			}
-			g_group_hour = -1;
-			g_group_minute = -1;
-			g_group_second = -1;
-			g_log_initialized = true;
-			return true;
-		}
-
-		initialize_paths_if_needed();
-		g_active_log_path = g_log_dir + L"\\ent-cn.log";
+		g_active_log_path = build_log_file_path(window_type);
 		if (!initialize_log_header(g_active_log_path, reset_for_legacy)) {
 			return false;
 		}
