@@ -162,6 +162,7 @@ bool featureWantedLevelNoSWATVehicles = false;
 bool featureWantedLevelNoSWATVehiclesUpdated = false;
 bool NoTaxiWhistling = false;
 bool featurePlayerCanBeHeadshot = false;
+bool featureNoAutoRespawnUpdated = false;
 bool featureRespawnsWhereDied = false;
 bool featurePlayerSuicide = false;
 bool featurePlayerSuicideUpdated = false;
@@ -895,6 +896,14 @@ void update_features() {
 			ENTITY::RESET_ENTITY_ALPHA(PLAYER::PLAYER_PED_ID());
 			first_person_rotate = false;
 		}
+	}
+
+	// 手动重生：仅在菜单复选框刚被勾选时，显示一次左下角按键提示
+	if (featureNoAutoRespawnUpdated) {
+		if (featureNoAutoRespawn) {
+			set_status_text("按 ~q~空格键~s~ 手动重生!\n按 ~q~AD~s~ 左右旋转视角!\n按 ~q~WS~s~ 上下旋转视角!");
+		}
+		featureNoAutoRespawnUpdated = false;
 	}
 
 	// 手动复活
@@ -2851,7 +2860,7 @@ void process_player_menu(){
 		{"超能力", NULL, NULL, false},
 		{"禁止吹口哨叫出租车", &NoTaxiWhistling, NULL, false},
 		{"玩家可以被爆头", &featurePlayerCanBeHeadshot, NULL, false},
-		{"手动重生", &featureNoAutoRespawn, NULL },
+		{"手动重生", &featureNoAutoRespawn, &featureNoAutoRespawnUpdated },
 		{"死亡/被捕后, 立即重生", &featureRespawnsWhereDied, NULL, false},
 		{"第一人称, 死亡/被捕视角", &featureFirstPersonDeathCamera, NULL },
 		{"无潜水氧气面罩", &featureNoScubaGearMask, NULL, true },
