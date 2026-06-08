@@ -201,6 +201,55 @@ char* player_models[] = { "player_zero", "player_one", "player_two" };
 
 char* mplayer_models[] = { "mp_f_freemode_01", "mp_m_freemode_01" };
 
+// 仅对白名单中的线上主角和指定动物模型执行死亡后安全回退，避免误判其他非人类模型。
+char* respawn_recovery_models[] = {
+	"mp_f_freemode_01",
+	"mp_m_freemode_01",
+	"a_c_boar",
+	"a_c_boar_02",
+	"a_c_cat_01",
+	"a_c_cat_02",
+	"a_c_chickenhawk",
+	"a_c_chimp_02",
+	"a_c_chimp",
+	"a_c_chop",
+	"a_c_chop_02",
+	"a_c_cormorant",
+	"a_c_cow",
+	"a_c_coyote",
+	"a_c_coyote_02",
+	"a_c_crow",
+	"a_c_deer",
+	"a_c_deer_02",
+	"a_c_dolphin",
+	"a_c_fish",
+	"a_c_hen",
+	"a_c_humpback",
+	"a_c_husky",
+	"a_c_killerwhale",
+	"a_c_mtlion",
+	"a_c_mtlion_02",
+	"a_c_pig",
+	"a_c_pigeon",
+	"a_c_poodle",
+	"a_c_pug",
+	"a_c_pug_02",
+	"a_c_rabbit_01",
+	"a_c_rabbit_02",
+	"a_c_rat",
+	"a_c_retriever",
+	"a_c_rhesus",
+	"a_c_rottweiler",
+	"a_c_rottweiler_02",
+	"a_c_seagull",
+	"a_c_sharktiger",
+	"a_c_stingray",
+	"a_c_panther",
+	"a_c_sharkhammer",
+	"a_c_shepherd",
+	"a_c_westy"
+};
+
 const char* CLIPSET_DRUNK = "move_m@drunk@verydrunk";
 
 const std::vector<std::string> GRAVITY_CAPTIONS{ "最低", "0.1x", "0.5x", "0.75x", "1x (正常)" };
@@ -528,6 +577,22 @@ void check_player_model(){
 				player_d_armour = true;
 				CAM::DO_SCREEN_FADE_OUT(500);
 				WAIT(1000);
+
+				// 仅精确匹配指定的线上主角和动物模型，避免把其他非人类模型误判为需要回退的模型。
+				bool isProblematicModel = false;
+				for each (char* model in respawn_recovery_models) {
+					if (GAMEPLAY::GET_HASH_KEY(model) == playerModel) {
+						isProblematicModel = true;
+						break;
+					}
+				}
+
+				// 只有命中精确白名单时才恢复为最后使用的主角模型，避免无限死亡循环。
+				if (isProblematicModel) {
+					int safeSlot = (last_player_slot_seen >= 0 && last_player_slot_seen <= 2) ? last_player_slot_seen : 0;
+					applyChosenSkin(player_models[safeSlot]);
+				}
+
 				GAMEPLAY::_DISABLE_AUTOMATIC_RESPAWN(true);
 				GAMEPLAY::IGNORE_NEXT_RESTART(true);
 				GAMEPLAY::TERMINATE_ALL_SCRIPTS_WITH_THIS_NAME("respawn_controller");
