@@ -67,8 +67,8 @@ int choicevalue = -2;
 int skinPropsCategoryValueC = -2;
 int clear_props_m = -2;
 
-// 在角色死亡时重置玩家模型
-int ResetSkinOnDeathIdx = 0;
+// 在角色死亡时重置玩家模型，默认固定为“重生恢复模型”。
+int ResetSkinOnDeathIdx = SKINS_RESET_SKIN_ONDEATH_DEFAULT_INDEX;
 bool ResetSkinOnDeathChanged = true;
 
 // 自动应用最后保存的皮肤
@@ -771,6 +771,7 @@ std::vector<std::string> get_custom_ped_categories2() {
 */
 
 void onchange_skins_reset_skin_ondeath_index(int value, SelectFromListMenuItem* source) {
+	// 该选项仅在当前会话内生效，不会自动写入配置。
 	ResetSkinOnDeathIdx = value;
 	ResetSkinOnDeathChanged = true;
 }
@@ -785,7 +786,8 @@ void reset_skin_globals()
 	activeLineIndexSkinChanger = 0;
 	featurenoblood = false;
 	featurepersprops = false;
-	ResetSkinOnDeathIdx = 0;
+	// 重置所有选项时，恢复为默认的“重生恢复模型”。
+	ResetSkinOnDeathIdx = SKINS_RESET_SKIN_ONDEATH_DEFAULT_INDEX;
 	AutoApplySkinSavedIndex = 0;
 }
 
@@ -2164,7 +2166,7 @@ void save_current_skin(int slot)
 void add_skin_generic_settings(std::vector<StringPairSettingDBRow>* results)
 {
 	results->push_back(StringPairSettingDBRow{ "lastCustomSkinSpawn", lastCustomSkinSpawn });
-	results->push_back(StringPairSettingDBRow{ "ResetSkinOnDeathIdx", std::to_string(ResetSkinOnDeathIdx) });
+	// “死亡重置玩家模型”固定使用默认值，不再写入配置，避免菜单改动被自动保存。
 	results->push_back(StringPairSettingDBRow{ "AutoApplySkinSavedIndex", std::to_string(AutoApplySkinSavedIndex) });
 }
 
@@ -2175,6 +2177,8 @@ void add_player_skin_feature_enablements(std::vector<FeatureEnabledLocalDefiniti
 
 void handle_generic_settings_skin(std::vector<StringPairSettingDBRow>* settings)
 {
+	// 该选项不再从配置恢复，进入游戏后始终从默认值开始。
+	ResetSkinOnDeathIdx = SKINS_RESET_SKIN_ONDEATH_DEFAULT_INDEX;
 	for (int i = 0; i < settings->size(); i++)
 	{
 		StringPairSettingDBRow setting = settings->at(i);
@@ -2183,7 +2187,8 @@ void handle_generic_settings_skin(std::vector<StringPairSettingDBRow>* settings)
 			lastCustomSkinSpawn = setting.value;
 		}
 		else if (setting.name.compare("ResetSkinOnDeathIdx") == 0) {
-			ResetSkinOnDeathIdx = stoi(setting.value);
+			// 兼容旧配置项：保留识别但忽略其值，避免历史存档覆盖新的默认行为。
+			continue;
 		}
 		else if (setting.name.compare("AutoApplySkinSavedIndex") == 0) {
 			AutoApplySkinSavedIndex = stoi(setting.value);

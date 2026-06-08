@@ -35,6 +35,8 @@ const std::vector<std::string> SKINS_ONLINE_VALUES{ "IG_IslDJ_01", "IG_AcidLabCo
 
 // 死亡时重置玩家模型
 const std::vector<std::string> SKINS_RESET_SKIN_ONDEATH_CAPTIONS{ "重生恢复模型 (默认)", "游戏原生模式 (慎用)" }; // "死亡时重置", 
+// 该选项固定使用默认索引，且不参与配置持久化。
+constexpr int SKINS_RESET_SKIN_ONDEATH_DEFAULT_INDEX = 0;
 extern int ResetSkinOnDeathIdx;
 
 /***
