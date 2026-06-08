@@ -613,7 +613,6 @@ static bool process_custom_peds_category_menu(const std::string& category){
     auto it = g_CustomPeds.find(category);
     if(it == g_CustomPeds.end()) return false;
     std::vector<MenuItem<std::string>*> items;
-    int pos = 0;
     for(auto &pr : it->second){
         MenuItem<std::string>* m = new MenuItem<std::string>();
         m->caption = pr.second;
@@ -625,9 +624,12 @@ static bool process_custom_peds_category_menu(const std::string& category){
     auto onconfirm = [](MenuItem<std::string> choice)->bool{
         bool result = applyChosenSkin(choice.value);
         if (!result) {
-            std::stringstream ss;
-            ss << "~r~错误！~s~找不到此模型：\n[~y~" << choice.value << "~s~]";
-            set_status_text(ss.str());
+            DWORD model = GAMEPLAY::GET_HASH_KEY((char *)choice.value.c_str());
+            if (!STREAMING::IS_MODEL_IN_CDIMAGE(model) || !STREAMING::IS_MODEL_VALID(model)) {
+                std::stringstream ss;
+                ss << "~r~错误！~s~找不到此模型：\n[~y~" << choice.value << "~s~]";
+                set_status_text(ss.str());
+            }
         }
         return false;
     };
@@ -681,7 +683,6 @@ static bool process_custom_peds2_category_menu(const std::string& category){
     auto it = g_CustomPeds2.find(category);
     if(it == g_CustomPeds2.end()) return false;
     std::vector<MenuItem<std::string>*> items;
-    int pos = 0;
     for(auto &pr : it->second){
         MenuItem<std::string>* m = new MenuItem<std::string>();
         m->caption = pr.second;
@@ -693,9 +694,12 @@ static bool process_custom_peds2_category_menu(const std::string& category){
     auto onconfirm = [](MenuItem<std::string> choice)->bool{
         bool result = applyChosenSkin(choice.value);
         if (!result) {
-            std::stringstream ss;
-            ss << "~r~错误！~s~找不到此模型：\n[~y~" << choice.value << "~s~]";
-            set_status_text(ss.str());
+            DWORD model = GAMEPLAY::GET_HASH_KEY((char *)choice.value.c_str());
+            if (!STREAMING::IS_MODEL_IN_CDIMAGE(model) || !STREAMING::IS_MODEL_VALID(model)) {
+                std::stringstream ss;
+                ss << "~r~错误！~s~找不到此模型：\n[~y~" << choice.value << "~s~]";
+                set_status_text(ss.str());
+            }
         }
         return false;
     };
@@ -791,14 +795,82 @@ void reset_skin_globals()
 * =================
 */
 
+static bool is_aquatic_skin_model(DWORD model)
+{
+	return model == GAMEPLAY::GET_HASH_KEY("a_c_dolphin") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_sharkhammer") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_humpback") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_killerwhale") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_stingray") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_sharktiger") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_fish") ||
+		model == GAMEPLAY::GET_HASH_KEY("a_c_whalegrey");
+}
+
+static bool can_apply_aquatic_skin(DWORD model, const std::string* skinName = NULL)
+{
+	if (!is_aquatic_skin_model(model))
+	{
+		return true;
+	}
+
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	Vector3 coords_me = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+	float waterHeight = 0.0f;
+	// 使用玩家当前位置上方作为探测起点，避免人物站位或姿态导致取不到正确水面高度。
+	bool foundWater = WATER::GET_WATER_HEIGHT(coords_me.x, coords_me.y, coords_me.z + 5.0f, &waterHeight);
+
+	float groundHeight = 0.0f;
+	bool foundGround = false;
+	if (foundWater)
+	{
+		// 优先直接获取当前位置下方地面高度，这样计算出来的才是真实水深。
+		foundGround = GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords_me.x, coords_me.y, waterHeight + 2.0f, &groundHeight);
+		if (!foundGround)
+		{
+			// 原生地面探测失败时，回退到实体离地高度估算，尽量避免把可生成的深水误判为浅水。
+			float entityHeightAboveGround = ENTITY::GET_ENTITY_HEIGHT_ABOVE_GROUND(playerPed);
+			if (entityHeightAboveGround >= 0.0f)
+			{
+				groundHeight = coords_me.z - entityHeightAboveGround;
+				foundGround = true;
+			}
+		}
+	}
+
+	if (!foundWater || !foundGround || (waterHeight - groundHeight) < 1.5f)
+	{
+		std::ostringstream ss;
+		ss << "~r~鱼类动物需在1.5米水深生成！";
+		if (skinName != NULL && !skinName->empty())
+		{
+			ss << "\n~s~当前模型：[~y~" << *skinName << "~s~]";
+		}
+		set_status_text(ss.str());
+		return false;
+	}
+
+	return true;
+}
+
 bool applyChosenSkin(std::string skinName)
 {
 	DWORD model = GAMEPLAY::GET_HASH_KEY((char *)skinName.c_str());
+	if (!can_apply_aquatic_skin(model, &skinName))
+	{
+		return false;
+	}
+
 	return applyChosenSkin(model);
 }
 
 bool applyChosenSkin(DWORD model) 
 {
+	if (!can_apply_aquatic_skin(model))
+	{
+		return false;
+	}
+
 	if (STREAMING::IS_MODEL_IN_CDIMAGE(model) && STREAMING::IS_MODEL_VALID(model))
 	{
 		STREAMING::REQUEST_MODEL(model);
@@ -1007,7 +1079,7 @@ void update_skin_features() {
 
 						if (model != -1) {
 							if (NPC_RAGDOLL_VALUES[AutoApplySkinSavedIndex] == 1) applyChosenSkin(savedSkin->model);
-							if (NPC_RAGDOLL_VALUES[AutoApplySkinSavedIndex] == 2 && ENTITY::GET_ENTITY_MODEL(PLAYER::PLAYER_PED_ID()) == savedSkin->model) applyChosenSkin(PLAYER::PLAYER_PED_ID()); // applyChosenSkin(savedSkin->model);
+							if (NPC_RAGDOLL_VALUES[AutoApplySkinSavedIndex] == 2 && ENTITY::GET_ENTITY_MODEL(PLAYER::PLAYER_PED_ID()) == savedSkin->model) applyChosenSkin(savedSkin->model);
 							if (NPC_RAGDOLL_VALUES[AutoApplySkinSavedIndex] == 2 && ENTITY::GET_ENTITY_MODEL(PLAYER::PLAYER_PED_ID()) != savedSkin->model) right_model = true;
 
 							if (right_model == false) {
@@ -1327,28 +1399,7 @@ bool process_skinchanger_choices_online_npc()
 bool onconfirm_skinchanger_choices_animals(MenuItem<std::string> choice)
 {
 	skinTypesMenuPositionMemory[1] = choice.currentMenuIndex;
-	
-	Vector3 coords_me = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
-	float height = -1.0;
-
-	if (choice.value != "a_c_dolphin" && choice.value != "a_c_sharkhammer" && choice.value != "a_c_humpback" &&
-		choice.value != "a_c_killerwhale" && choice.value != "a_c_stingray" &&
-		choice.value != "a_c_sharktiger" && choice.value != "a_c_fish" && choice.value != "a_c_whalegrey") {
-		WATER::GET_WATER_HEIGHT(coords_me.x, coords_me.y, coords_me.z, &height);
-		if (coords_me.z > height) applyChosenSkin(choice.value);
-	}
-	else {
-		WATER::GET_WATER_HEIGHT(coords_me.x, coords_me.y, coords_me.z, &height);
-		if ((coords_me.z < height) && ((height - coords_me.z) > 1)) {
-			applyChosenSkin(choice.value);
-		} else {
-			// 鱼类模型需要在水中才能生成
-			std::ostringstream ss;
-			ss << "~r~错误！~s~鱼类需要在水中生成：\n[~y~" << choice.value << "~s~]";
-			set_status_text(ss.str());
-		}
-	}
-	
+	applyChosenSkin(choice.value);
 	return false;
 }
 
@@ -1488,7 +1539,7 @@ bool onconfirm_skinchanger_category_menu(MenuItem<int> choice)
 				}
 				else
 				{
-					return applyChosenSkin(hash);
+					return applyChosenSkin(result);
 				}
 			}
 			return false;
