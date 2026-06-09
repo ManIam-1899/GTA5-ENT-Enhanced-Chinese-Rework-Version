@@ -888,7 +888,10 @@ bool applyChosenSkin(DWORD model)
 			veh = PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID());
 		}
 
-		save_player_weapons(PLAYER::PLAYER_PED_ID());
+		bool is_old_ped_human = PED::IS_PED_HUMAN(PLAYER::PLAYER_PED_ID());
+		if (is_old_ped_human) {
+			save_player_weapons(PLAYER::PLAYER_PED_ID());
+		}
 
 		PLAYER::SET_PLAYER_MODEL(PLAYER::PLAYER_ID(), model);
 		PED::SET_PED_DEFAULT_COMPONENT_VARIATION(PLAYER::PLAYER_PED_ID());
@@ -899,7 +902,9 @@ bool applyChosenSkin(DWORD model)
 			PED::SET_PED_INTO_VEHICLE(PLAYER::PLAYER_PED_ID(), veh, -1);
 		}
 
-		restore_player_weapons(PLAYER::PLAYER_PED_ID());
+		if (PED::IS_PED_HUMAN(PLAYER::PLAYER_PED_ID())) {
+			restore_player_weapons(PLAYER::PLAYER_PED_ID());
+		}
 
 		// 重置皮肤细节选项
 		skinDetailMenuIndex = 0;
