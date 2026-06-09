@@ -158,6 +158,7 @@ char* currWeaponCompHash;
 
 int const SAVED_WEAPONS_COUNT = TOTAL_WEAPONS_COUNT;
 int saved_weapon_model[SAVED_WEAPONS_COUNT];
+bool saved_has_weapon[SAVED_WEAPONS_COUNT];
 int saved_ammo[SAVED_WEAPONS_COUNT];
 int saved_clip_ammo[SAVED_WEAPONS_COUNT];
 int saved_weapon_tints[SAVED_WEAPONS_COUNT];
@@ -2746,6 +2747,7 @@ void save_player_weapons(Ped playerPed){
 			Hash weaponHash = GAMEPLAY::GET_HASH_KEY(weaponName);
 			saved_weapon_model[index] = weaponHash;
 			if(WEAPON::HAS_PED_GOT_WEAPON(playerPed, weaponHash, 0)){
+				saved_has_weapon[index] = true;
 				saved_ammo[index] = WEAPON::GET_AMMO_IN_PED_WEAPON(playerPed, weaponHash);
 				WEAPON::GET_AMMO_IN_CLIP(playerPed, weaponHash, &saved_clip_ammo[index]);
 
@@ -2767,6 +2769,8 @@ void save_player_weapons(Ped playerPed){
 						break;
 					}
 				}
+			} else {
+				saved_has_weapon[index] = false;
 			}
 		}
 	}
@@ -2784,7 +2788,7 @@ void restore_player_weapons(Ped playerPed){
 	int index = 0;
 	for(int a = 0; a < sizeof(VOV_WEAPON_VALUES) / sizeof(VOV_WEAPON_VALUES[0]); a++){
 		for(int b = 0; b < VOV_WEAPON_VALUES[a].size() && index < SAVED_WEAPONS_COUNT; b++, index++){
-			if(saved_ammo[index] > 0){
+			if(saved_has_weapon[index]){
 				WEAPON::GIVE_WEAPON_TO_PED(playerPed, saved_weapon_model[index], 1, false, false);
 				WEAPON::SET_PED_AMMO(playerPed, saved_weapon_model[index], saved_ammo[index]);
 				WEAPON::SET_AMMO_IN_CLIP(playerPed, saved_weapon_model[index], saved_clip_ammo[index]);
