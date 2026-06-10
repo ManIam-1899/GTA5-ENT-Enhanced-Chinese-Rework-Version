@@ -49,11 +49,16 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <iomanip>
 #include <fstream>
 
-//玩家生命值
-const std::vector<std::string> PLAYER_HEALTH_CAPTIONS{ "关", "1", "10", "20", "30", "50", "100", "200", "300", "500", "1000", "5000", "10000", "20000", "30000" };
-const int PLAYER_HEALTH_VALUES[] = { 0, 101, 110, 120, 130, 150, 200, 300, 400, 600, 1100, 5100, 10100, 20100, 30100 };
+// 玩家可设置的最大可见血量；内部总血量会在该数值基础上自动加 100（当内部总血量<=100时玩家死亡）
+const std::vector<std::string> PLAYER_HEALTH_CAPTIONS{ "关", "0", "1", "5", "10", "20", "30", "40", "50", "100", "200", "300", "400", "500", "1000", "5000", "10000", "20000", "30000" };
+const int PLAYER_HEALTH_VALUES[] = { 0, 100, 101, 105, 110, 120, 130, 140, 150, 200, 300, 400, 500, 600, 1100, 5100, 10100, 20100, 30100 };
 extern int PedsHealthIndex;
 extern bool PedsHealthChanged;
+
+// 玩家当前血量显示颜色；显示格式为：当前可见血量 | 内部总血量
+const std::vector<std::string> PLAYER_HEALTH_DISPLAY_CAPTIONS{ "关", "黄色", "白色", "红色", "绿色", "蓝色", "紫色", "粉红", "浅灰", "深灰" };
+extern int playerHealthDisplayIndex;
+extern bool playerHealthDisplayChanged;
 
 //波浪强度
 const std::vector<std::string> WORLD_WAVES_CAPTIONS{ "默认", "无波浪", "5x", "10x", "20x", "30x", "50x", "冻结波浪" };
@@ -164,6 +169,8 @@ void onchange_player_wanted_maxpossible_level_mode(int value, SelectFromListMenu
 
 void onchange_player_movement_mode(int value, SelectFromListMenuItem* source);
 void onchange_player_walkspeed_mode(int value, SelectFromListMenuItem* source);
+// 中文注释：玩家数据菜单内的“玩家血量显示”列表项回调
+void onchange_player_health_display_index(int value, SelectFromListMenuItem* source);
 
 void onchange_NPC_ragdoll_mode(int value, SelectFromListMenuItem* source);
 

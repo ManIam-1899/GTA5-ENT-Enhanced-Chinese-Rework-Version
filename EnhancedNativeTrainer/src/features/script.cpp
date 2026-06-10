@@ -262,10 +262,48 @@ int current_regen_speed = 4;
 bool current_regen_speed_changed = true;
 
 // 玩家生命值
-int current_player_health = 6;
+int current_player_health = 9;
 bool current_player_health_Changed = true;
 int PedsHealthIndex = 0;
 bool PedsHealthChanged = true;
+
+int playerHealthDisplayIndex = 0;
+bool playerHealthDisplayChanged = true;
+
+// 中文注释：统一限制玩家血量显示配置索引，避免损坏配置导致菜单或绘制状态异常
+static int sanitize_player_health_display_index(int value) {
+	const int maxIndex = static_cast<int>(PLAYER_HEALTH_DISPLAY_CAPTIONS.size()) - 1;
+	if (value < 0) return 0;
+	if (value > maxIndex) return maxIndex;
+	return value;
+}
+
+// 中文注释：将实体内部总血量转换为与游戏 HUD 血条一致的可见血量值，兼容大多数玩家模型与动物模型
+static int get_displayed_ped_health_value(Ped ped) {
+	const int totalHealth = ENTITY::GET_ENTITY_HEALTH(ped);
+	const int maxHealth = PED::GET_PED_MAX_HEALTH(ped);
+	const int healthBase = (totalHealth > 100 || maxHealth > 100) ? 100 : 0;
+	const int displayedHealth = totalHealth - healthBase;
+	return displayedHealth > 0 ? displayedHealth : 0;
+}
+
+// 中文注释：统一管理“显示玩家当前血量”的颜色映射，便于后续继续扩展
+static void get_player_health_display_color(int colorIndex, int& r, int& g, int& b) {
+	r = 255;
+	g = 255;
+	b = 255;
+	switch (colorIndex) {
+		case 1: r = 255; g = 242; b = 0; break;   // 黄色
+		case 2: r = 255; g = 255; b = 255; break; // 白色
+		case 3: r = 255; g = 0; b = 0; break;     // 红色
+		case 4: r = 0; g = 255; b = 0; break;     // 绿色
+		case 5: r = 0; g = 0; b = 255; break;     // 蓝色
+		case 6: r = 160; g = 32; b = 240; break;  // 紫色
+		case 7: r = 255; g = 105; b = 180; break; // 粉红
+		case 8: r = 211; g = 211; b = 211; break; // 浅灰
+		case 9: r = 96; g = 96; b = 96; break;    // 深灰
+	}
+}
 
 // 最高通缉等级
 int wanted_maxpossible_level = 4;
@@ -1684,11 +1722,13 @@ void update_features() {
 		if (!STREAMING::IS_PLAYER_SWITCH_IN_PROGRESS()) { 
 			if ((featurePlayerLifeUpdated && !ENTITY::IS_ENTITY_DEAD(PLAYER::PLAYER_PED_ID())) || (player_d_armour == true && !ENTITY::IS_ENTITY_DEAD(PLAYER::PLAYER_PED_ID()))) {
 				if (PLAYER_HEALTH_VALUES[current_player_health] > 0) {
+					// 中文注释：这里设置的是玩家内部最大总血量，并同步把当前内部总血量补满到该上限
 					PED::SET_PED_MAX_HEALTH(playerPed, PLAYER_HEALTH_VALUES[current_player_health]);
 					ENTITY::SET_ENTITY_HEALTH(playerPed, PLAYER_HEALTH_VALUES[current_player_health]);
 				}
 				if (detained == false && in_prison == false && PLAYER_ARMOR_VALUES[current_player_armor] > -1) {
-					PLAYER::SET_PLAYER_MAX_ARMOUR(playerPed, PLAYER_ARMOR_VALUES[current_player_armor]);
+					// 中文注释：SET_PLAYER_MAX_ARMOUR 需要传入 Player 句柄，不能传 Ped 句柄
+					PLAYER::SET_PLAYER_MAX_ARMOUR(player, PLAYER_ARMOR_VALUES[current_player_armor]);
 					PED::SET_PED_ARMOUR(playerPed, PLAYER_ARMOR_VALUES[current_player_armor]);
 				}
 				player_d_armour = false;
@@ -2296,6 +2336,25 @@ void update_features() {
 			PLAYER::SET_PLAYER_WANTED_LEVEL_NOW(player, 0);
 		}
 	}
+
+	// 玩家血量显示
+	if (playerHealthDisplayIndex > 0 && bPlayerExists && !ENTITY::IS_ENTITY_DEAD(playerPed)) {
+		Vector3 head_c = PED::GET_PED_BONE_COORDS(playerPed, 31086, 0, 0, 0);
+		// 中文注释：这里显示的是与游戏 HUD 血条一致的当前可见血量，以及实体内部总血量
+		int healthValue = get_displayed_ped_health_value(playerPed);
+		int totalHealth = ENTITY::GET_ENTITY_HEALTH(playerPed);
+		std::string curr_h_t = std::to_string(healthValue) + " | " + std::to_string(totalHealth);
+		GRAPHICS::SET_DRAW_ORIGIN(head_c.x, head_c.y, head_c.z + 0.5, 0);
+		UI::BEGIN_TEXT_COMMAND_DISPLAY_TEXT("STRING");
+		UI::_ADD_TEXT_COMPONENT_SCALEFORM((char *)curr_h_t.c_str());
+		int r = 255, g = 255, b = 255;
+		get_player_health_display_color(playerHealthDisplayIndex, r, g, b);
+		text_parameters(0.5, 0.5, r, g, b, 255);
+		// 中文注释：这里单独改为居中绘制，避免数字以头骨坐标为左起点导致整体向右偏移
+		UI::SET_TEXT_CENTRE(1);
+		UI::END_TEXT_COMMAND_DISPLAY_TEXT(0, 0);
+		GRAPHICS::CLEAR_DRAW_ORIGIN();
+	}
 }
 
 int activeLineIndexWantedFreeze = 0;
@@ -2452,9 +2511,10 @@ bool process_player_life_menu(){
 	item->isLeaf = true;
 	menuItems.push_back(item);
 
+	// 中文注释：该选项会同时修改内部最大总血量和当前内部总血量，所以应用后小地图血条会保持满格
 	listItem = new SelectFromListMenuItem(PLAYER_HEALTH_CAPTIONS, onchange_player_health_mode);
 	listItem->wrap = false;
-	listItem->caption = "设置玩家血量值";
+	listItem->caption = "设置玩家最大血量值";
 	listItem->value = current_player_health;
 	menuItems.push_back(listItem);
 
@@ -2474,6 +2534,13 @@ bool process_player_life_menu(){
 	listItem->wrap = false;
 	listItem->caption = "角色特殊能力值";
 	listItem->value = current_player_stats;
+	menuItems.push_back(listItem);
+
+	// 中文注释：直接在“玩家数据”菜单内显示颜色选项，数值内容为当前可见血量
+	listItem = new SelectFromListMenuItem(PLAYER_HEALTH_DISPLAY_CAPTIONS, onchange_player_health_display_index);
+	listItem->wrap = false;
+	listItem->caption = "显示玩家当前血量";
+	listItem->value = playerHealthDisplayIndex;
 	menuItems.push_back(listItem);
 
 	return draw_generic_menu<int>(menuItems, &playerDataMenuIndex, caption, onconfirm_playerData_menu, NULL, NULL);
@@ -2785,6 +2852,12 @@ bool process_player_forceshield_menu() {
 	//menuItems.push_back(toggleItem);
 
 	return draw_generic_menu<int>(menuItems, &playerForceshieldMenuIndex, caption, onconfirm_playerForceshield_menu, NULL, NULL);
+}
+
+void onchange_player_health_display_index(int value, SelectFromListMenuItem* source) {
+	// 中文注释：菜单切换时同步做一次范围保护，保证保存值始终有效
+	playerHealthDisplayIndex = sanitize_player_health_display_index(value);
+	playerHealthDisplayChanged = true;
 }
 
 int activeLineIndexPlayer = 0;
@@ -3263,8 +3336,11 @@ void reset_globals(){
 	activeLineIndexPlayer =
 	activeLineIndexWantedFreeze =
 	frozenWantedLevel = 0;
+	// 中文注释：重置时恢复“玩家血量显示”为默认关闭
+	playerHealthDisplayIndex = 0;
+	playerHealthDisplayChanged = true;
 	
-	current_player_health = 6;
+	current_player_health = 9;
 	current_regen_speed = 4;
 	current_player_armor = 7;
 	current_player_stats = 0;
@@ -3772,6 +3848,7 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 
 	settings.push_back(StringPairSettingDBRow{"frozenWantedLevel", std::to_string(frozenWantedLevel)});
 	settings.push_back(StringPairSettingDBRow{"current_player_walkspeed", std::to_string(current_player_walkspeed)});
+	settings.push_back(StringPairSettingDBRow{"playerHealthDisplayIndex", std::to_string(playerHealthDisplayIndex)});
 
 	return settings;
 }
@@ -3779,11 +3856,20 @@ std::vector<StringPairSettingDBRow> get_generic_settings(){
 void handle_generic_settings(std::vector<StringPairSettingDBRow> settings){
 	for(int i = 0; i < settings.size(); i++){
 		StringPairSettingDBRow setting = settings.at(i);
+		
 		if(setting.name.compare("frozenWantedLevel") == 0){
 			frozenWantedLevel = stoi(setting.value);
 		}
+		else if (setting.name.compare("playerHealthDisplayIndex") == 0) {
+			// 中文注释：加载配置时校验范围，避免异常值导致显示错乱
+			playerHealthDisplayIndex = sanitize_player_health_display_index(stoi(setting.value));
+		}
 		else if (setting.name.compare("current_player_health") == 0){
 			current_player_health = stoi(setting.value);
+			// 中文注释：加载配置时校验范围，防止修改器版本更新（增删数组元素）后导致数组越界崩溃
+			const int maxHealthIndex = static_cast<int>(PLAYER_HEALTH_CAPTIONS.size()) - 1;
+			if (current_player_health < 0) current_player_health = 0;
+			if (current_player_health > maxHealthIndex) current_player_health = maxHealthIndex;
 		}
 		else if (setting.name.compare("current_regen_speed") == 0) {
 			current_regen_speed = stoi(setting.value);
