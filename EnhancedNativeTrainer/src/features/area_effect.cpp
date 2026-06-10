@@ -227,7 +227,7 @@ void process_areaeffect_peds_menu(){
 	menuItems.push_back(listItem);
 
 	ToggleMenuItem<int> *togItem = new ToggleMenuItem<int>();
-	togItem->caption = "显示行人当前的血量";
+	togItem->caption = "显示行人当前血量";
 	togItem->value = 1;
 	togItem->toggleValue = &featureNPCShowHealth;
 	menuItems.push_back(togItem);

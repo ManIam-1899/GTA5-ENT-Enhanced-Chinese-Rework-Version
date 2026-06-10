@@ -1844,6 +1844,7 @@ void update_world_features()
 				UI::BEGIN_TEXT_COMMAND_DISPLAY_TEXT("STRING");
 				UI::_ADD_TEXT_COMPONENT_SCALEFORM((char *)curr_h_t.c_str());
 				text_parameters(0.5, 0.5, 255, 242, 0, 255);
+				UI::SET_TEXT_CENTRE(1); // 这里单独改为居中绘制，避免数字以头骨坐标为左起点导致整体向右偏移
 				UI::END_TEXT_COMMAND_DISPLAY_TEXT(0, 0);
 				GRAPHICS::CLEAR_DRAW_ORIGIN();
 			}
