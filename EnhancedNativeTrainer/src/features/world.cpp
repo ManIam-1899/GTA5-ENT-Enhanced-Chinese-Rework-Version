@@ -1816,17 +1816,32 @@ void update_world_features()
 
 	// NPC无重力行人 && 酸性水体 && 酸雨 && 行人生命值 && 行人射击精度 && NPC显示当前生命值 && 永久显示警察标记
 	if (NPC_RAGDOLL_VALUES[NoPedsGravityIndex] > 0 || featureAcidWater || featureAcidRain || PLAYER_HEALTH_VALUES[PedsHealthIndex] > 0 ||
-		WORLD_NPC_VEHICLESPEED_VALUES[PedAccuracyIndex] > -1 || featureNPCShowHealth || NPC_RAGDOLL_VALUES[CopBlipPermIndex] > 0) {
+		PedsHealthRestoreFlag || WORLD_NPC_VEHICLESPEED_VALUES[PedAccuracyIndex] > -1 || NPCHealthDisplayIndex > 0 || NPC_RAGDOLL_VALUES[CopBlipPermIndex] > 0) {
 		const int BUS_ARR_PED_SIZE = 1024;
 		Ped bus_ped[BUS_ARR_PED_SIZE];
 		int found_ped = worldGetAllPeds(bus_ped, BUS_ARR_PED_SIZE);
 		for (int i = 0; i < found_ped; i++) {
 			// 行人射击精度
 			if (WORLD_NPC_VEHICLESPEED_VALUES[PedAccuracyIndex] > -1) PED::SET_PED_ACCURACY(bus_ped[i], WORLD_NPC_VEHICLESPEED_VALUES[PedAccuracyIndex]);
+			// 中文注释：恢复行人原始血量（选择"关"时触发）
+			if (PedsHealthRestoreFlag) {
+				if (bus_ped[i] != PLAYER::PLAYER_PED_ID() && !PED::IS_PED_GROUP_MEMBER(bus_ped[i], myENTGroup)) {
+					std::map<Ped, int>::iterator it = originalPedMaxHealth.find(bus_ped[i]);
+					if (it != originalPedMaxHealth.end()) {
+						// 中文注释：恢复该行人的原始最大血量
+						PED::SET_PED_MAX_HEALTH(bus_ped[i], it->second);
+						ENTITY::SET_ENTITY_HEALTH(bus_ped[i], it->second);
+					}
+				}
+			}
 			// 行人生命值
 			if (PLAYER_HEALTH_VALUES[PedsHealthIndex] > 0) { 
 				if (ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) == ENTITY::GET_ENTITY_MAX_HEALTH(bus_ped[i])) {
 					if (bus_ped[i] != PLAYER::PLAYER_PED_ID() && !PED::IS_PED_GROUP_MEMBER(bus_ped[i], myENTGroup)) {
+						// 中文注释：首次修改该行人血量前，记录其原始最大血量，以便后续恢复
+						if (originalPedMaxHealth.find(bus_ped[i]) == originalPedMaxHealth.end()) {
+							originalPedMaxHealth[bus_ped[i]] = ENTITY::GET_ENTITY_MAX_HEALTH(bus_ped[i]);
+						}
 						PED::SET_PED_MAX_HEALTH(bus_ped[i], PLAYER_HEALTH_VALUES[PedsHealthIndex]);
 						ENTITY::SET_ENTITY_HEALTH(bus_ped[i], PLAYER_HEALTH_VALUES[PedsHealthIndex]);
 						PED::SET_PED_SUFFERS_CRITICAL_HITS(bus_ped[i], false); // 无爆头
@@ -1835,18 +1850,47 @@ void update_world_features()
 					}
 				}
 			}
-			// NPC显示当前生命值
-			if (featureNPCShowHealth && ENTITY::DOES_ENTITY_EXIST(bus_ped[i]) && !ENTITY::IS_ENTITY_DEAD(bus_ped[i]) && ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) != ENTITY::GET_ENTITY_MAX_HEALTH(bus_ped[i]) &&
-				ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) != PLAYER_HEALTH_VALUES[PedsHealthIndex] && bus_ped[i] != PLAYER::PLAYER_PED_ID()) {
-				Vector3 head_c = PED::GET_PED_BONE_COORDS(bus_ped[i], 31086, 0, 0, 0);
-				std::string curr_h_t = std::to_string(ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) - 100);
-				GRAPHICS::SET_DRAW_ORIGIN(head_c.x, head_c.y, head_c.z + 0.5, 0);
-				UI::BEGIN_TEXT_COMMAND_DISPLAY_TEXT("STRING");
-				UI::_ADD_TEXT_COMPONENT_SCALEFORM((char *)curr_h_t.c_str());
-				text_parameters(0.5, 0.5, 255, 242, 0, 255);
-				UI::SET_TEXT_CENTRE(1); // 这里单独改为居中绘制，避免数字以头骨坐标为左起点导致整体向右偏移
-				UI::END_TEXT_COMMAND_DISPLAY_TEXT(0, 0);
-				GRAPHICS::CLEAR_DRAW_ORIGIN();
+			// NPC显示当前生命值（列表选择样式，支持颜色选择；增加瞄准触发条件）
+			if (NPCHealthDisplayIndex > 0 && ENTITY::DOES_ENTITY_EXIST(bus_ped[i]) && !ENTITY::IS_ENTITY_DEAD(bus_ped[i]) && 
+				bus_ped[i] != PLAYER::PLAYER_PED_ID()) {
+				bool shouldDisplayHealth = false;
+				// 中文注释：原有条件 - 行人血量不为满且不是设定的血量值
+				if (ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) != ENTITY::GET_ENTITY_MAX_HEALTH(bus_ped[i]) &&
+					ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) != PLAYER_HEALTH_VALUES[PedsHealthIndex]) {
+					shouldDisplayHealth = true;
+				}
+				// 中文注释：新增条件 - 玩家用武器瞄准该行人超过1000毫秒（1秒）
+				if (!shouldDisplayHealth && lastAimedPed == bus_ped[i] && aimedPedStartTime > 0 && (GetTickCount() - aimedPedStartTime) > 1000) {
+					shouldDisplayHealth = true;
+				}
+				if (shouldDisplayHealth) {
+					Vector3 head_c = PED::GET_PED_BONE_COORDS(bus_ped[i], 31086, 0, 0, 0);
+					// 中文注释：显示格式为 可见血量 | 内部总血量，与玩家血量显示保持一致
+					int displayedHealth = ENTITY::GET_ENTITY_HEALTH(bus_ped[i]) - 100;
+					if (displayedHealth < 0) displayedHealth = 0;
+					int totalHealth = ENTITY::GET_ENTITY_HEALTH(bus_ped[i]);
+					std::string curr_h_t = std::to_string(displayedHealth) + " | " + std::to_string(totalHealth);
+					GRAPHICS::SET_DRAW_ORIGIN(head_c.x, head_c.y, head_c.z + 0.5, 0);
+					UI::BEGIN_TEXT_COMMAND_DISPLAY_TEXT("STRING");
+					UI::_ADD_TEXT_COMPONENT_SCALEFORM((char *)curr_h_t.c_str());
+					// 中文注释：根据列表选择索引设置显示颜色
+					int r = 255, g = 255, b = 255;
+					switch (NPCHealthDisplayIndex) {
+						case 1: r = 255; g = 242; b = 0; break;   // 黄色
+						case 2: r = 255; g = 255; b = 255; break; // 白色
+						case 3: r = 255; g = 0; b = 0; break;     // 红色
+						case 4: r = 0; g = 255; b = 0; break;     // 绿色
+						case 5: r = 0; g = 0; b = 255; break;     // 蓝色
+						case 6: r = 160; g = 32; b = 240; break;  // 紫色
+						case 7: r = 255; g = 105; b = 180; break; // 粉红
+						case 8: r = 211; g = 211; b = 211; break; // 浅灰
+						case 9: r = 96; g = 96; b = 96; break;    // 深灰
+					}
+					text_parameters(0.5, 0.5, r, g, b, 255);
+					UI::SET_TEXT_CENTRE(1); // 这里单独改为居中绘制，避免数字以头骨坐标为左起点导致整体向右偏移
+					UI::END_TEXT_COMMAND_DISPLAY_TEXT(0, 0);
+					GRAPHICS::CLEAR_DRAW_ORIGIN();
+				}
 			}
 			// NPC无重力行人
 			if (NPC_RAGDOLL_VALUES[NoPedsGravityIndex] > 0 && bus_ped[i] != PLAYER::PLAYER_PED_ID() && !PED::IS_PED_IN_ANY_VEHICLE(bus_ped[i], false)) {
@@ -1995,6 +2039,44 @@ void update_world_features()
 				}
 			}
 		} // 行人循环结束
+
+		// 中文注释：恢复完成后清除恢复标志和原始血量记录
+		if (PedsHealthRestoreFlag) {
+			PedsHealthRestoreFlag = false;
+			originalPedMaxHealth.clear();
+		}
+	}
+
+	// 中文注释：检测玩家是否用武器瞄准行人（用于触发行人血量显示）
+	{
+		BOOL isAiming = PLAYER::IS_PLAYER_FREE_AIMING(PLAYER::PLAYER_ID());
+		if (isAiming) {
+			Entity aimedEntity = 0;
+			if (PLAYER::GET_ENTITY_PLAYER_IS_FREE_AIMING_AT(PLAYER::PLAYER_ID(), &aimedEntity)) {
+				if (aimedEntity > 0 && ENTITY::DOES_ENTITY_EXIST(aimedEntity) && ENTITY::IS_ENTITY_A_PED(aimedEntity)) {
+					Ped aimedPed = aimedEntity;
+					if (aimedPed == lastAimedPed) {
+						// 中文注释：持续瞄准同一行人，不需要重置起始时间
+					} else {
+						// 中文注释：切换瞄准目标，记录新的起始时间（毫秒）
+						lastAimedPed = aimedPed;
+						aimedPedStartTime = GetTickCount();
+					}
+				} else {
+					// 中文注释：瞄准的不是行人，重置
+					lastAimedPed = -1;
+					aimedPedStartTime = 0;
+				}
+			} else {
+				// 中文注释：没有瞄准实体，重置
+				lastAimedPed = -1;
+				aimedPedStartTime = 0;
+			}
+		} else {
+			// 中文注释：玩家未在瞄准，重置计时器
+			lastAimedPed = -1;
+			aimedPedStartTime = 0;
+		}
 	}
 	
 	// 永久显示警察标记状态信息
@@ -2323,7 +2405,6 @@ void add_world_feature_enablements2(std::vector<StringPairSettingDBRow>* results
 	results->push_back(StringPairSettingDBRow{ "featureLightIntensityIndex", std::to_string(featureLightIntensityIndex) });
 	results->push_back(StringPairSettingDBRow{ "WindStrengthIndex", std::to_string(WindStrengthIndex) });
 	results->push_back(StringPairSettingDBRow{ "NPCVehicleSpeedIndex", std::to_string(NPCVehicleSpeedIndex) });
-	results->push_back(StringPairSettingDBRow{ "PedsHealthIndex", std::to_string(PedsHealthIndex) });
 	results->push_back(StringPairSettingDBRow{ "PedAccuracyIndex", std::to_string(PedAccuracyIndex) });
 	results->push_back(StringPairSettingDBRow{ "RadarReducedGripSnowingCustomIndex", std::to_string(RadarReducedGripSnowingCustomIndex) });
 	results->push_back(StringPairSettingDBRow{ "RadarReducedGripRainingCustomIndex", std::to_string(RadarReducedGripRainingCustomIndex) });
@@ -2378,10 +2459,6 @@ void handle_generic_settings_world(std::vector<StringPairSettingDBRow>* settings
 		else if (setting.name.compare("NPCVehicleSpeedIndex") == 0) 
 		{
 			NPCVehicleSpeedIndex = stoi(setting.value);
-		}
-		else if (setting.name.compare("PedsHealthIndex") == 0) 
-		{
-			PedsHealthIndex = stoi(setting.value);
 		}
 		else if (setting.name.compare("PedAccuracyIndex") == 0) 
 		{

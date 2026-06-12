@@ -32,7 +32,19 @@ std::deque<ENTTrackedVehicle*> trackedVehicles;
 
 // 功能
 bool featurePlayerIgnoredByAll = false;
-bool featureNPCShowHealth = false;
+// 中文注释：行人血量显示改为列表选择样式（0=关, 1=黄, 2=白, 3=红, 4=绿, 5=蓝, 6=紫, 7=粉红, 8=浅灰, 9=深灰）
+int NPCHealthDisplayIndex = 0;
+bool NPCHealthDisplayChanged = true;
+// 中文注释：行人血量设置待确认相关变量（选择后需按确认键才生效）
+int PedsHealthPendingIndex = 0;
+bool PedsHealthPendingConfirm = false;
+// 中文注释：恢复行人原始血量标志（选择"关"时触发）
+bool PedsHealthRestoreFlag = false;
+// 中文注释：记录被修改过的行人原始最大血量，用于恢复
+std::map<Ped, int> originalPedMaxHealth;
+// 中文注释：玩家瞄准行人计时起始时间（毫秒，用于触发血量显示）
+DWORD aimedPedStartTime = 0;
+Ped lastAimedPed = -1;
 bool featureAreaPedsInvincible = false;
 bool featureAreaVehiclesBroken = false;
 bool featureAreaPedsRioting = false;
@@ -130,8 +142,7 @@ int featureNeverDirty = 0;
 bool NeverDirtyChanged = true;
 
 void add_areaeffect_feature_enablements(std::vector<FeatureEnabledLocalDefinition>* results){
-	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerIgnoredByAll", &featurePlayerIgnoredByAll}); 
-	results->push_back(FeatureEnabledLocalDefinition{"featureNPCShowHealth", &featureNPCShowHealth});
+	results->push_back(FeatureEnabledLocalDefinition{"featurePlayerIgnoredByAll", &featurePlayerIgnoredByAll});
 	results->push_back(FeatureEnabledLocalDefinition{"featureAreaPedsInvincible", &featureAreaPedsInvincible}); 
 	results->push_back(FeatureEnabledLocalDefinition{"featureAreaPedsHeadExplode", &featureAreaPedsHeadExplode});
 	results->push_back(FeatureEnabledLocalDefinition{"featureAreaVehiclesBroken", &featureAreaVehiclesBroken}); 
@@ -161,7 +172,9 @@ void add_areaeffect_feature_enablements(std::vector<FeatureEnabledLocalDefinitio
 
 void reset_areaeffect_globals(){
 	featurePlayerIgnoredByAll = false;
-	featureNPCShowHealth = false;
+	// 中文注释：重置行人血量显示为默认关闭状态
+	NPCHealthDisplayIndex = 0;
+	NPCHealthDisplayChanged = true;
 	featureAreaVehiclesBroken = false;
 	featureAreaPedsInvincible = false;
 	featureAreaPedsHeadExplode = false;
@@ -195,10 +208,27 @@ void reset_areaeffect_globals(){
 	pedWeaponSetIndex = 0;
 	NoPedsGravityIndex = 0;
 	VigilanteBlipIndex = 0;
+	// 中文注释：重置行人血量设置，若之前有修改过行人血量则触发恢复
 	PedsHealthIndex = 0;
+	PedsHealthPendingIndex = 0;
+	PedsHealthPendingConfirm = false;
+	// 中文注释：如果之前有记录过行人原始血量，则触发恢复，将血量交还给游戏处理
+	if (!originalPedMaxHealth.empty()) {
+		PedsHealthRestoreFlag = true;
+		// 中文注释：不清除 originalPedMaxHealth，等恢复完成后再清除
+	} else {
+		PedsHealthRestoreFlag = false;
+	}
+	// 中文注释：重置瞄准计时器
+	aimedPedStartTime = 0;
+	lastAimedPed = -1;
 }
 
 void process_areaeffect_peds_menu(){
+	// 中文注释：重置待确认标志，等待用户选择并确认
+	PedsHealthPendingConfirm = false;
+	PedsHealthPendingIndex = PedsHealthIndex;
+
 	std::vector<MenuItem<int>*> menuItems;
 	SelectFromListMenuItem *listItem;
 
@@ -226,13 +256,14 @@ void process_areaeffect_peds_menu(){
 	listItem->value = PedAccuracyIndex;
 	menuItems.push_back(listItem);
 
-	ToggleMenuItem<int> *togItem = new ToggleMenuItem<int>();
-	togItem->caption = "显示行人当前血量";
-	togItem->value = 1;
-	togItem->toggleValue = &featureNPCShowHealth;
-	menuItems.push_back(togItem);
+	// 中文注释：行人当前血量显示改为列表选择样式，支持颜色选择（关/黄色/白色/红色/绿色/蓝色/紫色/粉红/浅灰/深灰）
+	listItem = new SelectFromListMenuItem(NPC_HEALTH_DISPLAY_CAPTIONS, onchange_npc_health_display_index);
+	listItem->wrap = false;
+	listItem->caption = "显示行人当前血量";
+	listItem->value = NPCHealthDisplayIndex;
+	menuItems.push_back(listItem);
 
-	togItem = new ToggleMenuItem<int>();
+	ToggleMenuItem<int> *togItem = new ToggleMenuItem<int>();
 	togItem->caption = "所有行人永久保持冷静";
 	togItem->value = 1;
 	togItem->toggleValue = &featurePlayerIgnoredByAll;
@@ -476,6 +507,11 @@ void process_areaeffect_peds_weapons_menu() {
 }
 
 bool onconfirm_areaeffect_ped_menu(MenuItem<int> choice){
+	// 中文注释：如果行人血量设置有待确认的更改，且当前确认的是行人血量设置项，则应用
+	if (PedsHealthPendingConfirm && choice.caption.compare("行人血量设置") == 0) {
+		apply_peds_health_setting();
+		return false;
+	}
 	switch (choice.value) {
 	case -1:
 		process_areaeffect_advanced_ped_menu();
@@ -1528,9 +1564,41 @@ void onchange_world_selective_peds_angry_index(int value, SelectFromListMenuItem
 	WorldSelectivePedsChanged = true;
 }
 
+// 中文注释：行人血量设置变更回调 - 仅更新待确认索引，不立即生效，需按确认键才应用
 void onchange_peds_health_index(int value, SelectFromListMenuItem* source) {
-	PedsHealthIndex = value;
+	PedsHealthPendingIndex = value;
+	PedsHealthPendingConfirm = true;
+	// 中文注释：不立即设置 PedsHealthIndex，等待确认后再应用
+}
+
+// 中文注释：防止配置索引越界（与玩家血量显示 sanitize 逻辑一致）
+static int sanitize_npc_health_display_index(int value) {
+	const int maxIndex = static_cast<int>(NPC_HEALTH_DISPLAY_CAPTIONS.size()) - 1;
+	if (value < 0) return 0;
+	if (value > maxIndex) return maxIndex;
+	return value;
+}
+
+// 中文注释：行人血量显示颜色选择变更回调
+void onchange_npc_health_display_index(int value, SelectFromListMenuItem* source) {
+	NPCHealthDisplayIndex = sanitize_npc_health_display_index(value);
+	NPCHealthDisplayChanged = true;
+}
+
+// 中文注释：应用行人血量设置（确认后调用，记录原始血量并应用新值）
+void apply_peds_health_setting() {
+	if (PedsHealthPendingIndex == 0) {
+		// 中文注释：选择"关"时，恢复所有被修改过的行人原始血量
+		PedsHealthRestoreFlag = true;
+	}
+	PedsHealthIndex = PedsHealthPendingIndex;
 	PedsHealthChanged = true;
+	PedsHealthPendingConfirm = false;
+}
+
+// 中文注释：行人血量设置确认回调（按确认键时触发）
+void onconfirm_peds_health_setting() {
+	apply_peds_health_setting();
 }
 
 void onchange_world_no_peds_gravity_index(int value, SelectFromListMenuItem* source) {
@@ -1622,6 +1690,8 @@ void add_areaeffect_generic_settings(std::vector<StringPairSettingDBRow>* result
 	results->push_back(StringPairSettingDBRow{"VigilanteBlipIndex", std::to_string(VigilanteBlipIndex)});
 	results->push_back(StringPairSettingDBRow{"PedWeaponsSelectiveIndex", std::to_string(PedWeaponsSelectiveIndex)});
 	results->push_back(StringPairSettingDBRow{"WorldSelectivePedsIndex", std::to_string(WorldSelectivePedsIndex)});
+	// 中文注释：保存行人血量显示配置（列表选择索引值）
+	results->push_back(StringPairSettingDBRow{"NPCHealthDisplayIndex", std::to_string(NPCHealthDisplayIndex)});
 }
 
 void handle_generic_settings_areaeffect(std::vector<StringPairSettingDBRow>* settings){
@@ -1645,6 +1715,11 @@ void handle_generic_settings_areaeffect(std::vector<StringPairSettingDBRow>* set
 		else if (setting.name.compare("WorldSelectivePedsIndex") == 0) {
 			WorldSelectivePedsIndex = stoi(setting.value);
 			PedWeaponsSelective1Changed = true;
+		}
+		// 中文注释：加载行人血量显示配置（带越界保护）
+		else if (setting.name.compare("NPCHealthDisplayIndex") == 0) {
+			NPCHealthDisplayIndex = sanitize_npc_health_display_index(stoi(setting.value));
+			NPCHealthDisplayChanged = true;
 		}
 	}
 }

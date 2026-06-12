@@ -18,6 +18,7 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 #include <vector>
 #include <set>
 #include <queue>
+#include <map>
 
 extern bool featureNPCNoLights;
 extern bool featureNPCNeonLights;
@@ -208,6 +209,9 @@ void onchange_world_selective_peds_angry_index(int value, SelectFromListMenuItem
 
 void onchange_ped_weapons_selective_index(int value, SelectFromListMenuItem* source);
 
+// 中文注释：行人血量显示颜色选择变更回调
+void onchange_npc_health_display_index(int value, SelectFromListMenuItem* source);
+
 ENTTrackedPedestrian* findOrCreateTrackedPed(Ped ped);
 
 ENTTrackedVehicle* findOrCreateTrackedVehicle(Vehicle vehicle);
@@ -217,4 +221,24 @@ void findRandomTargetForPed(ENTTrackedPedestrian* tped);
 bool is_entity_to_be_disposed(Ped playerPed, Entity entity);
 
 extern bool featurePlayerIgnoredByAll;
-extern bool featureNPCShowHealth;
+// 中文注释：行人当前血量显示改为列表选择样式（关/颜色选择），参考玩家血量显示实现
+extern int NPCHealthDisplayIndex;
+extern bool NPCHealthDisplayChanged;
+// 中文注释：行人血量显示颜色选项，与玩家血量显示保持一致
+const std::vector<std::string> NPC_HEALTH_DISPLAY_CAPTIONS{ "关", "黄色", "白色", "红色", "绿色", "蓝色", "紫色", "粉红", "浅灰", "深灰" };
+
+// 中文注释：行人血量设置待确认索引（选择后需按确认键才生效）
+extern int PedsHealthPendingIndex;
+// 中文注释：行人血量设置待确认标志
+extern bool PedsHealthPendingConfirm;
+// 中文注释：恢复行人原始血量标志（选择"关"时触发）
+extern bool PedsHealthRestoreFlag;
+// 中文注释：记录被修改过的行人原始最大血量，用于恢复
+extern std::map<Ped, int> originalPedMaxHealth;
+// 中文注释：玩家瞄准行人计时起始时间（毫秒，用于触发血量显示）
+extern DWORD aimedPedStartTime;
+extern Ped lastAimedPed;
+// 中文注释：行人血量设置确认回调
+void onconfirm_peds_health_setting();
+// 中文注释：应用行人血量设置（确认后调用）
+void apply_peds_health_setting();
