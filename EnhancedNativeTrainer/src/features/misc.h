@@ -24,7 +24,11 @@ https://github.com/gtav-ent/GTAV-EnhancedNativeTrainer
 
 const std::vector<std::string> MISC_MUSICEVENT_VALUES{ "AH3A_FIB_DOCS_RT", "AH3A_RUBBLE_RT", "AH3B_BURNTOUT_TWO_RT", "AH3B_DOWNLOADING_RT", "AH3B_GET_TO_VAN_RT", "ARM3_RESTART_4", /*"BG_SIGHTSEER_START_ATTACK",*/ "EPS6_START", "EXTREME1_BIKE", "FAM3_CHASE_RESTART", 
 "FBI1_OUTSIDE_CORONERS_RT", "FH2A_FIGHT_RESTART", "FH2B_HELI_CHASE_RESTART", "FH2B_LEAVE_BANK", "FINA_RESTART_CHASE", "FRA2_CUT_LAMAR_RT", "JH2A_EXIT_TUNNEL_RESTART", "KILL_LIST_START_MUSIC", "LM1_TERMINADOR_ENTER_WAREHOUSE_RESTART", "MGPS_START", 
-"MIC1_DRIVE_TO_GRAVEYARD", "MIC2_HANGING_RT", "MP_DM_START_ALL", "PAP2_CAR_RESTART", "RH1_START", "SOL2_RESTART1", "SOL5_FIGHT_BAD_RT", "TRV1_DRIVE_TRAILER_RT", "TRV2_WING_RESTART" };
+"MIC1_DRIVE_TO_GRAVEYARD", "MIC2_HANGING_RT", "MP_DM_START_ALL", "PAP2_CAR_RESTART", "RH1_START", "SOL2_RESTART1", "SOL5_FIGHT_BAD_RT", "TRV1_DRIVE_TRAILER_RT", "TRV2_WING_RESTART" };// 场景音乐（原始值，用于游戏原生函数调用）
+// 场景音乐中文显示名
+const std::vector<std::string> MISC_MUSICEVENT_CAPTIONS{ "FIB 文档（抢劫3A）", "废墟（抢劫3A）", "燃尽2（抢劫3B）", "下载中（抢劫3B）", "前往货车（抢劫3B）", "武装任务3 重启", "埃普西隆6 开始", "极限摩托", "家族3 追逐重启", 
+"FIB1 验尸房外", "劫案2A 战斗重启", "劫案2B 直升机追逐重启", "劫案2B 离开银行", "终局追逐重启", "富兰克林2 拉马尔过场", "珠宝劫案2A 出隧道重启", "击杀清单开始", "拉马尔1 进入仓库重启", "GPS 导航开始", 
+"麦克1 驶往墓地", "麦克2 悬吊", "多人死斗开始", "佩奇2 车辆重启", "抢劫1 开始", "索罗门2 重启", "索罗门5 恶战", "崔佛1 驾驶拖车", "崔佛2 机翼重启" };
 
 const std::vector<std::string> MISC_CUTSCENE_VALUES{ "abigail_mcs_1_concat", "abigail_mcs_2", "ac_ig_3_p3_b", "ah_1_ext_t6", "ah_1_int", "ah_1_mcs_1", "ah_2_ext_alt", "ah_2_ext_p4", "ah_3a_ext", "ah_3a_int", "ah_3a_mcs_3", "ah_3a_mcs_6", "ah_3b_ext", 
 "ah_3b_int", "ah_3b_mcs_1", "ah_3b_mcs_2", "ah_3b_mcs_3", "ah_3b_mcs_4", "ah_3b_mcs_5", "ah_3b_mcs_7", "armenian_1_int", "armenian_1_mcs_1", "armenian_2_int", "armenian_2_mcs_6", "armenian_3_int", "armenian_3_mcs_3", "armenian_3_mcs_4", 
@@ -46,13 +50,41 @@ const std::vector<std::string> MISC_CUTSCENE_VALUES{ "abigail_mcs_1_concat", "ab
 "oscar_mcs_1", "paper_1_rcm_alt1", "pap_1_mcs_1", "pap_1_rcm", "pap_2_mcs_1", "pap_2_rcm_p2", "pap_3_rcm", "pap_4_rcm", "pro_mcs_1",  "pro_mcs_2", "pro_mcs_3_pt1", "pro_mcs_5", "pro_mcs_7_concat", "rbhs_int", "rbhs_mcs_1", "rbhs_mcs_3", "rbhs_msc_3_p3", 
 "rbh_2ab_mcs_6", "rbh_2a_ext_1", "rbh_2a_int", "rbh_2a_mcs_2_p3", "rbh_2a_mcs_2_p7", "rbh_2a_mcs_4", "rbh_2a_mcs_5", "sas_1_rcm_concat", "sas_2_rcm_t7", "scrap_1_rcm", "scrap_2_rcm", "sdrm_mcs_2", "sol_1_ext", "sol_1_int_alt", "sol_1_mcs_1_concat",  
 "sol_1_mcs_2", "sol_1_mcs_3",  "sol_2_ext_concat", "sol_2_int_alt1", "sol_3_int", "sol_5_mcs_1", "sol_5_mcs_2", "sol_5_mcs_2_p5", "tmom_1_rcm", "tmom_2_rcm", "tonya_mcs_1", "tonya_mcs_2", "tonya_mcs_3", "trevor_1_int", "trevor_2_int", "trevor_drive_int", 
-"trv2_mcs_8", "trvram_1", "trvram_2_concat", "trvram_3", "trvram_4", "trvram_5_con", "trv_1_mcs_1_p1", "trv_1_mcs_3_concat", "trv_1_mcs_4", "trv_2_mcs_4_concat", "trv_2_mcs_6", "trv_5_ext", "trv_5_int", "trv_dri_ext", "trv_dri_mcs_concat" };
+"trv2_mcs_8", "trvram_1", "trvram_2_concat", "trvram_3", "trvram_4", "trvram_5_con", "trv_1_mcs_1_p1", "trv_1_mcs_3_concat", "trv_1_mcs_4", "trv_2_mcs_4_concat", "trv_2_mcs_6", "trv_5_ext", "trv_5_int", "trv_dri_ext", "trv_dri_mcs_concat" };//过场动画（原始值，用于游戏原生函数调用）
+// 过场动画中文显示名
+const std::vector<std::string> MISC_CUTSCENE_CAPTIONS{ "阿比盖尔 过场1", "阿比盖尔 过场2", "AC 过场3", "抢劫1 外景", "抢劫1 内景", "抢劫1 过场1", "抢劫2 外景（备选）", "抢劫2 外景P4", "抢劫3A 外景", "抢劫3A 内景", "抢劫3A 过场3", "抢劫3A 过场6", "抢劫3B 外景", 
+"抢劫3B 内景", "抢劫3B 过场1", "抢劫3B 过场2", "抢劫3B 过场3", "抢劫3B 过场4", "抢劫3B 过场5", "抢劫3B 过场7", "亚美尼亚人1 内景", "亚美尼亚人1 过场1", "亚美尼亚人2 内景", "亚美尼亚人2 过场6", "亚美尼亚人3 内景", "亚美尼亚人3 过场3", "亚美尼亚人3 过场4", 
+"亚美尼亚人3 过场5", "亚美尼亚人3 过场6", "亚美尼亚人3 过场7", "亚美尼亚人3 过场8", "亚美尼亚人3 过场9", "武装1 过场2", "武装2 过场4", "暗杀 内景2（备选）", "暗杀 过场1", "酒吧1 随机事件2", "酒吧2 随机事件", "酒吧3 随机事件", "酒吧4 随机事件", "酒吧5 随机事件2", 
+"BSS1 过场2", "BSS1 过场3", "伯顿1 内景", "伯顿2A/2B 内景", "伯顿2A 外景", "伯顿2A 内景", "伯顿2A 过场1", "伯顿2A 过场10", "伯顿2A 过场11", "伯顿2A 过场2", "伯顿2A 过场3（备选）", "伯顿2A 过场4", "伯顿2A 过场5", "伯顿2A 过场6", "伯顿2A 过场7P1", "伯顿2A 过场8", 
+"伯顿2A 过场8P3", "伯顿2B 外景（备选1A）", "伯顿2B 外景（备选2）", "伯顿2B 内景", "伯顿2B 过场1", "伯顿2B 过场3", "赛车1 外景", "赛车1 内景", "赛车2 过场1", "赛车4 外景", "赛车4 过场1", "赛车5 外景", "赛车5 过场1", "盗车3 过场1", "盗车3 过场2", 
+"盗车3 过场3", "三合会1 内景", "三合会2 内景", "三合会1 过场1", "三合会1 过场4", "三合会2 过场5", "抉择 内景", "克莱图斯 过场1", "DHP1 过场1", "弗里德兰德-麦克1 过场1", "弗里德兰德-麦克1 过场2", "弗里德兰德-麦克2 过场1", "弗里德兰德-麦克2 过场2", "弗里德兰德-麦克3 过场1", 
+"弗里德兰德-麦克3 过场2", "EF1 随机事件", "EF2 随机事件", "EF3 随机事件", "埃普西隆4 过场1", "埃普西隆4 过场2", "埃普西隆4 过场3", "EP1 随机事件", "EP2 随机事件", "EP3 随机事件（备选）", "EP4 随机事件", "EP5 随机事件", "EP6 随机事件", "EP7 随机事件", "EP8 随机事件", 
+"ES1 随机事件", "ES1 随机事件P1", "ES2 随机事件", "ES3 过场1", "ES3 过场2", "ES3 随机事件", "ES4 随机事件P1", "ES4 随机事件P2", "流亡1 内景", "流亡2 内景", "流亡3 内景", "流亡1 过场1P3", "流亡2 过场3", "流亡3 外景", "家族1 内景", "家族2 内景", "家族2 过场2", 
+"家族2 过场3", "家族2 过场4", "家族3 外景", "家族3 内景", "家族4 过场2", "家族4 过场3", "家族5 内景", "家族5 过场1", "家族5 过场2", "家族5 过场3", "家族5 过场4", "家族5 过场5", "家族5 过场5P4", 
+"家族5 过场5P5", "家族1 外景2", "家族1 外景（备选2）", "家族1 外景（备选3）", "家族1 过场2", "家族3 过场1", "家族4 内景（备选）", "家族5 过场6", "家族6 内景", "家族6 内景P3T7", "家族6 过场1", "家族6 过场2", "家族6 过场3", "家族6 过场4", "家族6 过场5", 
+"家族6 过场6", "家族6 过场6P4", "FIB1 外景", "FIB1 内景", "FIB1 过场1", "FIB2 外景", "FIB2 内景", "FIB2 过场1", "FIB2 过场2", "FIB2 过场3B", "FIB3 内景", "FIB3 过场1", "FIB3 过场2", "FIB3 过场3", "FIB3 过场4P2", "FIB3 过场5", 
+"FIB3 过场5P2", "FIB3 过场6P1", "FIB3 过场6P2", "FIB3 过场7", "FIB3 过场8", "FIB4 内景", "FIB4 过场2", "FIB4 过场3", "FIB5A 过场1", "FIB5A 过场10", "FIB5B 过场1", "FIB5 外景", "FIB5 内景", "终局A 外景", "终局A 内景", "终局B 外景", 
+"终局B 过场1（A和B）", "终局B 过场2", "终局C2 过场1", "终局C2 过场5", "终局C 外景", "终局C 内景", "终局C 过场1", "终局 外景P1", "终局 外景P2", "富兰克林1 内景", "富兰克林0 内景", "富兰克林0 过场1", "富兰克林0 过场4P2", "富兰克林0 过场5P1", "富兰克林1 过场1", "富兰克林2 外景", 
+"富兰克林2 过场4（备选）", "富兰克林2 内景", "郝 过场1", "亨特2 过场1", "珠宝劫案2 终局过场4", "珠宝劫案1 过场3", "珠宝劫案1 内景", "珠宝劫案1 过场4P2", "珠宝劫案1 过场4P1（备选）", "珠宝劫案2A 内景P4", "珠宝劫案2A 过场1", "珠宝劫案2B 内景", "珠宝劫案2B 过场1", "珠宝劫案2 逮捕失败", "珠宝劫案2 庆祝", 
+"乔什1 内景", "乔什2 内景P1", "乔什3 内景P1", "乔什4 内景", "拉马尔1 内景", "拉马尔1 过场1", "拉马尔1 过场2", "拉马尔1 过场3", "莱斯特1 内景", "莱斯特1A 过场0", "莱斯特1A 过场1", "莱斯特1A 过场2", "莱斯特1A 过场3", "莱斯特1A 过场4", "莱斯特1B 过场1",
+"洛圣都高速 过场2", "洛圣都高速 过场3P1", "洛圣都高速 过场3P2", "洛圣都高速2A 外景", "洛圣都高速2A 内景", "洛圣都高速2B 内景", "洛圣都高速2B 过场1", "洛圣都高速 内景", "马丁1 外景", "马丁1 内景", "马丁1 过场1", "莫德 过场1", "莫德 过场2", "莫德 过场3", "莫德 过场4", "莫德 过场5", 
+"麦克1 内景", "麦克1 过场1", "麦克1 过场2", "麦克1 过场3", "麦克2 内景", "麦克2 过场1", "麦克2 过场3", "麦克3 外景", "麦克3 内景", "麦克3 过场1P1", "麦克4 内景", "MMB1 随机事件", "MMB2 随机事件", "MMB3 随机事件", "NMT1 随机事件", "NMT2 过场2", "NMT2 随机事件", "NMT3 随机事件", 
+"奥斯卡 过场1", "佩奇1 随机事件（备选）", "佩奇1 过场1", "佩奇1 随机事件", "佩奇2 过场1", "佩奇2 随机事件P2", "佩奇3 随机事件", "佩奇4 随机事件", "序章 过场1", "序章 过场2", "序章 过场3P1", "序章 过场5", "序章 过场7", "罗恩伯恩赛德 内景", "罗恩伯恩赛德 过场1", "罗恩伯恩赛德 过场3", "罗恩伯恩赛德 过场3P3", 
+"罗恩伯恩赛德2AB 过场6", "罗恩伯恩赛德2A 外景1", "罗恩伯恩赛德2A 内景", "罗恩伯恩赛德2A 过场2P3", "罗恩伯恩赛德2A 过场2P7", "罗恩伯恩赛德2A 过场4", "罗恩伯恩赛德2A 过场5", "SAS1 随机事件", "SAS2 随机事件T7", "废品1 随机事件", "废品2 随机事件", "SDRM 过场2", "索罗门1 外景", "索罗门1 内景（备选）", "索罗门1 过场1",  
+"索罗门1 过场2", "索罗门1 过场3", "索罗门2 外景", "索罗门2 内景（备选）", "索罗门3 内景", "索罗门5 过场1", "索罗门5 过场2", "索罗门5 过场2P5", "TMOM1 随机事件", "TMOM2 随机事件", "托尼亚 过场1", "托尼亚 过场2", "托尼亚 过场3", "崔佛1 内景", "崔佛2 内景", "崔佛驾驶 内景", 
+"崔佛2 过场8", "崔佛狂暴1", "崔佛狂暴2", "崔佛狂暴3", "崔佛狂暴4", "崔佛狂暴5", "崔佛1 过场1P1", "崔佛1 过场3", "崔佛1 过场4", "崔佛2 过场4", "崔佛2 过场6", "崔佛5 外景", "崔佛5 内景", "崔佛驾驶 外景", "崔佛驾驶 过场" };
 
 const std::vector<std::string> MISC_FILTERS_VALUES{ "默认", "AmbientPUSH", "BeastIntro01", "CAMERA_secuirity_FUZZ", "DeadlineNeon01", "glasses_black", "glasses_Darkblue", "glasses_green", "glasses_orange", "glasses_pink", "glasses_purple", "glasses_yellow", 
 "graveyard_shootout", "hud_def_desatcrunch", "hud_def_flash", "lab_none_dark_OVR", "LostTimeDark", "LostTimeFlash", "METRO_Tunnels", "michealspliff", "mp_bkr_int01_garage", "MP_corona_heist_DOF", "mp_gr_int01_black", "MP_heli_cam", "mugShot_lineup", "New_sewers", 
 "NEW_station_unfinished", "NG_filmic04", "NG_filmic11", "NG_filmic12", "NG_filmic16", "NG_filmic17", "NG_filmic18", "NG_filmic19", "plane_inside_mode", "prologue_ending_fog", "prologue_shootout", "rply_brightness_neg", "rply_contrast_neg", "rply_saturation", 
 "SALTONSEA", "secret_camera", "shades_pink", "StuntFastDark", "switch_cam_2", "ufo", "ufo_deathray", "underwater_deep", "v_bahama", "V_FIB_stairs", "WATER_cove", "WATER_hills", "WATER_lab", "WATER_militaryPOOP", "WATER_muddy", "WATER_port", "WATER_resevoir", 
-"WATER_shore", "WATER_silverlake", "WhiteOut" };//屏幕滤镜效果
+"WATER_shore", "WATER_silverlake", "WhiteOut" };//屏幕滤镜效果（原始值，用于游戏原生函数调用）
+// 屏幕滤镜中文显示名
+const std::vector<std::string> MISC_FILTERS_CAPTIONS{ "~h~默认", "环境推压", "野兽登场 01", "安防摄像头雪花", "死线霓虹 01", "墨镜 黑色", "墨镜 深蓝", "墨镜 绿色", "墨镜 橙色", "墨镜 粉色", "墨镜 紫色", "墨镜 黄色", 
+"墓地枪战", "HUD 降饱和", "HUD 闪光", "实验室暗色叠加", "迷失时光 暗", "迷失时光 闪光", "地铁隧道", "麦克大麻", "多人车库内部", "多人抢劫景深", "多人内部黑色", "直升机摄像头", "嫌疑人列队", "新下水道", 
+"新未完工车站", "电影感 04", "电影感 11", "电影感 12", "电影感 16", "电影感 17", "电影感 18", "电影感 19", "机舱内部", "序章结局迷雾", "序章枪战", "回放降亮度", "回放降对比度", "回放饱和度", 
+"索尔顿海", "隐秘摄像头", "遮阳镜 粉色", "特技快暗", "切换镜头 2", "UFO", "UFO 死光", "深水", "巴哈马夜店", "FIB 楼梯", "水面 海湾", "水面 山丘", "水面 实验室", "水面 军事基地", "水面 浑浊", "水面 港口", "水面 水库", 
+"水面 岸边", "水面 银湖", "白化" };
 
 // 修改器控制
 const std::vector<std::string> MISC_TRAINERCONTROL_CAPTIONS{ "按下时", "松开时" };

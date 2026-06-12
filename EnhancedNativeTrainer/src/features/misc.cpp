@@ -1338,7 +1338,7 @@ void process_misc_cutplayer_menu() {
 	std::vector<MenuItem<int>*> menuItems;
 	std::vector<std::string> captions;
 	
-	captions = MISC_CUTSCENE_VALUES;
+	captions = MISC_CUTSCENE_CAPTIONS;// 过场动画 使用中文显示名
 	ToggleMenuItem<int>* toggleItem;
 	
 	int i = -1;
@@ -1393,7 +1393,7 @@ void process_misc_filters_menu() {
 	std::vector<MenuItem<int>*> menuItems;
 	std::vector<std::string> captions;
 	
-	captions = MISC_FILTERS_VALUES;
+	captions = MISC_FILTERS_CAPTIONS;// 屏幕滤镜 使用中文显示名
 	MenuItem<int> *item = new MenuItem<int>();
 	
 	int i = 0;
@@ -1426,10 +1426,10 @@ void process_misc_musicevent_menu() {
 	std::vector<MenuItem<int>*> menuItems;
 	std::vector<std::string> captions;
 	
-	captions = MISC_MUSICEVENT_VALUES;
+	captions = MISC_MUSICEVENT_CAPTIONS;// 场景音乐 使用中文显示名
 	
 	MenuItem<int> *item = new MenuItem<int>();
-	item->caption = "无";
+	item->caption = "~h~停止播放";
 	item->value = -1;
 	item->isLeaf = true;
 	menuItems.push_back(item);
@@ -1453,7 +1453,7 @@ void process_misc_freezeradio_menu(){
 	// “无” —— 单选复选框（未冻结时选中）
 	{
 		FunctionDrivenToggleMenuItem<int>* tItem = new FunctionDrivenToggleMenuItem<int>();
-		tItem->caption = "~h~## 取消冻结 ##";
+		tItem->caption = "~h~取消冻结";
 		tItem->value = -1;
 		tItem->getter_call = is_radio_freeze_toggle_selected;
 		tItem->setter_call = set_radio_freeze_toggle_selected;
