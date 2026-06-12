@@ -225,7 +225,7 @@ extern bool featurePlayerIgnoredByAll;
 extern int NPCHealthDisplayIndex;
 extern bool NPCHealthDisplayChanged;
 // 中文注释：行人血量显示颜色选项，与玩家血量显示保持一致
-const std::vector<std::string> NPC_HEALTH_DISPLAY_CAPTIONS{ "关", "黄色", "白色", "红色", "绿色", "蓝色", "紫色", "粉红", "浅灰", "深灰" };
+const std::vector<std::string> NPC_HEALTH_DISPLAY_CAPTIONS{ "关", "黄色", "白色", "红色", "绿色", "蓝色", "天蓝", "紫色", "粉红", "浅灰", "深灰" };
 
 // 中文注释：行人血量设置待确认索引（选择后需按确认键才生效）
 extern int PedsHealthPendingIndex;

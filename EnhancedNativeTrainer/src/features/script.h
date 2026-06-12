@@ -56,7 +56,7 @@ extern int PedsHealthIndex;
 extern bool PedsHealthChanged;
 
 // 玩家当前血量显示颜色；显示格式为：当前可见血量 | 内部总血量
-const std::vector<std::string> PLAYER_HEALTH_DISPLAY_CAPTIONS{ "关", "黄色", "白色", "红色", "绿色", "蓝色", "紫色", "粉红", "浅灰", "深灰" };
+const std::vector<std::string> PLAYER_HEALTH_DISPLAY_CAPTIONS{ "关", "黄色", "白色", "红色", "绿色", "蓝色", "天蓝", "紫色", "粉红", "浅灰", "深灰" };
 extern int playerHealthDisplayIndex;
 extern bool playerHealthDisplayChanged;
 

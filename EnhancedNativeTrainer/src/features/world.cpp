@@ -1881,10 +1881,11 @@ void update_world_features()
 						case 3: r = 255; g = 0; b = 0; break;     // 红色
 						case 4: r = 0; g = 255; b = 0; break;     // 绿色
 						case 5: r = 0; g = 0; b = 255; break;     // 蓝色
-						case 6: r = 160; g = 32; b = 240; break;  // 紫色
-						case 7: r = 255; g = 105; b = 180; break; // 粉红
-						case 8: r = 211; g = 211; b = 211; break; // 浅灰
-						case 9: r = 96; g = 96; b = 96; break;    // 深灰
+						case 6: r = 0; g = 255; b = 255; break;   // 天蓝
+						case 7: r = 160; g = 32; b = 240; break;  // 紫色
+						case 8: r = 255; g = 105; b = 180; break; // 粉红
+						case 9: r = 211; g = 211; b = 211; break; // 浅灰
+						case 10: r = 96; g = 96; b = 96; break;   // 深灰
 					}
 					text_parameters(0.5, 0.5, r, g, b, 255);
 					UI::SET_TEXT_CENTRE(1); // 这里单独改为居中绘制，避免数字以头骨坐标为左起点导致整体向右偏移
