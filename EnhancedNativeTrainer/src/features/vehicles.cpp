@@ -6177,6 +6177,10 @@ void reset_vehicle_globals() {
 	LevitationIndex = 0;
 	VehBlipColourIndex = 4;
 	VehColourIndex = 0;
+	// 中文注释：重置时若之前有记录过车辆原始颜色，则触发恢复
+	if (!originalVehColours.empty()) {
+		VehColourRestoreFlag = true;
+	}
 	VehRandomColourIndex = 0;
 	NPCVehicleDamageOnCollIndex = 0;
 	SpeedingCityIndex = 3;
@@ -7983,6 +7987,10 @@ void onchange_veh_blipcolour_index(int value, SelectFromListMenuItem* source){
 
 void onchange_world_npc_vehicles_colour_index(int value, SelectFromListMenuItem* source) {
 	VehColourIndex = value;
+	// 中文注释：选择"关"时，若之前有记录过车辆原始颜色，则触发恢复
+	if (VEH_COLOUR_VALUES[VehColourIndex] <= -1 && !originalVehColours.empty()) {
+		VehColourRestoreFlag = true;
+	}
 	PositionChanged = true;
 }
 

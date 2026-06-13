@@ -1527,7 +1527,7 @@ void update_world_features()
 	// 停电时开启车灯 && 提高NPC收音机音量 && 湿滑路面 && 火车速度 && NPC车辆颜色 && 下雪时抓地力降低 && 与玩家碰撞时受损
 	if (featureBusLight || featureNPCNoLights || featureNPCNeonLights || featureDirtyVehicles || featureCleanVehicles ||featureNPCNoGravityVehicles || featureNPCReducedGripVehicles ||
 		WORLD_NPC_VEHICLESPEED_VALUES[NPCVehicleSpeedIndex] > -1 || VEH_TURN_SIGNALS_ACCELERATION_VALUES[RadarReducedGripSnowingCustomIndex] > 0 || featureNPCFullBeam || featureHeadlightsBlackout ||
-		featureBoostNPCRadio || VEH_TURN_SIGNALS_ACCELERATION_VALUES[RadarReducedGripRainingCustomIndex] > 0 || WORLD_TRAIN_SPEED_VALUES[TrainSpeedIndex] != -1.0 || VEH_COLOUR_VALUES[VehColourIndex] > -1 ||
+		featureBoostNPCRadio || VEH_TURN_SIGNALS_ACCELERATION_VALUES[RadarReducedGripRainingCustomIndex] > 0 || WORLD_TRAIN_SPEED_VALUES[TrainSpeedIndex] != -1.0 || VEH_COLOUR_VALUES[VehColourIndex] > -1 || VehColourRestoreFlag ||
 		NPC_RAGDOLL_VALUES[NPCVehicleDamageOnCollIndex] > 0) {
 		Vehicle veh_mycurrveh = PED::GET_VEHICLE_PED_IS_USING(PLAYER::PLAYER_PED_ID());
 		const int BUS_ARR_SIZE = 1024;
@@ -1536,7 +1536,15 @@ void update_world_features()
 			
 		for (int i = 0; i < found; i++) {
 			// NPC车辆颜色
-			if (VEH_COLOUR_VALUES[VehColourIndex] > -1 /*&& bus_veh[i] != veh_mycurrveh*/) VEHICLE::SET_VEHICLE_COLOURS(bus_veh[i], VEH_COLOUR_VALUES[VehColourIndex], VEH_COLOUR_VALUES[VehColourIndex]);
+			if (VEH_COLOUR_VALUES[VehColourIndex] > -1 && bus_veh[i] != veh_mycurrveh) {
+				// 中文注释：首次修改该车辆颜色前，记录其原始颜色，以便后续恢复
+				if (originalVehColours.find(bus_veh[i]) == originalVehColours.end()) {
+					int origPrimary = 0, origSecondary = 0;
+					VEHICLE::GET_VEHICLE_COLOURS(bus_veh[i], &origPrimary, &origSecondary);
+					originalVehColours[bus_veh[i]] = std::make_pair(origPrimary, origSecondary);
+				}
+				VEHICLE::SET_VEHICLE_COLOURS(bus_veh[i], VEH_COLOUR_VALUES[VehColourIndex], VEH_COLOUR_VALUES[VehColourIndex]);
+			}
 			// 夜间巴士内部灯光开启
 			if (featureBusLight && VEHICLE::GET_IS_VEHICLE_ENGINE_RUNNING(bus_veh[i])) {
 				Hash currVehModel = ENTITY::GET_ENTITY_MODEL(bus_veh[i]);
@@ -1812,6 +1820,20 @@ void update_world_features()
 				}
 			}
 		} // 车辆循环结束
+
+		// 中文注释：关闭功能后，按记录逐辆恢复原始颜色，并立即删除对应记录以释放跟踪内存
+		if (VehColourRestoreFlag) {
+			for (std::map<Vehicle, std::pair<int, int>>::iterator it = originalVehColours.begin(); it != originalVehColours.end();) {
+				Vehicle trackedVeh = it->first;
+				if (ENTITY::DOES_ENTITY_EXIST(trackedVeh)) {
+					VEHICLE::SET_VEHICLE_COLOURS(trackedVeh, it->second.first, it->second.second);
+				}
+				it = originalVehColours.erase(it);
+			}
+
+			// 中文注释：所有跟踪记录处理完毕后，关闭恢复标志，后续不再干预游戏对车辆颜色的控制
+			VehColourRestoreFlag = false;
+		}
 	}
 
 	// NPC无重力行人 && 酸性水体 && 酸雨 && 行人生命值 && 行人射击精度 && NPC显示当前生命值 && 永久显示警察标记

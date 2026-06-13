@@ -42,6 +42,10 @@ bool PedsHealthPendingConfirm = false;
 bool PedsHealthRestoreFlag = false;
 // 中文注释：记录被修改过的行人原始最大血量，用于恢复
 std::map<Ped, int> originalPedMaxHealth;
+// 中文注释：恢复NPC车辆原始颜色标志（选择"关"时触发）
+bool VehColourRestoreFlag = false;
+// 中文注释：记录被修改过的车辆原始颜色（主色和副色），用于恢复
+std::map<Vehicle, std::pair<int, int>> originalVehColours;
 // 中文注释：玩家瞄准行人计时起始时间（毫秒，用于触发血量显示）
 DWORD aimedPedStartTime = 0;
 Ped lastAimedPed = -1;
