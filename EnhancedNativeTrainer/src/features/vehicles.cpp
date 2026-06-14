@@ -6433,7 +6433,7 @@ bool process_carspawn_menu() {
 	// 中文注释：在子菜单第一项加入“生成随机车辆”
 	{
 		MenuItem<int>* item = new MenuItem<int>();
-		item->caption = "生成随机车辆";
+		item->caption = "~h~生成随机车辆";
 		item->value = -10;		// 特殊值，用于在确认回调中分支处理
 		item->isLeaf = true;	// 直接触发生成动作
 		menuItems.push_back(item);
@@ -6501,7 +6501,7 @@ void spawn_veh_manually() {
 			// 使用 get_vehicle_make_and_model 获取正确的显示名称
 			std::string displayName = get_vehicle_make_and_model(hash);
 			do_spawn_vehicle_hash(hash, displayName);
-			set_status_text("载具 [~y~ " + displayName + " ~s~] 生成完成！");
+			set_status_text("~y~" + displayName + " ~s~生成完成！");
 		}
 	}
 }
@@ -6843,7 +6843,7 @@ Vehicle do_spawn_vehicle(DWORD model, std::string modelTitle, bool cleanup) {
 				else displayName = "Unknown Vehicle";
 			}
 		}
-		set_status_text(displayName + " 生成完成！");
+		set_status_text("~y~" + displayName + " ~s~生成完成！");
 
 		return veh;
 	}

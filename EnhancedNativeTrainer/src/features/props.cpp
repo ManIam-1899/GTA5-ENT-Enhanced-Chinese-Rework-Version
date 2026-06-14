@@ -590,7 +590,7 @@ bool onconfirm_prop_menu(MenuItem<int> choice)
 		manage_prop_set();
 		std::ostringstream ss;
 		int size = propsWeCreated.size();
-		ss << "当前已生成物体 " << size << " 个！\n最高物体上限 " << PROP_LIMIT << " 个。";
+		ss << "当前已生成物体 ~y~" << size << "~s~ 个！\n最高物体上限 ~y~" << PROP_LIMIT << "~s~ 个！";
 		set_status_text(ss.str());
 	}
 	return false;
