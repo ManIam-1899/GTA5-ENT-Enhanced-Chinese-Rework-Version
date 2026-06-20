@@ -3413,6 +3413,42 @@ bool onconfirm_veh_menu(MenuItem<int> choice){
 	return false;
 }
 
+// 获取"生成最佳性能改装车辆"开关状态
+static bool get_veh_spawn_tuned_state(std::vector<int> extras) {
+	(void)extras;
+	return featureVehSpawnTuned;
+}
+
+// 设置"生成最佳性能改装车辆"开关状态，并提示玩家
+static void set_veh_spawn_tuned_state(bool enabled, std::vector<int> extras) {
+	(void)extras;
+	featureVehSpawnTuned = enabled;
+	if (enabled && !featureVehSpawnOptic) {
+		// 仅开启性能改装时，提示可配合开启外观改装
+		set_status_text("~q~提示：同时开启\"生成最佳外观改装车辆\"可获得完整改装效果");
+	}
+	else if (!enabled && featureVehSpawnOptic) {
+		// 关闭性能改装，但外观改装仍开启时，提示外观改装将无效
+		set_status_text("~y~警告：性能改装已关闭\"外观改装将不会生效\"需配合开启才能生效");
+	}
+}
+
+// 获取"生成最佳外观改装车辆"开关状态
+static bool get_veh_spawn_optic_state(std::vector<int> extras) {
+	(void)extras;
+	return featureVehSpawnOptic;
+}
+
+// 设置"生成最佳外观改装车辆"开关状态，并提示玩家
+static void set_veh_spawn_optic_state(bool enabled, std::vector<int> extras) {
+	(void)extras;
+	featureVehSpawnOptic = enabled;
+	if (enabled && !featureVehSpawnTuned) {
+		// 开启外观改装，但性能改装未开启时，提示需配合开启
+		set_status_text("~y~警告：外观改装需配合\"生成最佳性能改装车辆\"同时开启才可生效");
+	}
+}
+
 void process_veh_menu(){
 	const std::string caption = "车辆选项";
 
@@ -3509,17 +3545,21 @@ void process_veh_menu(){
 	toggleItem->toggleValue = &featureVehSpawnDeleteOld;
 	menuItems.push_back(toggleItem);
 
-	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "生成最佳性能改装车辆";
-	toggleItem->value = i++;
-	toggleItem->toggleValue = &featureVehSpawnTuned; 
-	menuItems.push_back(toggleItem);
+	// 生成最佳性能改装车辆（使用 FunctionDrivenToggleMenuItem 以支持切换提示）
+	FunctionDrivenToggleMenuItem<int>* tunedToggleItem = new FunctionDrivenToggleMenuItem<int>();
+	tunedToggleItem->caption = "生成最佳性能改装车辆";
+	tunedToggleItem->value = i++;
+	tunedToggleItem->getter_call = get_veh_spawn_tuned_state;
+	tunedToggleItem->setter_call = set_veh_spawn_tuned_state;
+	menuItems.push_back(tunedToggleItem);
 
-	toggleItem = new ToggleMenuItem<int>();
-	toggleItem->caption = "生成最佳外观改装车辆";
-	toggleItem->value = i++;
-	toggleItem->toggleValue = &featureVehSpawnOptic;
-	menuItems.push_back(toggleItem);
+	// 生成最佳外观改装车辆（需配合性能改装开启才生效）
+	FunctionDrivenToggleMenuItem<int>* opticToggleItem = new FunctionDrivenToggleMenuItem<int>();
+	opticToggleItem->caption = "生成最佳外观改装车辆";
+	opticToggleItem->value = i++;
+	opticToggleItem->getter_call = get_veh_spawn_optic_state;
+	opticToggleItem->setter_call = set_veh_spawn_optic_state;
+	menuItems.push_back(opticToggleItem);
 
 	toggleItem = new ToggleMenuItem<int>();
 	toggleItem->caption = "禁止 DLC 车辆消失";
