@@ -1546,8 +1546,12 @@ void fully_tune_vehicle(Vehicle veh, bool optics){
 
 	VEHICLE::SET_VEHICLE_TYRES_CAN_BURST(veh, false);
 
-	fix_vehicle();
-	clean_vehicle();
+	//fix_vehicle();
+	//clean_vehicle();
+	// 注：不再调用 fix_vehicle() 和 clean_vehicle()
+	// 原因：1. 新生成的车辆本身(无损坏/无污垢)，无需修复和清洁
+	//       2. fix_vehicle()/clean_vehicle() 操作的是玩家当前乘坐的车辆，而非传入的 veh 参数，可能操作错误目标
+	//       3. 调用处 do_spawn_vehicle() 已设置 SET_VEHICLE_DIRT_LEVEL(veh, 0.0f)
 }
 
 void reset_vehicle(Vehicle veh){
