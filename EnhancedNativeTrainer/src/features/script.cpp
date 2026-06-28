@@ -2422,7 +2422,7 @@ bool onconfirm_powerpunch_menu(MenuItem<int> choice)
 	{
 		if (WEAPONS_POWERPUNCH_VALUES[PowerPunchIndex] != 55) {
 			std::ostringstream ss;
-			ss << "~r~ 警告! 启用手动才能使用！";
+			ss << "~r~ 警告: 启用手动模式才能使用";
 			set_status_text(ss.str());
 		}
 		keyboard_on_screen_already = true;

@@ -59,7 +59,7 @@ inline std::string normalize_weapon_model_key(const std::string& in) {
 
 // 注意：依赖 VOV_WEAPON_* 的辅助函数在文件后半段定义，以避免前置声明造成外部链接问题
 
-const std::vector<std::string> MENU_WEAPON_CATEGORIES{ "近战武器", "手枪", " 冲锋枪", " 突击步枪", "霰弹枪", " 狙击步枪", "重型武器", "投掷武器" };
+const std::vector<std::string> MENU_WEAPON_CATEGORIES{ "近战武器", "手枪", "冲锋枪", "突击步枪", "霰弹枪", "狙击步枪", "重型武器", "投掷武器" };
 
 // 计数: 20
 const std::vector<std::string> CAPTIONS_MELEE{ "WT_KNIFE", "WT_NGTSTK", "WT_HAMMER", "WT_BAT", "WT_BALL", "WT_DIGI", "WT_GOLFCLUB", "WT_CROWBAR", "WT_BOTTLE", "WT_DAGGER", "WT_HATCHET", "WT_KNUCKLE", "WT_MACHETE", "WT_FLASHLIGHT", "WT_SWBLADE", "WT_BATTLEAXE", "WT_WRENCH", "WT_POOLCUE", "WT_SHATCHET", "WT_METALDETECT", "WT_HACKDEVICE", "WT_CANDYCANE", "WT_STUNROD", "WT_BRIEFCASE", "WT_BRIEFCASE_02", "WT_BRIEFCASE_03" };
@@ -362,7 +362,7 @@ const int MAX_MOD_SLOTS = 15;
 extern bool featureNightVision;
 extern bool featureThermalVision;
 extern int activeLineIndexPowerPunchWeapons;
-const std::vector<std::string> WEAPONS_POWERPUNCH_CAPTIONS{ "1", "3", "5", "10", "50", "手动" };
+const std::vector<std::string> WEAPONS_POWERPUNCH_CAPTIONS{ "1", "3", "5", "10", "50", "手动模式" };
 const int WEAPONS_POWERPUNCH_VALUES[] = { 1, 3, 5, 10, 50, 55 };
 extern int PowerPunchIndex;
 extern bool featurePunchFists;
