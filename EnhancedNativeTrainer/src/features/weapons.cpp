@@ -3747,7 +3747,25 @@ void fire_vehicle_model_gun() {
 			ENTITY::SET_ENTITY_COLLISION(spawnedVeh, true, false);
 			
 			if (featureVehicleModelGunInvincible) {
+				// 载具无敌需要同时关闭受伤和可视损坏，否则高速碰撞后仍可能损坏或解体
 				ENTITY::SET_ENTITY_INVINCIBLE(spawnedVeh, true);
+				ENTITY::SET_ENTITY_CAN_BE_DAMAGED(spawnedVeh, false);
+				ENTITY::SET_ENTITY_PROOFS(spawnedVeh, true, true, true, true, true, true, true, true);
+				VEHICLE::SET_VEHICLE_CAN_BREAK(spawnedVeh, false);
+				VEHICLE::SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED(spawnedVeh, false);
+				VEHICLE::SET_VEHICLE_TYRES_CAN_BURST(spawnedVeh, false);
+				VEHICLE::SET_VEHICLE_WHEELS_CAN_BREAK(spawnedVeh, false);
+				ENTITY::SET_ENTITY_HEALTH(spawnedVeh, 10000.0f);
+				VEHICLE::SET_VEHICLE_ENGINE_HEALTH(spawnedVeh, 10000.0f);
+				VEHICLE::SET_VEHICLE_PETROL_TANK_HEALTH(spawnedVeh, 10000.0f);
+			} else {
+				ENTITY::SET_ENTITY_INVINCIBLE(spawnedVeh, false);
+				ENTITY::SET_ENTITY_CAN_BE_DAMAGED(spawnedVeh, true);
+				ENTITY::SET_ENTITY_PROOFS(spawnedVeh, false, false, false, false, false, false, false, false);
+				VEHICLE::SET_VEHICLE_CAN_BREAK(spawnedVeh, true);
+				VEHICLE::SET_VEHICLE_CAN_BE_VISIBLY_DAMAGED(spawnedVeh, true);
+				VEHICLE::SET_VEHICLE_TYRES_CAN_BURST(spawnedVeh, true);
+				VEHICLE::SET_VEHICLE_WHEELS_CAN_BREAK(spawnedVeh, true);
 			}
 			
 			// 移除最大速度限制，让物理引擎自然处理
@@ -3848,12 +3866,21 @@ void fire_ped_model_gun() {
 			ENTITY::SET_ENTITY_DYNAMIC(spawnedPed, true);
 			
 			if (featurePedModelGunInvincible) {
+				// 角色无敌除了 INVINCIBLE 外，还要关闭受伤、爆头和受伤死亡判定
 				ENTITY::SET_ENTITY_INVINCIBLE(spawnedPed, true);
+				ENTITY::SET_ENTITY_CAN_BE_DAMAGED(spawnedPed, false);
 				ENTITY::SET_ENTITY_PROOFS(spawnedPed, true, true, true, true, true, true, true, true);
+				PED::SET_PED_SUFFERS_CRITICAL_HITS(spawnedPed, false);
+				PED::SET_PED_DIES_WHEN_INJURED(spawnedPed, false);
+				PED::SET_PED_MAX_HEALTH(spawnedPed, 10000);
+				ENTITY::SET_ENTITY_HEALTH(spawnedPed, 10000);
 			} else {
 				ENTITY::SET_ENTITY_INVINCIBLE(spawnedPed, false);
 				ENTITY::SET_ENTITY_HAS_GRAVITY(spawnedPed, true); // 确保开启重力
 				ENTITY::SET_ENTITY_CAN_BE_DAMAGED(spawnedPed, true);
+				ENTITY::SET_ENTITY_PROOFS(spawnedPed, false, false, false, false, false, false, false, false);
+				PED::SET_PED_SUFFERS_CRITICAL_HITS(spawnedPed, true);
+				PED::SET_PED_DIES_WHEN_INJURED(spawnedPed, true);
 			}
 			
 			// 启用布娃娃物理
