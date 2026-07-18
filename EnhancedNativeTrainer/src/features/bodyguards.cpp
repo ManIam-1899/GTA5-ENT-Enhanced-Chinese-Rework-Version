@@ -136,9 +136,10 @@ int BodyBlipSymbolIndexN = 0;
 bool BodyBlipSymbol_Changed = true;
 
 // 保镖编队阵型
-const std::vector<std::string> BODY_GROUPFORMATION_CAPTIONS{ "默认", "环形围绕玩家", "以玩家为中心并排" };
-const int BODY_GROUPFORMATION_VALUES[] = { 0, 1, 3 };
-int BodyGroupFormationIndex = 1;
+// 排序说明：将"并排"(原生值3)与"向北"(原生值2)对调，避开GTA5引擎从formation 1直接切换到2不触发重排的怪癖
+const std::vector<std::string> BODY_GROUPFORMATION_CAPTIONS{ "默认队形", "环形围绕玩家(向内)", "以玩家为中心并排", "环形围绕玩家(向北)" };
+const int BODY_GROUPFORMATION_VALUES[] = { 0, 1, 3, 2 };
+int BodyGroupFormationIndex = 0; // 默认队形
 bool BodyGroupFormationChanged = true;
 
 // 显示编号
@@ -1928,10 +1929,11 @@ void do_spawn_bodyguard(){
 				} // 动物逻辑结束
 
 				if (bodyguard_animal == false) {
-					PED::SET_PED_CAN_SWITCH_WEAPON(bodyGuard, true);
-					PED::SET_GROUP_FORMATION(myENTGroup, BODY_GROUPFORMATION_VALUES[BodyGroupFormationIndex]); // 1 
-					PED::SET_GROUP_FORMATION_SPACING(myENTGroup, VEH_BLIPSIZE_VALUES[BodyDistanceIndex], VEH_BLIPSIZE_VALUES[BodyDistanceIndex], VEH_BLIPSIZE_VALUES[BodyDistanceIndex]); // 2.0, 2.0, 2.0
-				}
+				PED::SET_PED_CAN_SWITCH_WEAPON(bodyGuard, true);
+				PED::SET_GROUP_FORMATION(myENTGroup, BODY_GROUPFORMATION_VALUES[BodyGroupFormationIndex]); // 1
+				// 间距设置：这里仅参考 MenyooSP 的 native 调用方式，行为层面仍由 ENT 自身维护逻辑决定
+				PED::SET_GROUP_FORMATION_SPACING(myENTGroup, (float)VEH_BLIPSIZE_VALUES[BodyDistanceIndex], -1.0f, -1.0f);
+			}
 				PED::SET_CAN_ATTACK_FRIENDLY(bodyGuard, false, false);
 			}
 
@@ -2184,6 +2186,21 @@ void maintain_bodyguards(){
             }
         }
     }
+
+	// 队形/间距实时应用：当用户在菜单中切换队形或间距时，立即应用到玩家组
+	// 说明：这里只对齐 MenyooSP 的队形 native 调用方式，并不等于整体保镖行为已与 MenyooSP 完全一致
+	// 修复说明：原先只在生成新保镖时设置一次队形，已存在保镖的队形不会更新
+	if (!spawnedENTBodyguards.empty() && myENTGroup != -1) {
+		if (BodyGroupFormationChanged) {
+			PED::SET_GROUP_FORMATION(myENTGroup, BODY_GROUPFORMATION_VALUES[BodyGroupFormationIndex]);
+			BodyGroupFormationChanged = false;
+		}
+		if (BodyDistance_Changed) {
+			// 间距设置：这里仅参考 MenyooSP 的 native 调用方式，y/z 传 -1.0f 交给游戏使用默认值
+			PED::SET_GROUP_FORMATION_SPACING(myENTGroup, (float)VEH_BLIPSIZE_VALUES[BodyDistanceIndex], -1.0f, -1.0f);
+			BodyDistance_Changed = false;
+		}
+	}
 	
 	// 武器选择
 	if (under_weapon_menu == true && (IsKeyDown(KeyConfig::KEY_MENU_SELECT) || CONTROLS::IS_DISABLED_CONTROL_PRESSED(2, controller_binds["KEY_MENU_SELECT"].first) || IsKeyDown(KeyConfig::KEY_MENU_BACK) || IsKeyDown(KeyConfig::KEY_TOGGLE_MAIN_MENU))) {
@@ -3056,7 +3073,15 @@ void handle_generic_settings_bodyguards(std::vector<StringPairSettingDBRow>* set
 			BodyDistanceIndex = stoi(setting.value);
 		}
 		else if (setting.name.compare("BodyGroupFormationIndex") == 0) {
-			BodyGroupFormationIndex = stoi(setting.value);
+			int idx = stoi(setting.value);
+			// 边界检查：防止旧版本保存值越界（新列表支持4种队形：0-3）
+			const int formationCount = sizeof(BODY_GROUPFORMATION_VALUES) / sizeof(BODY_GROUPFORMATION_VALUES[0]);
+			if (idx >= 0 && idx < formationCount) {
+				BodyGroupFormationIndex = idx;
+			} else {
+				BodyGroupFormationIndex = 0; // 默认队形
+			}
+			BodyGroupFormationChanged = true; // 加载后强制刷新一次
 		}
 		else if (setting.name.compare("BodyBlipColourIndex") == 0){
 			BodyBlipColourIndex = stoi(setting.value);
@@ -3125,7 +3150,7 @@ void reset_bodyguards_globals(){
 	featureBodyguardWeaponAttach = false;
 	BodyBlipSizeIndex = 2;
 	BodyDistanceIndex = 7;
-	BodyGroupFormationIndex = 1;
+	BodyGroupFormationIndex = 0; // 默认队形
 	BodyBlipColourIndex = 0;
 	BodyBlipSymbolIndexN = 0;
 	BodyBlipFlashIndex = 0;
@@ -3139,6 +3164,15 @@ void reset_bodyguards_globals(){
 	skinTypesBodyguardMenuLastConfirmed[0] = 0;
 	skinTypesBodyguardMenuLastConfirmed[1] = 0;
 	lastCustomBodyguardPedName = "";
+
+	// 重置所有 Changed 标志为 true，确保重置后的值能立即应用到游戏内（修复重置后队形/间距/标记等不生效的问题）
+	BodyBlipSize_Changed = true;
+	BodyDistance_Changed = true;
+	BodyBlipColour_Changed = true;
+	BodyBlipSymbol_Changed = true;
+	BodyBlipFlash_Changed = true;
+	BodyGroupFormationChanged = true;
+	FollowInVehicleChanged = true;
 }
 
 void onchange_body_blipsize_index(int value, SelectFromListMenuItem* source){
